@@ -8,8 +8,16 @@ import apiClient from "./apiClient";
  * token on every call.
  */
 
-async function listContractors() {
-  const { data } = await apiClient.get("/vendor/contractors");
+/**
+ * `skill` (optional) narrows the list to contractors with that primary
+ * skill — used by the requirement-specific assignment picker (see
+ * VendorAssignmentsPage) so only compatible contractors are offered.
+ * Still scoped to this vendor's own contractors server-side regardless.
+ */
+async function listContractors({ skill } = {}) {
+  const { data } = await apiClient.get("/vendor/contractors", {
+    params: skill ? { skill } : undefined,
+  });
   return data;
 }
 

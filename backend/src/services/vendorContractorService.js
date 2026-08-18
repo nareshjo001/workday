@@ -11,6 +11,7 @@ function toContractorView(row) {
     email: row.email,
     hourly_rate: Number(row.hourly_rate),
     status: row.status,
+    skill: row.skill || null,
   };
 }
 
@@ -64,10 +65,15 @@ async function createContractor(vendorId, { name, email, password, hourlyRate })
 
 /**
  * Only ever returns contractors owned by `vendorId` — the WHERE clause
- * lives in the repository's SQL, not filtered afterward in JS.
+ * lives in the repository's SQL, not filtered afterward in JS. Optional
+ * `skill` narrows to contractors with that primary skill, still scoped
+ * to this vendor's own contractors in the same query — used by the
+ * requirement-specific assignment picker (Module 3 revision spec section
+ * 13) so a Vendor can never see another vendor's contractors regardless
+ * of the skill filter.
  */
-async function listContractors(vendorId) {
-  const rows = await contractorRepository.listByVendor(vendorId);
+async function listContractors(vendorId, opts = {}) {
+  const rows = await contractorRepository.listByVendor(vendorId, opts);
   return rows.map(toContractorView);
 }
 

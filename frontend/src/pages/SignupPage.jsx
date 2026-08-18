@@ -6,7 +6,7 @@ import PasswordField from "../components/PasswordField";
 import PrimaryButton from "../components/PrimaryButton";
 import AlertBanner from "../components/AlertBanner";
 import RoleSelector from "../components/RoleSelector";
-import { SELF_SIGNUP_ROLES } from "../constants/roles";
+import { SELF_SIGNUP_ROLES, ROLES } from "../constants/roles";
 import { useAuth } from "../context/AuthContext";
 
 const initialForm = {
@@ -14,6 +14,7 @@ const initialForm = {
   email: "",
   password: "",
   confirmPassword: "",
+  companyName: "",
   // First self-signup-eligible role — Contractor is not offered here (see
   // RoleSelector), so it must never be the default.
   role: SELF_SIGNUP_ROLES[0],
@@ -44,6 +45,9 @@ export default function SignupPage() {
     if (!form.confirmPassword) errors.confirmPassword = "Please confirm your password.";
     else if (form.confirmPassword !== form.password) errors.confirmPassword = "Passwords do not match.";
     if (!form.role) errors.role = "Please select a role.";
+    if (form.role === ROLES.PM && !form.companyName.trim()) {
+      errors.companyName = "Company name is required for Project Manager accounts.";
+    }
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -58,8 +62,8 @@ export default function SignupPage() {
     try {
       // Only the fields the API contract expects — confirmPassword is a
       // client-side-only check and is never sent to the backend.
-      const { name, email, password, role } = form;
-      await signup({ name, email, password, role });
+      const { name, email, password, role, companyName } = form;
+      await signup({ name, email, password, role, companyName: role === ROLES.PM ? companyName.trim() : undefined });
       setSuccessMessage("Account created successfully. You can now sign in.");
       setTimeout(() => navigate("/login", { replace: true }), 1200);
     } catch (err) {
@@ -97,6 +101,17 @@ export default function SignupPage() {
           onChange={handleChange}
           error={fieldErrors.email}
         />
+        {form.role === ROLES.PM && (
+          <FormField
+            id="companyName"
+            label="Company Name"
+            autoComplete="organization"
+            value={form.companyName}
+            onChange={handleChange}
+            error={fieldErrors.companyName}
+            placeholder="e.g. Acme Technologies"
+          />
+        )}
         <PasswordField
           id="password"
           label="Password"

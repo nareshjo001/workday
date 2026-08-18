@@ -1,4 +1,5 @@
 import { formatRate, StatusBadge } from "./format";
+import { formatSkill } from "../../constants/skills";
 
 /**
  * Mobile presentation — visible below md, where ContractorTable takes
@@ -17,6 +18,9 @@ export default function ContractorCardList({ contractors, onEdit }) {
             <StatusBadge status={contractor.status} />
           </div>
           <p className="mt-3 text-sm text-text-secondary">
+            Skill: <span className="font-medium text-text">{formatSkill(contractor.skill)}</span>
+          </p>
+          <p className="mt-1 text-sm text-text-secondary">
             Rate:{" "}
             <span className="font-medium text-text">
               {formatRate(contractor.hourly_rate)} / hour

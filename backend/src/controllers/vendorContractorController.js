@@ -5,6 +5,7 @@ const {
 } = require("../validators/vendorContractorValidators");
 const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/ApiError");
+const { SKILLS } = require("../constants/skills");
 
 /**
  * `req.user` is set by the `authenticate` middleware from the verified JWT
@@ -20,7 +21,14 @@ const create = asyncHandler(async (req, res) => {
 });
 
 const list = asyncHandler(async (req, res) => {
-  const contractors = await vendorContractorService.listContractors(req.user.userId);
+  const skillParam = typeof req.query.skill === "string" ? req.query.skill.trim().toUpperCase() : "";
+  if (skillParam && !SKILLS.includes(skillParam)) {
+    throw ApiError.badRequest(`skill must be one of: ${SKILLS.join(", ")}.`);
+  }
+  const contractors = await vendorContractorService.listContractors(
+    req.user.userId,
+    skillParam ? { skill: skillParam } : {}
+  );
   res.status(200).json(contractors);
 });
 

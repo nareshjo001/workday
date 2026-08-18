@@ -14,20 +14,29 @@ async function findByEmail(email) {
   return rows[0] || null;
 }
 
-async function findById(id) {
-  const [rows] = await pool.query(
+async function findById(id, conn) {
+  const runner = conn || pool;
+  const [rows] = await runner.query(
     "SELECT id, name, email, role, created_at FROM users WHERE id = ? LIMIT 1",
     [id]
   );
   return rows[0] || null;
 }
 
-async function createUser({ name, email, passwordHash, role }) {
-  const [result] = await pool.query(
+/**
+ * `conn` is optional (defaults to the pool) so callers that need to
+ * create a user as part of a larger transaction — e.g. PM signup, which
+ * also creates/links a client_companies row in the same transaction, see
+ * authService.signup — can pass a checked-out, already-begun connection
+ * and have this insert participate in it.
+ */
+async function createUser({ name, email, passwordHash, role }, conn) {
+  const runner = conn || pool;
+  const [result] = await runner.query(
     "INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)",
     [name, email, passwordHash, role]
   );
-  return findById(result.insertId);
+  return findById(result.insertId, conn);
 }
 
 module.exports = { findByEmail, findById, createUser };

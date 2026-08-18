@@ -4,6 +4,7 @@ const ApiError = require("../utils/ApiError");
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const NAME_MAX_LENGTH = 100;
 const PASSWORD_MIN_LENGTH = 8;
+const COMPANY_NAME_MAX_LENGTH = 150;
 
 function normalizeEmail(email) {
   return typeof email === "string" ? email.trim().toLowerCase() : email;
@@ -46,11 +47,25 @@ function validateSignup(body = {}) {
     errors.push(`Role must be one of: ${SELF_SIGNUP_ROLES.join(", ")}.`);
   }
 
+  // PM signup associates the account with a client company (see
+  // authService.signup / client_companies + project_managers,
+  // migration 009). Vendor signup does not need this; Contractor
+  // self-signup is disabled above, so it never reaches this branch.
+  let companyName = "";
+  if (role === ROLES.PM) {
+    companyName = typeof body.companyName === "string" ? body.companyName.trim() : "";
+    if (!companyName) {
+      errors.push("Company name is required for Project Manager accounts.");
+    } else if (companyName.length > COMPANY_NAME_MAX_LENGTH) {
+      errors.push(`Company name must be at most ${COMPANY_NAME_MAX_LENGTH} characters.`);
+    }
+  }
+
   if (errors.length > 0) {
     throw ApiError.badRequest("Validation failed", errors);
   }
 
-  return { name, email, password, role };
+  return { name, email, password, role, companyName: role === ROLES.PM ? companyName : undefined };
 }
 
 /**

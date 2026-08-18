@@ -3,6 +3,8 @@ const cors = require("cors");
 const env = require("./config/env");
 const authRoutes = require("./routes/authRoutes");
 const vendorRoutes = require("./routes/vendorRoutes");
+const pmRoutes = require("./routes/pmRoutes");
+const contractorRoutes = require("./routes/contractorRoutes");
 const sampleProtectedRoutes = require("./routes/sampleProtectedRoutes");
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 
@@ -22,6 +24,8 @@ app.get("/api/health", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/vendor", vendorRoutes);
+app.use("/api/pm", pmRoutes);
+app.use("/api/contractor", contractorRoutes);
 // Verification-only endpoints for the RBAC middleware (see Module 1 testing notes).
 app.use("/api/_sample", sampleProtectedRoutes);
 

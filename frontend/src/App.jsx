@@ -10,8 +10,12 @@ import UnauthorizedPage from "./pages/UnauthorizedPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import VendorHomePage from "./pages/VendorHomePage";
 import VendorContractorsPage from "./pages/VendorContractorsPage";
+import VendorAssignmentsPage from "./pages/VendorAssignmentsPage";
 import ContractorHomePage from "./pages/ContractorHomePage";
+import ContractorProjectsPage from "./pages/ContractorProjectsPage";
+import ContractorProfilePage from "./pages/ContractorProfilePage";
 import PmHomePage from "./pages/PmHomePage";
+import PMProjectsPage from "./pages/PMProjectsPage";
 
 export default function App() {
   return (
@@ -25,14 +29,18 @@ export default function App() {
         <Route element={<ProtectedRoute allowedRoles={[ROLES.VENDOR]} />}>
           <Route path="/vendor" element={<VendorHomePage />} />
           <Route path="/vendor/contractors" element={<VendorContractorsPage />} />
+          <Route path="/vendor/assignments" element={<VendorAssignmentsPage />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={[ROLES.CONTRACTOR]} />}>
           <Route path="/contractor" element={<ContractorHomePage />} />
+          <Route path="/contractor/projects" element={<ContractorProjectsPage />} />
+          <Route path="/contractor/profile" element={<ContractorProfilePage />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={[ROLES.PM]} />}>
           <Route path="/pm" element={<PmHomePage />} />
+          <Route path="/pm/projects" element={<PMProjectsPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />

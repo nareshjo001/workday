@@ -1,9 +1,12 @@
 import { formatRate, StatusBadge } from "./format";
+import { formatSkill } from "../../constants/skills";
 
 /**
  * Desktop presentation — hidden below md, where ContractorCardList takes
  * over. Both are dumb list renderers; VendorContractorsPage owns the data
- * and the edit-modal state.
+ * and the edit-modal state. Skill column (Module 3 revision) reflects
+ * whatever the contractor has set on their own profile — a Vendor can see
+ * it but never edit it here.
  */
 export default function ContractorTable({ contractors, onEdit }) {
   return (
@@ -12,6 +15,7 @@ export default function ContractorTable({ contractors, onEdit }) {
         <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
           <th className="py-3 pr-4 font-medium">Name</th>
           <th className="py-3 pr-4 font-medium">Email</th>
+          <th className="py-3 pr-4 font-medium">Skill</th>
           <th className="py-3 pr-4 font-medium">Rate</th>
           <th className="py-3 pr-4 font-medium">Status</th>
           <th className="py-3 pr-0 text-right font-medium">Actions</th>
@@ -22,6 +26,7 @@ export default function ContractorTable({ contractors, onEdit }) {
           <tr key={contractor.id} className="border-b border-border last:border-0">
             <td className="py-3 pr-4 font-medium text-text">{contractor.name}</td>
             <td className="py-3 pr-4 text-text-secondary">{contractor.email}</td>
+            <td className="py-3 pr-4 text-text-secondary">{formatSkill(contractor.skill)}</td>
             <td className="py-3 pr-4 text-text-secondary">
               {formatRate(contractor.hourly_rate)}
             </td>
