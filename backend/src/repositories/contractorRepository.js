@@ -74,17 +74,22 @@ async function findByVendorAndId(vendorId, contractorId) {
 
 /**
  * Contractors eligible for a specific vendor+skill assignment: belongs to
- * this vendor, ACTIVE status, skill matches, AND not already assigned to
- * ANY project (new vendor-centric workflow rule — one contractor, one
- * project, ever; see migration 011). The "not assigned anywhere" filter
- * is a LEFT JOIN ... IS NULL against project_assignments rather than a
- * NOT IN subquery — functionally equivalent, but avoids re-scanning the
- * assignments table once per contractor row.
+ * this vendor, ACTIVE status, skill matches, AND has no CURRENTLY ACTIVE
+ * project assignment (one contractor, one project AT A TIME — a
+ * contractor is freed up again once their assignment is RELEASED, e.g.
+ * by project completion; see assignmentRepository.releaseAllActiveForProject).
+ * The "not currently assigned" filter is a LEFT JOIN ... IS NULL against
+ * project_assignments, restricted to status = 'ACTIVE' rows via the JOIN
+ * condition itself (not a WHERE clause, which would turn this back into
+ * an inner join and drop contractors entirely) — a contractor with only
+ * RELEASED history rows has no matching ACTIVE row, so pa.id IS NULL and
+ * they remain eligible. This mirrors the same ACTIVE-only check
+ * assignmentRepository.isContractorAssigned already uses at assign time.
  *
  * This is a READ used to populate the assignment picker UI — it is NOT
  * the concurrency guarantee itself (two vendors could both see the same
  * "eligible" contractor a moment before one of them assigns it away). The
- * real guarantee is the row lock + UNIQUE(contractor_id) constraint
+ * real guarantee is the row lock + UNIQUE(active_contractor_key) constraint
  * enforced inside vendorAssignmentService's transaction at assign time.
  */
 async function listEligibleForVendorAndSkill(vendorId, skill) {
@@ -92,7 +97,7 @@ async function listEligibleForVendorAndSkill(vendorId, skill) {
     `SELECT c.id, c.hourly_rate, c.status, c.skill, u.name, u.email
      FROM contractors c
      INNER JOIN users u ON u.id = c.user_id
-     LEFT JOIN project_assignments pa ON pa.contractor_id = c.id
+     LEFT JOIN project_assignments pa ON pa.contractor_id = c.id AND pa.status = 'ACTIVE'
      WHERE c.vendor_id = ?
        AND c.status = 'ACTIVE'
        AND c.skill = ?
