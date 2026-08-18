@@ -1,5 +1,5 @@
 const pmProjectService = require("../services/pmProjectService");
-const { validateCreateProject } = require("../validators/pmProjectValidators");
+const { validateCreateProject, validateProjectIdParam } = require("../validators/pmProjectValidators");
 const asyncHandler = require("../utils/asyncHandler");
 
 /**
@@ -19,4 +19,14 @@ const list = asyncHandler(async (req, res) => {
   res.status(200).json(projects);
 });
 
-module.exports = { create, list };
+/**
+ * GET /api/pm/projects/:id/contractors — Module 5 addition powering the
+ * milestone-creation contractor picker (see pmProjectService.listAssignedContractors).
+ */
+const listContractors = asyncHandler(async (req, res) => {
+  const projectId = validateProjectIdParam(req.params);
+  const contractors = await pmProjectService.listAssignedContractors(req.user.userId, projectId);
+  res.status(200).json(contractors);
+});
+
+module.exports = { create, list, listContractors };

@@ -26,6 +26,16 @@ const env = {
     secret: required("JWT_SECRET"),
     expiresIn: process.env.JWT_EXPIRES_IN || "1d",
   },
+
+  invoice: {
+    // Module 6: an invoice generated below this amount is AUTO_APPROVED;
+    // at or above it, a PM must manually review it (see
+    // invoiceService.determineInitialStatus). Configurable rather than
+    // hard-coded in business logic, per the Module 6 spec — a config
+    // value here, not a constant buried in invoiceService.js, so it can
+    // be tuned per-deployment (.env) without a code change.
+    autoApprovalThreshold: Number(process.env.INVOICE_AUTO_APPROVAL_THRESHOLD) || 10000,
+  },
 };
 
 module.exports = env;

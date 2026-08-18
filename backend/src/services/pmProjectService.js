@@ -1,5 +1,7 @@
 const { pool } = require("../config/db");
 const projectRepository = require("../repositories/projectRepository");
+const assignmentRepository = require("../repositories/assignmentRepository");
+const ApiError = require("../utils/ApiError");
 
 /**
  * Derives overall staffing status from a project's requirement rows —
@@ -111,4 +113,33 @@ async function listProjects(pmId) {
   return projects.map((p) => toProjectView(p, requirementsByProject.get(p.id) || []));
 }
 
-module.exports = { createProject, listProjects };
+/**
+ * The contractors currently assigned to one of this PM's own projects —
+ * added for Module 5's "create milestone" form, which needs a
+ * contractor picker scoped to the project the PM just selected. Reuses
+ * assignmentRepository.listAssignedContractorsWithHours (already built
+ * for the Vendor "Project Team" view) rather than adding a second query
+ * for the same join — the PM side just doesn't render the hours columns
+ * that view also happens to carry. Enforces project ownership itself
+ * (`project.pm_id !== pmId` -> 404, no existence leakage) since, unlike
+ * the Vendor side, a PM must never see another PM's project roster.
+ */
+async function listAssignedContractors(pmId, projectId) {
+  const project = await projectRepository.findById(projectId);
+  if (!project || project.pm_id !== pmId) {
+    // Same 404 whether the project doesn't exist at all or belongs to
+    // another PM — never confirm which (same pattern as
+    // pmTimesheetService.reviewTimesheet).
+    throw ApiError.notFound("Project not found.");
+  }
+
+  const rows = await assignmentRepository.listAssignedContractorsWithHours(projectId);
+  return rows.map((r) => ({
+    contractor_id: r.contractor_id,
+    name: r.contractor_name,
+    skill: r.contractor_skill,
+    status: r.contractor_status,
+  }));
+}
+
+module.exports = { createProject, listProjects, listAssignedContractors };

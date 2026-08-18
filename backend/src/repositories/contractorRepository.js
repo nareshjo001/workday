@@ -190,6 +190,44 @@ async function updateSkillByUserId(userId, skill) {
   return result.affectedRows > 0;
 }
 
+/**
+ * A single contractor by id, with NO vendor/ownership scoping — added for
+ * Module 5. Unlike every other lookup in this file, the milestone
+ * evaluation flow (milestoneService, triggered internally after a
+ * timesheet approval commits) is not acting on behalf of any
+ * authenticated Vendor request; it already has a trusted contractor_id
+ * from the timesheets/project_assignments tables and only needs that
+ * contractor's own hourly_rate/status, not a vendor-ownership check. This
+ * is the one legitimate reason an unscoped read belongs in this file —
+ * contrast with findByVendorAndId, which stays vendor-scoped because it
+ * IS reachable from a Vendor-authenticated request.
+ */
+async function findById(contractorId) {
+  const [rows] = await pool.query(
+    `SELECT id, vendor_id, hourly_rate, status, skill FROM contractors WHERE id = ? LIMIT 1`,
+    [contractorId]
+  );
+  return rows[0] || null;
+}
+
+/**
+ * Transaction-scoped, row-locked variant of findById — used inside
+ * milestoneService's evaluation transaction so the hourly_rate read there
+ * is consistent for the lifetime of that transaction (no other
+ * transaction can concurrently update this contractor's hourly_rate
+ * between the read and the billing snapshot being written). Same
+ * `FOR UPDATE` pattern as findByVendorAndIdForUpdate above and
+ * timesheetRepository.lockForReview. Must run on `conn` inside an open
+ * transaction.
+ */
+async function findByIdForUpdate(conn, contractorId) {
+  const [rows] = await conn.query(
+    `SELECT id, vendor_id, hourly_rate, status, skill FROM contractors WHERE id = ? LIMIT 1 FOR UPDATE`,
+    [contractorId]
+  );
+  return rows[0] || null;
+}
+
 module.exports = {
   createUserAndContractor,
   listByVendor,
@@ -199,4 +237,6 @@ module.exports = {
   updateOwned,
   findByUserId,
   updateSkillByUserId,
+  findById,
+  findByIdForUpdate,
 };

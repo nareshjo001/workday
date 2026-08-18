@@ -5,6 +5,7 @@ const { ROLES } = require("../constants/roles");
 const vendorContractorController = require("../controllers/vendorContractorController");
 const vendorAssignmentController = require("../controllers/vendorAssignmentController");
 const vendorProjectController = require("../controllers/vendorProjectController");
+const vendorInvoiceController = require("../controllers/vendorInvoiceController");
 
 /**
  * Every route in this router requires a valid JWT AND role = VENDOR.
@@ -37,5 +38,10 @@ router.post(
   "/projects/:id/requirements/:requirementId/assign",
   vendorAssignmentController.assign
 );
+
+// Module 6: read-only invoice visibility for a vendor's own contractors.
+// Same gate reuse rationale as /contractors above — no new
+// authenticate/authorizeRoles declaration needed.
+router.get("/invoices", vendorInvoiceController.list);
 
 module.exports = router;

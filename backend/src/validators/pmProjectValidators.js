@@ -126,4 +126,17 @@ function validateCreateProject(body = {}) {
   return { name, description, startDate, endDate, requirements };
 }
 
-module.exports = { validateCreateProject };
+/**
+ * Validates the :id route param for GET /api/pm/projects/:id/contractors
+ * (Module 5 addition). Same parsePositiveInt-based pattern as
+ * pmTimesheetValidators.validateTimesheetIdParam.
+ */
+function validateProjectIdParam(params = {}) {
+  const n = Number(params.id);
+  if (!Number.isInteger(n) || n <= 0) {
+    throw ApiError.badRequest("Validation failed", ["id must be a positive integer."]);
+  }
+  return n;
+}
+
+module.exports = { validateCreateProject, validateProjectIdParam };

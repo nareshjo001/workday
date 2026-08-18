@@ -19,6 +19,12 @@ export default function VendorHomePage() {
           >
             Assign to Project
           </Link>
+          <Link
+            to="/vendor/invoices"
+            className="inline-flex w-fit items-center gap-1.5 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-text-secondary transition hover:bg-surface-muted"
+          >
+            Invoices
+          </Link>
         </div>
       </div>
     </DashboardLayout>

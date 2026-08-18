@@ -34,4 +34,14 @@ async function createProject({ name, description, startDate, endDate, requiremen
   return data;
 }
 
-export default { listProjects, createProject };
+/**
+ * Contractors currently assigned to one of this PM's own projects —
+ * Module 5 addition, powers the milestone-creation contractor picker
+ * (see components/milestones/CreateMilestoneModal).
+ */
+async function listAssignedContractors(projectId) {
+  const { data } = await apiClient.get(`/pm/projects/${projectId}/contractors`);
+  return data;
+}
+
+export default { listProjects, createProject, listAssignedContractors };
