@@ -59,3 +59,17 @@ export function StaffingProgress({ assigned, required }) {
     </span>
   );
 }
+
+/**
+ * Renders an hours value with at most 2 decimal places and no trailing
+ * zeros. Small, deliberate duplicate of
+ * components/timesheets/format.jsx's formatHours rather than a
+ * cross-folder import — projects/ and timesheets/ have otherwise never
+ * depended on each other, and this is a two-line pure function, the same
+ * "small duplication over a new coupling" tradeoff this codebase already
+ * makes for parsePositiveInt across validator files.
+ */
+export function formatHours(hours) {
+  const rounded = Math.round((Number(hours) || 0) * 100) / 100;
+  return rounded.toString();
+}

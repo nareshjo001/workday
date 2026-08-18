@@ -1,5 +1,6 @@
 const projectRepository = require("../repositories/projectRepository");
 const contractorRepository = require("../repositories/contractorRepository");
+const assignmentRepository = require("../repositories/assignmentRepository");
 const ApiError = require("../utils/ApiError");
 
 function todayDateString() {
@@ -18,16 +19,33 @@ function deriveStaffingStatus(requirements) {
   return fullyStaffed ? "FULLY_STAFFED" : "PENDING";
 }
 
-function toRequirementView(row) {
+/**
+ * `contractorsByRequirement` is an OPTIONAL Map<requirement_id, row[]> —
+ * only getProjectDetail below looks it up and passes it in (see that
+ * function's comment for why). listAvailableProjects's browse-list cards
+ * never need per-contractor detail, so every requirement there simply
+ * gets an empty `contractors` array at effectively no extra cost (no
+ * lookup happens when the map isn't provided).
+ */
+function toRequirementView(row, contractorsByRequirement) {
+  const contractors = contractorsByRequirement?.get(row.id) || [];
   return {
     id: row.id,
     skill: row.skill,
     required_count: row.required_count,
     assigned_count: row.assigned_count,
+    contractors: contractors.map((c) => ({
+      contractor_id: c.contractor_id,
+      name: c.contractor_name,
+      skill: c.contractor_skill,
+      status: c.contractor_status,
+      logged_hours: c.logged_hours,
+      approved_hours: c.approved_hours,
+    })),
   };
 }
 
-function toProjectView(row, requirements) {
+function toProjectView(row, requirements, contractorsByRequirement) {
   const totalRequired = requirements.reduce((sum, r) => sum + r.required_count, 0);
   const totalAssigned = requirements.reduce((sum, r) => sum + r.assigned_count, 0);
 
@@ -40,7 +58,7 @@ function toProjectView(row, requirements) {
     start_date: row.start_date,
     end_date: row.end_date,
     status: row.status,
-    requirements: requirements.map(toRequirementView),
+    requirements: requirements.map((r) => toRequirementView(r, contractorsByRequirement)),
     total_required: totalRequired,
     total_assigned: totalAssigned,
     staffing_status: deriveStaffingStatus(requirements),
@@ -76,13 +94,24 @@ async function listAvailableProjects() {
 
 /**
  * A single project's detail (name/company/PM/dates/requirements with
- * live assigned counts) for GET /api/vendor/projects/:id/requirements —
- * the screen a vendor lands on after clicking a project from their
- * browse list, before drilling into one requirement to assign. Same
+ * live assigned counts, PLUS per-requirement contractor rosters with
+ * hours) for GET /api/vendor/projects/:id/requirements — the screen a
+ * vendor lands on after clicking a project from their browse list
+ * ("View Team"), before drilling into one requirement to assign. Same
  * visibility rule as listAvailableProjects (ACTIVE + not past its end
  * date) — a Vendor shouldn't be able to reach a requirements/assignment
  * screen for a project that wouldn't have shown up in their list in the
  * first place, e.g. by guessing an id.
+ *
+ * The per-requirement `contractors` array (name/skill/status/logged &
+ * approved hours) is what powers the frontend's "Project Team" modal —
+ * this deliberately EXTENDS the existing endpoint's response rather than
+ * adding a new GET /vendor/projects/:id/team endpoint, since the two
+ * screens (staffing progress and team roster) are the same modal and the
+ * same underlying project+contractors data, just rendered together. A
+ * separate endpoint would mean two round trips and two places enforcing
+ * the same "is this project visible to vendors" check above; this way
+ * there is exactly one.
  */
 async function getProjectDetail(projectId) {
   const project = await projectRepository.findById(projectId);
@@ -93,8 +122,20 @@ async function getProjectDetail(projectId) {
     throw ApiError.notFound("Project not found.");
   }
 
-  const requirements = await projectRepository.listRequirementsWithCounts([projectId]);
-  return toProjectView(project, requirements);
+  const [requirements, contractorRows] = await Promise.all([
+    projectRepository.listRequirementsWithCounts([projectId]),
+    assignmentRepository.listAssignedContractorsWithHours(projectId),
+  ]);
+
+  const contractorsByRequirement = new Map();
+  for (const row of contractorRows) {
+    if (!contractorsByRequirement.has(row.requirement_id)) {
+      contractorsByRequirement.set(row.requirement_id, []);
+    }
+    contractorsByRequirement.get(row.requirement_id).push(row);
+  }
+
+  return toProjectView(project, requirements, contractorsByRequirement);
 }
 
 /**

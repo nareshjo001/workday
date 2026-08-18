@@ -1,48 +1,93 @@
 import Modal from "../Modal";
-import { StaffingProgress } from "./format";
+import { formatDate, formatHours, StaffingProgress } from "./format";
 import { formatSkill } from "../../constants/skills";
 
 /**
  * Per-requirement breakdown for one project — required/assigned counts
- * per skill, with an "Assign X Contractor" action per open requirement
- * (Module 3 revision spec section 13). A filled requirement shows
- * "✓ Filled" instead of an assign button; the backend enforces this too
- * (over-assigning a full requirement is rejected with 409 regardless of
- * what the UI shows), this is just so the Vendor isn't invited to try.
+ * per skill (an "X / Y" fraction via StaffingProgress) with an
+ * "Assign X Contractor" action per open requirement. A filled
+ * requirement shows "✓ Filled" instead of an assign button; the backend
+ * enforces this too (over-assigning a full requirement is rejected with
+ * 409 regardless of what the UI shows), this is just so the Vendor isn't
+ * invited to try.
+ *
+ * Vendor Project Team revision: each requirement now also lists the
+ * contractors actually filling it, with their Logged vs. Approved hours
+ * on this project. This data rides on the SAME
+ * GET /vendor/projects/:id/requirements response `project` already came
+ * from (see vendorProjectService.getProjectDetail on the backend,
+ * extended to attach `contractors` per requirement) — no second request,
+ * no separate endpoint.
+ *
+ * Logged Hours = every hour this contractor has submitted on this
+ * project regardless of review status. Approved Hours = only the subset
+ * a PM has actually approved — it excludes both PENDING (not decided
+ * yet) and REJECTED (decided against) hours on purpose, the same
+ * "approved excludes rejected and pending" rule the daily timesheet
+ * summary uses (see components/timesheets/weekGrouping.js).
  */
 export default function ProjectTeamModal({ project, onClose, onAssignRequirement }) {
   return (
     <Modal title={project.name} onClose={onClose}>
-      <p className="mb-4 text-sm text-muted">
-        {project.company_name}
-        {project.pm_name && <span> · PM: {project.pm_name}</span>}
-      </p>
+      <div className="mb-4 flex flex-col gap-1 border-b border-border pb-4 text-sm text-muted">
+        <p>
+          {project.company_name}
+          {project.pm_name && <span> · PM: {project.pm_name}</span>}
+        </p>
+        <p>
+          {formatDate(project.start_date)} – {formatDate(project.end_date)}
+        </p>
+        <p className="text-text-secondary">
+          Team: <StaffingProgress assigned={project.total_assigned} required={project.total_required} />
+        </p>
+      </div>
 
       <div className="flex flex-col gap-3">
         {project.requirements.map((req) => {
           const isFilled = req.assigned_count >= req.required_count;
           return (
-            <div
-              key={req.id}
-              className="flex items-center justify-between gap-3 rounded-md border border-border p-3"
-            >
-              <div>
-                <p className="font-medium text-text">{formatSkill(req.skill)}</p>
-                <p className="text-sm text-text-secondary">
-                  Required: {req.required_count} · Assigned:{" "}
-                  <StaffingProgress assigned={req.assigned_count} required={req.required_count} />
-                </p>
+            <div key={req.id} className="rounded-md border border-border p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium text-text">{formatSkill(req.skill)}</p>
+                  <p className="text-sm text-text-secondary">
+                    <StaffingProgress assigned={req.assigned_count} required={req.required_count} />
+                  </p>
+                </div>
+                {isFilled ? (
+                  <span className="shrink-0 text-sm font-medium text-success">✓ Filled</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => onAssignRequirement(req)}
+                    className="shrink-0 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
+                  >
+                    Assign {formatSkill(req.skill)} Contractor
+                  </button>
+                )}
               </div>
-              {isFilled ? (
-                <span className="shrink-0 text-sm font-medium text-success">✓ Filled</span>
+
+              {req.contractors && req.contractors.length > 0 ? (
+                <ul className="mt-3 flex flex-col gap-2.5 border-t border-border pt-3">
+                  {req.contractors.map((c) => (
+                    <li key={c.contractor_id} className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-text">{c.name}</p>
+                        <p className="text-xs text-muted">
+                          {formatSkill(c.skill)} · {c.status === "ACTIVE" ? "Active" : "Inactive"}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right text-xs text-text-secondary">
+                        <p>Logged: {formatHours(c.logged_hours)}h</p>
+                        <p>Approved: {formatHours(c.approved_hours)}h</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => onAssignRequirement(req)}
-                  className="shrink-0 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
-                >
-                  Assign {formatSkill(req.skill)} Contractor
-                </button>
+                <p className="mt-3 border-t border-border pt-3 text-xs text-muted">
+                  No contractors assigned yet.
+                </p>
               )}
             </div>
           );

@@ -140,6 +140,56 @@ async function listProjectsForContractor(contractorId) {
   return rows;
 }
 
+/**
+ * Every contractor currently assigned to a project, one row per
+ * assignment, annotated with their Logged vs. Approved hours on THAT
+ * project — powers the Vendor's "Project Team" view (extends
+ * GET /api/vendor/projects/:id/requirements rather than adding a
+ * separate endpoint, see vendorProjectService.getProjectDetail).
+ *
+ * logged_hours sums hours_logged across every timesheet row for this
+ * contractor+project regardless of status (PENDING/APPROVED/REJECTED
+ * all count as "hours the contractor has logged"). approved_hours sums
+ * only rows with status = 'APPROVED' — this is the one place those two
+ * numbers are actually computed; the requirement doc's "Approved Hours"
+ * excludes both PENDING and REJECTED on purpose (an hour isn't billable
+ * until a PM has said so), and this SUM...CASE does that in one query
+ * rather than two.
+ *
+ * The LEFT JOIN to timesheets means a contractor with zero logged hours
+ * still appears (as 0/0), not silently dropped — a vendor should be able
+ * to see "assigned, hasn't logged anything yet" as its own state.
+ * requirement_id comes straight off project_assignments (an assignment
+ * is always tied to the specific requirement it filled, see migration
+ * 008) so the caller can group contractors under the correct per-skill
+ * requirement without a second lookup.
+ */
+async function listAssignedContractorsWithHours(projectId) {
+  const [rows] = await pool.query(
+    `SELECT pa.requirement_id, c.id AS contractor_id, u.name AS contractor_name,
+            c.skill AS contractor_skill, c.status AS contractor_status,
+            COALESCE(SUM(t.hours_logged), 0) AS logged_hours,
+            COALESCE(SUM(CASE WHEN t.status = 'APPROVED' THEN t.hours_logged ELSE 0 END), 0) AS approved_hours
+     FROM project_assignments pa
+     INNER JOIN contractors c ON c.id = pa.contractor_id
+     INNER JOIN users u ON u.id = c.user_id
+     LEFT JOIN timesheets t ON t.contractor_id = pa.contractor_id AND t.project_id = pa.project_id
+     WHERE pa.project_id = ?
+     GROUP BY pa.requirement_id, c.id, u.name, c.skill, c.status
+     ORDER BY u.name ASC`,
+    [projectId]
+  );
+  return rows.map((r) => ({
+    requirement_id: r.requirement_id,
+    contractor_id: r.contractor_id,
+    contractor_name: r.contractor_name,
+    contractor_skill: r.contractor_skill,
+    contractor_status: r.contractor_status,
+    logged_hours: Number(r.logged_hours),
+    approved_hours: Number(r.approved_hours),
+  }));
+}
+
 module.exports = {
   existsFor,
   lockRequirementForUpdate,
@@ -148,4 +198,5 @@ module.exports = {
   countAssignmentsForRequirement,
   createWithRequirement,
   listProjectsForContractor,
+  listAssignedContractorsWithHours,
 };

@@ -4,6 +4,7 @@ const authorizeRoles = require("../middleware/authorizeRoles");
 const { ROLES } = require("../constants/roles");
 const contractorProjectController = require("../controllers/contractorProjectController");
 const contractorProfileController = require("../controllers/contractorProfileController");
+const contractorTimesheetController = require("../controllers/contractorTimesheetController");
 
 /**
  * Every route here requires a valid JWT AND role = CONTRACTOR — same
@@ -23,5 +24,14 @@ router.get("/projects", contractorProjectController.list);
 // could grow other fields later); GET /profile is unchanged.
 router.get("/profile", contractorProfileController.getProfile);
 router.patch("/profile/skill", contractorProfileController.updateProfile);
+
+// Module 4 (daily logging revision): a contractor logging individual
+// days worked against a project they are assigned to, viewing their own
+// submission history, and editing a REJECTED day back to PENDING. Same
+// gate reuse rationale as /profile above — no new
+// authenticate/authorizeRoles declaration needed.
+router.post("/timesheets", contractorTimesheetController.submit);
+router.get("/timesheets", contractorTimesheetController.list);
+router.patch("/timesheets/:id", contractorTimesheetController.update);
 
 module.exports = router;
