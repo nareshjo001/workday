@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+/**
+ * Design tokens for the VMS application.
+ *
+ * These map to Tailwind v4 theme namespaces (--color-*, --radius-*,
+ * --shadow-*, --font-*), so every token below is automatically available
+ * as a utility class (e.g. --color-primary -> bg-primary/text-primary/
+ * border-primary, --radius-md -> rounded-md, --shadow-card -> shadow-card).
+ *
+ * This is the single source of truth for the visual language shared by
+ * Authentication today and by Dashboards / Projects / Timesheets /
+ * Milestones / Billing / Invoices as they're built out later — extend
+ * these tokens instead of hardcoding new colors/radii per page.
+ */
+@theme {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  /* Brand / primary actions */
+  --color-primary: #1e3a5f;
+  --color-primary-hover: #16293f;
+  --color-primary-active: #0f1d2c;
+  --color-primary-foreground: #ffffff;
+  --color-primary-light: #eaf0f6;
+
+  /* Secondary accent (links, focus rings) */
+  --color-accent: #2563eb;
+  --color-accent-hover: #1d4ed8;
+
+  /* Surfaces */
+  --color-background: #f5f6f8;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f8fafc;
+
+  /* Text */
+  --color-text: #0f172a;
+  --color-text-secondary: #334155;
+  --color-muted: #5b6b81;
+  --color-placeholder: #94a3b8;
+
+  /* Borders */
+  --color-border: #e2e5ea;
+  --color-border-strong: #cbd2dc;
+
+  /* Feedback */
+  --color-error: #dc2626;
+  --color-error-bg: #fef2f2;
+  --color-error-border: #fecaca;
+  --color-success: #15803d;
+  --color-success-bg: #f0fdf4;
+  --color-success-border: #bbf7d0;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  /* Shadows */
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 28px -12px rgba(15, 23, 42, 0.14);
+  --shadow-panel: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100svh;
+    font-family: var(--font-sans);
+    color: var(--color-text);
+    background: var(--color-background);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  #root {
+    min-height: 100svh;
+  }
+
+  /* Consistent, visible keyboard focus across the app — never rely on
+     color alone to indicate focus/error state. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
