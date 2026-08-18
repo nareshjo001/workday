@@ -25,6 +25,17 @@ import { formatSkill } from "../../constants/skills";
  * yet) and REJECTED (decided against) hours on purpose, the same
  * "approved excludes rejected and pending" rule the daily timesheet
  * summary uses (see components/timesheets/weekGrouping.js).
+ *
+ * PROJECT HOURS/ALLOCATION REDESIGN: each contractor row also now carries
+ * allocated_hours (their own committed share of the project's total
+ * capacity), pending_hours (submitted but not yet reviewed), and
+ * remaining_hours (allocated minus reserved — what they can still log
+ * before hitting their cap, see contractorTimesheetService.
+ * assertWithinRemainingAllocation on the backend). A contractor whose
+ * assignment_status is RELEASED (project completed, or otherwise
+ * released) is shown with a "Released" tag instead of Active/Inactive —
+ * they're no longer able to log new hours here even though the row stays
+ * for historical visibility.
  */
 export default function ProjectTeamModal({ project, onClose, onAssignRequirement }) {
   return (
@@ -74,12 +85,26 @@ export default function ProjectTeamModal({ project, onClose, onAssignRequirement
                       <div>
                         <p className="text-sm font-medium text-text">{c.name}</p>
                         <p className="text-xs text-muted">
-                          {formatSkill(c.skill)} · {c.status === "ACTIVE" ? "Active" : "Inactive"}
+                          {formatSkill(c.skill)} ·{" "}
+                          {c.assignment_status === "RELEASED"
+                            ? "Released"
+                            : c.status === "ACTIVE"
+                              ? "Active"
+                              : "Inactive"}
                         </p>
                       </div>
                       <div className="shrink-0 text-right text-xs text-text-secondary">
+                        {c.allocated_hours !== null && c.allocated_hours !== undefined && (
+                          <p>Allocated: {formatHours(c.allocated_hours)}h</p>
+                        )}
                         <p>Logged: {formatHours(c.logged_hours)}h</p>
                         <p>Approved: {formatHours(c.approved_hours)}h</p>
+                        {c.pending_hours !== null && c.pending_hours !== undefined && (
+                          <p>Pending: {formatHours(c.pending_hours)}h</p>
+                        )}
+                        {c.remaining_hours !== null && c.remaining_hours !== undefined && (
+                          <p>Remaining: {formatHours(c.remaining_hours)}h</p>
+                        )}
                       </div>
                     </li>
                   ))}

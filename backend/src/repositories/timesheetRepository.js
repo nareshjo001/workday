@@ -214,6 +214,116 @@ async function updateRejectedLog(conn, timesheetId, { workDate, hoursLogged }) {
   return result.affectedRows > 0;
 }
 
+/**
+ * SUM of hours already PENDING or APPROVED for one contractor on one
+ * project — the "reserved against this contractor's allocation" figure
+ * (project hours/allocation redesign: PENDING counts as reserved by
+ * default, since it might still be approved — see
+ * contractorTimesheetService's own comment on this decision).
+ * `excludeTimesheetId` lets a contractor's own edit-of-a-REJECTED-row
+ * recompute "what's reserved WITHOUT this row" before re-validating the
+ * edited hours against the allocation (the row being edited is about to
+ * be replaced, not double-counted against itself). Must run on `conn`
+ * inside the same transaction that holds the assignment row lock (see
+ * assignmentRepository.lockActiveForContractorProject) so this read is
+ * consistent with whatever a concurrent submission may have just
+ * committed.
+ */
+async function sumReservedHoursForContractorProject(conn, contractorId, projectId, excludeTimesheetId = null) {
+  const params = [contractorId, projectId];
+  let sql = `SELECT COALESCE(SUM(hours_logged), 0) AS total
+     FROM timesheets
+     WHERE contractor_id = ? AND project_id = ? AND status IN ('PENDING', 'APPROVED')`;
+  if (excludeTimesheetId) {
+    sql += ` AND id != ?`;
+    params.push(excludeTimesheetId);
+  }
+  const [rows] = await conn.query(sql, params);
+  return Number(rows[0].total);
+}
+
+/**
+ * SUM of APPROVED hours for ONE contractor on ONE project — MVP fix 2
+ * (billing must use each contractor's own actual approved hours, computed
+ * independently of every other contractor on the project). Also used by
+ * MVP fix 1's PM-allocation endpoint to enforce "cannot lower a
+ * contractor's allocation below hours already approved for them." Must
+ * run on `conn` inside the same transaction as whatever row lock the
+ * caller already holds (the assignment row for allocation updates, the
+ * project's locked milestones for billing) so this read is consistent
+ * with what's being validated against.
+ */
+async function sumApprovedHoursForContractorProject(conn, contractorId, projectId) {
+  const [rows] = await conn.query(
+    `SELECT COALESCE(SUM(hours_logged), 0) AS total
+     FROM timesheets WHERE contractor_id = ? AND project_id = ? AND status = 'APPROVED'`,
+    [contractorId, projectId]
+  );
+  return Number(rows[0].total);
+}
+
+/**
+ * SUM of APPROVED hours across EVERY contractor on a project — the
+ * authoritative project-wide "work progress" figure (project hours
+ * redesign: progress is approved_project_hours / expected_hours,
+ * summed across all contractors, never a single contractor's own total —
+ * contrast with milestoneRepository's old per-contractor sum, which this
+ * project-wide figure replaces for progress/milestone purposes). Plain
+ * pool read for a single project's display (see pmProjectService/
+ * vendorProjectService) — the transaction-scoped variant used by
+ * milestone evaluation is listApprovedOrderedForProject below, which
+ * needs per-row detail, not just the total.
+ */
+async function sumApprovedHoursForProject(projectId) {
+  const [rows] = await pool.query(
+    `SELECT COALESCE(SUM(hours_logged), 0) AS total
+     FROM timesheets WHERE project_id = ? AND status = 'APPROVED'`,
+    [projectId]
+  );
+  return Number(rows[0].total);
+}
+
+/**
+ * Batch variant of sumApprovedHoursForProject for LIST views — one query
+ * for however many projects are being rendered rather than N+1.
+ */
+async function sumApprovedHoursForProjects(projectIds) {
+  if (projectIds.length === 0) return [];
+  const [rows] = await pool.query(
+    `SELECT project_id, COALESCE(SUM(hours_logged), 0) AS total
+     FROM timesheets WHERE project_id IN (?) AND status = 'APPROVED'
+     GROUP BY project_id`,
+    [projectIds]
+  );
+  return rows.map((r) => ({ project_id: r.project_id, approved_hours: Number(r.total) }));
+}
+
+/**
+ * Every APPROVED timesheet row for a project, in the exact chronological
+ * order their hours became part of the project's cumulative approved
+ * total (ORDER BY reviewed_at — the moment a PM approved it — then id as
+ * a stable tiebreak for same-instant approvals). This is the raw material
+ * milestoneService.checkAndTriggerMilestones apportions across threshold
+ * intervals: walking this list while tracking a running cumulative total
+ * is what correctly splits a single row that straddles a threshold
+ * boundary between "counts toward this milestone" and "carries forward to
+ * the next one" (see that function's own doc comment for the full
+ * algorithm and the spec's worked 45h+10h/50h-threshold example). Must
+ * run on `conn` inside the same transaction that holds the project's
+ * locked PENDING milestones, so this read is consistent with exactly what
+ * is being evaluated.
+ */
+async function listApprovedOrderedForProject(conn, projectId) {
+  const [rows] = await conn.query(
+    `SELECT id, contractor_id, hours_logged
+     FROM timesheets
+     WHERE project_id = ? AND status = 'APPROVED'
+     ORDER BY reviewed_at ASC, id ASC`,
+    [projectId]
+  );
+  return rows.map((r) => ({ id: r.id, contractor_id: r.contractor_id, hours_logged: Number(r.hours_logged) }));
+}
+
 function toView(row) {
   return {
     id: row.id,
@@ -237,4 +347,9 @@ module.exports = {
   markReviewed,
   lockForOwnerEdit,
   updateRejectedLog,
+  sumReservedHoursForContractorProject,
+  sumApprovedHoursForContractorProject,
+  sumApprovedHoursForProject,
+  sumApprovedHoursForProjects,
+  listApprovedOrderedForProject,
 };

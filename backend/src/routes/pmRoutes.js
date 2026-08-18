@@ -20,6 +20,15 @@ router.get("/projects", pmProjectController.list);
 // Module 5 addition: contractors assigned to one of this PM's own
 // projects, powering the milestone-creation contractor picker.
 router.get("/projects/:id/contractors", pmProjectController.listContractors);
+// Project hours/allocation redesign addition: PM marks a project
+// COMPLETED, auto-releasing every active assignment on it.
+router.patch("/projects/:id/complete", pmProjectController.complete);
+// MVP fix 1: the PM (never the Vendor) sets/changes a specific,
+// already-assigned contractor's work-hour allocation on this project.
+router.patch(
+  "/projects/:projectId/contractors/:contractorId/allocation",
+  pmProjectController.allocateHours
+);
 
 // Module 4: reviewing timesheets submitted against this PM's own
 // projects. Same gate reuse rationale as /projects above — no new
@@ -33,10 +42,11 @@ router.patch("/timesheets/:id", pmTimesheetController.review);
 router.post("/milestones", pmMilestoneController.create);
 router.get("/milestones/:projectId", pmMilestoneController.listForProject);
 
-// Module 6: invoice generation & approval. Same gate reuse rationale as
-// /projects above — no new authenticate/authorizeRoles declaration
-// needed.
-router.get("/invoices/pending", pmInvoiceController.listPending);
-router.patch("/invoices/:id", pmInvoiceController.review);
+// Module 6, narrowed by the invoice-workflow redesign: read-only invoice
+// HISTORY for this PM's own projects — approval moved to the Vendor (see
+// routes/vendorRoutes.js's PATCH /invoices/:id). There is no PM-side
+// mutation route anymore. Same gate reuse rationale as /projects above —
+// no new authenticate/authorizeRoles declaration needed.
+router.get("/invoices", pmInvoiceController.list);
 
 module.exports = router;

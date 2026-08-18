@@ -119,11 +119,35 @@ function validateCreateProject(body = {}) {
     });
   }
 
+  // Project hours/allocation redesign: total hours capacity for the
+  // WHOLE project (every contractor combined) — required, positive,
+  // non-zero, at most 2 decimal places (matches projects.expected_hours
+  // DECIMAL(9,2), same precision convention as timesheets.hours_logged /
+  // milestones.threshold_hours). There is deliberately no project-edit
+  // endpoint here that would let this value be lowered below already-
+  // allocated hours after staffing begins — expected_hours is only ever
+  // set at creation time in this MVP (see STEP2_STEP3_PLAN.md: no
+  // unnecessary edit endpoint was added since nothing in the spec's
+  // required workflow needs one).
+  const expectedHoursRaw = body.expected_hours;
+  const expectedHours = Number(expectedHoursRaw);
+  if (
+    expectedHoursRaw === undefined ||
+    expectedHoursRaw === null ||
+    expectedHoursRaw === "" ||
+    !Number.isFinite(expectedHours) ||
+    expectedHours <= 0
+  ) {
+    errors.push("expected_hours must be a positive number.");
+  } else if (Math.round(expectedHours * 100) !== expectedHours * 100) {
+    errors.push("expected_hours may have at most 2 decimal places.");
+  }
+
   if (errors.length > 0) {
     throw ApiError.badRequest("Validation failed", errors);
   }
 
-  return { name, description, startDate, endDate, requirements };
+  return { name, description, startDate, endDate, expectedHours, requirements };
 }
 
 /**
@@ -139,4 +163,55 @@ function validateProjectIdParam(params = {}) {
   return n;
 }
 
-module.exports = { validateCreateProject, validateProjectIdParam };
+/**
+ * Validates the URL params + body for
+ * PATCH /api/pm/projects/:projectId/contractors/:contractorId/allocation —
+ * MVP fix 1 ("work-hour allocation must belong to the PM, not the
+ * Vendor"). Returns { projectId, contractorId, allocatedHours } on
+ * success, throws ApiError(400) otherwise.
+ *
+ * allocatedHours must be a finite, POSITIVE number (no zero, no negative —
+ * per the fix's explicit requirement) with at most 2 decimal places,
+ * matching project_assignments.allocated_hours DECIMAL(9,2) — the same
+ * precision/positivity rule the old Vendor-side allocatedHours parser
+ * used before this fix moved allocation ownership to the PM (see
+ * vendorAssignmentValidators, which no longer parses this field at all).
+ * Business-rule checks that need DB state — the contractor must actually
+ * be assigned to this project, the new value can't be lowered below hours
+ * already approved for them, and the project-wide total can't exceed
+ * expected_hours — all live in pmProjectService.updateContractorAllocation,
+ * not here (shape here, business rules in the service, same division of
+ * responsibility as every other validator in this codebase).
+ */
+function validateUpdateAllocation(params = {}, body = {}) {
+  const errors = [];
+
+  const projectId = parsePositiveInt(params.projectId);
+  const contractorId = parsePositiveInt(params.contractorId);
+  if (!projectId) errors.push("projectId must be a positive integer.");
+  if (!contractorId) errors.push("contractorId must be a positive integer.");
+
+  const raw = body.allocated_hours;
+  const allocatedHours = Number(raw);
+  if (raw === undefined || raw === null || raw === "" || !Number.isFinite(allocatedHours) || allocatedHours <= 0) {
+    errors.push("allocated_hours must be a positive number.");
+  } else if (Math.round(allocatedHours * 100) !== allocatedHours * 100) {
+    errors.push("allocated_hours may have at most 2 decimal places.");
+  }
+
+  if (errors.length > 0) {
+    throw ApiError.badRequest("Validation failed", errors);
+  }
+
+  return { projectId, contractorId, allocatedHours };
+}
+
+// Shared with validateProjectIdParam's inline check above — small,
+// deliberate duplication of the parsePositiveInt pattern every validator
+// file in this codebase already keeps its own copy of.
+function parsePositiveInt(value) {
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+module.exports = { validateCreateProject, validateProjectIdParam, validateUpdateAllocation };

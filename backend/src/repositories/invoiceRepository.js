@@ -68,9 +68,9 @@ async function findByMilestoneBillingId(milestoneBillingId) {
  * A single invoice by id, with no ownership scoping — used right after
  * create()/review() to re-fetch fresh state for a response. Every
  * HTTP-reachable caller does its own ownership check first (see
- * lockOwnedByPmForReview below and vendorInvoiceService, both of which
- * scope by pm_id/vendor_id in SQL before this is ever called), same
- * pattern as timesheetRepository.findById / milestoneRepository.findById.
+ * lockOwnedByVendorForReview below, which scopes by vendor_id in SQL
+ * before this is ever called), same pattern as timesheetRepository.findById
+ * / milestoneRepository.findById.
  */
 async function findById(id) {
   const [rows] = await pool.query(
@@ -134,55 +134,10 @@ async function findDetailedById(id) {
 }
 
 /**
- * PENDING_REVIEW invoices for projects owned by the given PM. Ownership
- * is enforced in the JOIN/WHERE clause (i.project_id -> p.id, p.pm_id =
- * ?), never filtered in JavaScript afterward — the SQL relationship IS
- * the access-control boundary, same convention as
- * timesheetRepository.listPendingForPm. AUTO_APPROVED/APPROVED/REJECTED
- * invoices never appear here regardless of project ownership — this
- * endpoint is specifically the PM's review queue.
- */
-async function listPendingForPm(pmId) {
-  const [rows] = await pool.query(
-    `${DETAIL_SELECT} WHERE p.pm_id = ? AND i.status = 'PENDING_REVIEW' ORDER BY i.generated_at ASC`,
-    [pmId]
-  );
-  return rows.map(toDetailView);
-}
-
-/**
- * Locks the target invoice row for the duration of the caller's
- * transaction (`SELECT ... FOR UPDATE` — must run on `conn` inside an
- * open transaction, see invoiceApprovalService.reviewInvoice), scoped to
- * projects owned by `pmId` in the JOIN itself — a PM probing another
- * PM's invoice id gets back `null` here, indistinguishable from a
- * nonexistent id (no existence leakage, same pattern as
- * timesheetRepository.lockForReview / pmMilestoneService.assertOwnedProject).
- *
- * A second, concurrent review request for the SAME invoice blocks here
- * until the first transaction commits or rolls back — that wait, plus
- * the conditional `WHERE status = 'PENDING_REVIEW'` in applyReview below,
- * is what guarantees only one of two simultaneous approve/reject
- * requests actually transitions the row.
- */
-async function lockOwnedByPmForReview(conn, invoiceId, pmId) {
-  const [rows] = await conn.query(
-    `SELECT i.id, i.project_id, i.contractor_id, i.vendor_id, i.amount, i.status, i.milestone_billing_id
-     FROM invoices i
-     INNER JOIN projects p ON p.id = i.project_id
-     WHERE i.id = ? AND p.pm_id = ?
-     LIMIT 1
-     FOR UPDATE`,
-    [invoiceId, pmId]
-  );
-  return rows[0] || null;
-}
-
-/**
  * Conditionally transitions PENDING_REVIEW -> APPROVED/REJECTED. The
  * `AND status = 'PENDING_REVIEW'` guard is the actual atomicity
- * backstop, on top of the row lock from lockOwnedByPmForReview above —
- * even if two requests somehow both got past the lock, only the first
+ * backstop, on top of the row lock from lockOwnedByVendorForReview below
+ * — even if two requests somehow both got past the lock, only the first
  * UPDATE here can match a still-PENDING_REVIEW row; the second gets
  * affectedRows = 0 and the caller turns that into a clean 409, never a
  * silent overwrite of the first review's outcome (same pattern as
@@ -220,13 +175,57 @@ async function listForVendor(vendorId) {
   return rows.map(toDetailView);
 }
 
+/**
+ * Locks the target invoice row for the duration of the caller's
+ * transaction (`SELECT ... FOR UPDATE`), scoped to `vendor_id = ?` —
+ * invoice-workflow redesign: approval authority moves to the Vendor (see
+ * vendorInvoiceService.reviewInvoice). Same pattern as
+ * lockOwnedByPmForReview above, just scoped by the invoice's own
+ * snapshotted vendor_id instead of a project-ownership JOIN. A vendor
+ * probing another vendor's invoice id gets `null` here, indistinguishable
+ * from a nonexistent id (no existence leakage).
+ */
+async function lockOwnedByVendorForReview(conn, invoiceId, vendorId) {
+  const [rows] = await conn.query(
+    `SELECT id, project_id, contractor_id, vendor_id, amount, status, milestone_billing_id
+     FROM invoices
+     WHERE id = ? AND vendor_id = ?
+     LIMIT 1
+     FOR UPDATE`,
+    [invoiceId, vendorId]
+  );
+  return rows[0] || null;
+}
+
+/**
+ * Every invoice for projects owned by the given PM, every status —
+ * invoice-workflow redesign: a PM no longer approves/rejects (see
+ * invoiceApprovalService's retired mutation), only VIEWS their own
+ * projects' invoice history, with vendor-approved invoices surfacing
+ * first as the primary financial record (spec: "vendor-approved invoices
+ * shown prominently") — ORDER BY puts APPROVED first, then
+ * PENDING_REVIEW/AUTO_APPROVED, then REJECTED last, newest within each
+ * group. Ownership is enforced in the JOIN/WHERE clause
+ * (i.project_id -> p.id, p.pm_id = ?), never filtered in JavaScript
+ * afterward.
+ */
+async function listForPm(pmId) {
+  const [rows] = await pool.query(
+    `${DETAIL_SELECT}
+     WHERE p.pm_id = ?
+     ORDER BY FIELD(i.status, 'APPROVED', 'PENDING_REVIEW', 'AUTO_APPROVED', 'REJECTED'), i.generated_at DESC`,
+    [pmId]
+  );
+  return rows.map(toDetailView);
+}
+
 module.exports = {
   create,
   findByMilestoneBillingId,
   findById,
   findDetailedById,
-  listPendingForPm,
-  lockOwnedByPmForReview,
+  listForPm,
+  lockOwnedByVendorForReview,
   applyReview,
   listForVendor,
 };

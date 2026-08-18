@@ -83,12 +83,13 @@ async function reviewTimesheet(pmId, timesheetId, status) {
   }
 
   if (status === "APPROVED") {
-    await milestoneService.checkMilestonesAfterTimesheetApproval({
-      projectId: reviewed.project_id,
-      contractorId: reviewed.contractor_id,
-      timesheetId: reviewed.id,
-      approvedHours: Number(reviewed.hours_logged),
-    });
+    // Project-level redesign: checkAndTriggerMilestones re-sums the
+    // WHOLE project's approved hours (every contractor) fresh inside its
+    // own transaction — it does not need timesheetId/contractorId/
+    // approvedHours from this specific approval, only which project to
+    // re-evaluate. Never blocks or affects this response either way (see
+    // that function's own doc comment on why it never throws).
+    await milestoneService.checkAndTriggerMilestones(reviewed.project_id);
   }
 
   // Re-fetch fresh, post-commit state for the response, same convention

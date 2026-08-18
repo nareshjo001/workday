@@ -4,17 +4,17 @@ import FormField from "../FormField";
 import PrimaryButton from "../PrimaryButton";
 import AlertBanner from "../AlertBanner";
 
-const initialForm = { contractorId: "", name: "", thresholdHours: "" };
+const initialForm = { name: "", thresholdHours: "" };
 
 /**
- * PM creates a milestone for one contractor staffed on the currently
- * selected project. `contractors` is the project's assigned-contractor
- * roster (see pmProjectService.listAssignedContractors) — the picker is
- * scoped to exactly who's on this project, the same "you can only pick
- * from what's actually valid here" pattern AssignContractorModal already
- * uses for eligible contractors.
+ * PM creates a milestone for the currently selected PROJECT (project
+ * hours/allocation redesign: milestones are project-scoped, not
+ * per-contractor — every contractor staffed on the project contributes
+ * hours toward the same shared threshold, apportioned chronologically by
+ * checkAndTriggerMilestones on the backend). The old contractor picker is
+ * gone entirely; there is no per-milestone contractor to select anymore.
  */
-export default function CreateMilestoneModal({ contractors, onClose, onCreate }) {
+export default function CreateMilestoneModal({ onClose, onCreate }) {
   const [form, setForm] = useState(initialForm);
   const [fieldErrors, setFieldErrors] = useState({});
   const [formError, setFormError] = useState(null);
@@ -28,7 +28,6 @@ export default function CreateMilestoneModal({ contractors, onClose, onCreate })
 
   const validate = () => {
     const errors = {};
-    if (!form.contractorId) errors.contractorId = "Select a contractor.";
     if (!form.name.trim()) errors.name = "Name is required.";
 
     const threshold = Number(form.thresholdHours);
@@ -48,7 +47,6 @@ export default function CreateMilestoneModal({ contractors, onClose, onCreate })
     setIsSubmitting(true);
     try {
       await onCreate({
-        contractorId: Number(form.contractorId),
         name: form.name.trim(),
         thresholdHours: Number(form.thresholdHours),
       });
@@ -64,33 +62,10 @@ export default function CreateMilestoneModal({ contractors, onClose, onCreate })
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <AlertBanner message={formError} />
 
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="contractorId" className="text-sm font-medium text-text-secondary">
-            Contractor
-          </label>
-          <select
-            id="contractorId"
-            name="contractorId"
-            value={form.contractorId}
-            onChange={handleChange}
-            className={`w-full rounded-md border bg-surface px-3.5 py-2.5 text-base text-text outline-none transition focus:ring-2 focus:ring-offset-0 ${
-              fieldErrors.contractorId
-                ? "border-error focus:border-error focus:ring-error/20"
-                : "border-border focus:border-accent focus:ring-accent/20"
-            }`}
-          >
-            <option value="">Select contractor…</option>
-            {contractors.map((c) => (
-              <option key={c.contractor_id} value={c.contractor_id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          {fieldErrors.contractorId && <p className="text-sm text-error">{fieldErrors.contractorId}</p>}
-          {contractors.length === 0 && (
-            <p className="text-xs text-muted">No contractors are assigned to this project yet.</p>
-          )}
-        </div>
+        <p className="text-sm text-muted">
+          This milestone applies to the whole project — every contractor staffed on it contributes
+          toward the same hours threshold.
+        </p>
 
         <FormField
           id="name"

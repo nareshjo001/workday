@@ -1,4 +1,12 @@
-import { formatDate, StatusBadge, StaffingBadge, StaffingProgress } from "./format";
+import {
+  formatDate,
+  StatusBadge,
+  StaffingBadge,
+  StaffingProgress,
+  HoursStaffingBadge,
+  WorkProgress,
+  HoursStaffingProgress,
+} from "./format";
 import { formatSkill } from "../../constants/skills";
 
 /**
@@ -6,8 +14,10 @@ import { formatSkill } from "../../constants/skills";
  * Same field-presence detection as ProjectTable (company_name,
  * total_required/assigned/staffing_status, assigned_date/assigned_skill)
  * so the same component serves the PM and Contractor project lists.
+ *
+ * `onComplete`/`completingId` mirror ProjectTable's — see its comment.
  */
-export default function ProjectCardList({ projects, showId = true }) {
+export default function ProjectCardList({ projects, showId = true, onComplete, completingId }) {
   return (
     <div className="flex flex-col gap-3 md:hidden">
       {projects.map((project) => (
@@ -43,6 +53,34 @@ export default function ProjectCardList({ projects, showId = true }) {
                 Team: <StaffingProgress assigned={project.total_assigned} required={project.total_required} />
               </span>
               <StaffingBadge status={project.staffing_status} />
+            </div>
+          )}
+          {project.expected_hours !== undefined && project.expected_hours !== null && (
+            <div className="mt-2 flex flex-col gap-1.5 border-t border-border pt-2 text-xs">
+              <WorkProgress
+                approvedHours={project.approved_hours}
+                expectedHours={project.expected_hours}
+                progressPercent={project.work_progress_percent}
+              />
+              <div className="flex items-center justify-between gap-2">
+                <HoursStaffingProgress
+                  allocatedHours={project.allocated_hours}
+                  expectedHours={project.expected_hours}
+                />
+                <HoursStaffingBadge status={project.hours_staffing_status} />
+              </div>
+            </div>
+          )}
+          {onComplete && project.status === "ACTIVE" && (
+            <div className="mt-3 border-t border-border pt-3">
+              <button
+                type="button"
+                onClick={() => onComplete(project)}
+                disabled={completingId === project.id}
+                className="w-full rounded-md border border-border px-3 py-2 text-xs font-medium text-text-secondary transition hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {completingId === project.id ? "Completing…" : "Complete Project"}
+              </button>
             </div>
           )}
         </div>

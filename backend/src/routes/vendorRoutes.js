@@ -39,9 +39,12 @@ router.post(
   vendorAssignmentController.assign
 );
 
-// Module 6: read-only invoice visibility for a vendor's own contractors.
+// Module 6, extended by the invoice-workflow redesign: invoice visibility
+// AND approve/reject authority for a vendor's own contractors (approval
+// moved here from the PM side — see vendorInvoiceService.reviewInvoice).
 // Same gate reuse rationale as /contractors above — no new
 // authenticate/authorizeRoles declaration needed.
 router.get("/invoices", vendorInvoiceController.list);
+router.patch("/invoices/:id", vendorInvoiceController.review);
 
 module.exports = router;

@@ -1,23 +1,35 @@
 const { pool } = require("../config/db");
 
 /**
- * Database access for `milestones` and `milestone_billings` (Module 5).
- * SQL lives only here, same convention as every other repository. Split
- * across two tables but kept in one file since both are exclusively
- * Module 5's — same rationale as timesheetRepository owning one table.
+ * Database access for `milestones` and `milestone_billings` (Module 5,
+ * redesigned to be project-level — see migration 016 and
+ * milestoneService.checkAndTriggerMilestones). SQL lives only here, same
+ * convention as every other repository. Split across two tables but kept
+ * in one file since both are exclusively Module 5's — same rationale as
+ * timesheetRepository owning one table.
+ *
+ * milestone_billings keeps its original name even though it now serves as
+ * the per-contractor CONTRIBUTION ledger for a project-level milestone
+ * (one row per milestone per contributing contractor, not one row per
+ * milestone total) — its existing shape (milestone_id, contractor_id,
+ * approved_hours, hourly_rate, billing_amount) and its existing
+ * UNIQUE(milestone_id, contractor_id) constraint already match that
+ * exactly. See migration 016's comment for why it was not renamed.
  */
 
 /**
- * Inserts a new PENDING milestone. `projectId`/`contractorId` ownership
- * and assignment checks happen in the service layer BEFORE this is
+ * Inserts a new PENDING project-level milestone (no contractor_id — a
+ * milestone is a project-wide cumulative-hours checkpoint, see this
+ * file's own top comment and milestoneService.checkAndTriggerMilestones).
+ * Project ownership is checked in the service layer BEFORE this is
  * called (pmMilestoneService.createMilestone) — this function trusts its
  * caller, same convention as projectRepository.create.
  */
-async function create({ projectId, contractorId, name, thresholdHours }) {
+async function create({ projectId, name, thresholdHours }) {
   const [result] = await pool.query(
-    `INSERT INTO milestones (project_id, contractor_id, name, threshold_hours, status)
-     VALUES (?, ?, ?, ?, 'PENDING')`,
-    [projectId, contractorId, name, thresholdHours]
+    `INSERT INTO milestones (project_id, name, threshold_hours, status)
+     VALUES (?, ?, ?, 'PENDING')`,
+    [projectId, name, thresholdHours]
   );
   return result.insertId;
 }
@@ -31,7 +43,7 @@ async function create({ projectId, contractorId, name, thresholdHours }) {
  */
 async function findById(id) {
   const [rows] = await pool.query(
-    `SELECT id, project_id, contractor_id, name, threshold_hours, status, met_at, created_at
+    `SELECT id, project_id, name, threshold_hours, status, met_at, created_at
      FROM milestones WHERE id = ? LIMIT 1`,
     [id]
   );
@@ -39,78 +51,136 @@ async function findById(id) {
 }
 
 /**
- * Every milestone for a project, across all contractors staffed on it,
- * newest first, each annotated with its contractor's name and — if MET —
- * its immutable billing snapshot (LEFT JOIN, so a MET milestone that for
- * some reason has no billing row yet, e.g. mid-transaction, still lists
- * cleanly with billing fields null rather than being silently dropped).
- * Ownership (project belongs to the calling PM) is checked by the
- * service layer before this runs — see pmMilestoneService.listMilestones,
- * same division of responsibility as projectRepository.listByPm vs.
- * pmProjectService.
+ * Every milestone for a project, lowest threshold first, each annotated
+ * with the FULL list of per-contractor contributions recorded against it
+ * (if MET) — a project-level milestone can have zero, one, or many
+ * contribution rows, one per contractor who had newly-approved (never
+ * previously billed) hours at the moment this milestone was reached (MVP
+ * fix 2: each contractor's own approved hours, independent of every other
+ * contractor — see milestoneService for how those are computed). Returns
+ * one row per milestone with a
+ * `contributions` array, NOT one row per (milestone, contractor) pair —
+ * the frontend renders a milestone once with its contributor breakdown
+ * nested, matching the "Milestones are PROJECT-level" display
+ * requirement. Ownership (project belongs to the calling PM) is checked
+ * by the service layer before this runs.
  */
 async function listByProject(projectId) {
-  const [rows] = await pool.query(
-    `SELECT m.id, m.project_id, m.contractor_id, u.name AS contractor_name,
-            m.name, m.threshold_hours, m.status, m.met_at, m.created_at,
-            b.approved_hours, b.hourly_rate, b.billing_amount
-     FROM milestones m
-     INNER JOIN contractors c ON c.id = m.contractor_id
-     INNER JOIN users u ON u.id = c.user_id
-     LEFT JOIN milestone_billings b ON b.milestone_id = m.id AND b.contractor_id = m.contractor_id
-     WHERE m.project_id = ?
-     ORDER BY m.created_at DESC`,
+  const [milestoneRows] = await pool.query(
+    `SELECT id, project_id, name, threshold_hours, status, met_at, created_at
+     FROM milestones WHERE project_id = ? ORDER BY threshold_hours ASC`,
     [projectId]
   );
-  return rows.map((r) => ({
-    id: r.id,
-    project_id: r.project_id,
-    contractor_id: r.contractor_id,
-    contractor_name: r.contractor_name,
-    name: r.name,
-    threshold_hours: Number(r.threshold_hours),
-    status: r.status,
-    met_at: r.met_at,
-    created_at: r.created_at,
-    approved_hours: r.approved_hours === null ? null : Number(r.approved_hours),
-    hourly_rate: r.hourly_rate === null ? null : Number(r.hourly_rate),
-    billing_amount: r.billing_amount === null ? null : Number(r.billing_amount),
+  if (milestoneRows.length === 0) return [];
+
+  const milestoneIds = milestoneRows.map((m) => m.id);
+  const [contributionRows] = await pool.query(
+    `SELECT b.milestone_id, b.contractor_id, u.name AS contractor_name,
+            b.approved_hours, b.hourly_rate, b.billing_amount, b.created_at
+     FROM milestone_billings b
+     INNER JOIN contractors c ON c.id = b.contractor_id
+     INNER JOIN users u ON u.id = c.user_id
+     WHERE b.milestone_id IN (?)
+     ORDER BY u.name ASC`,
+    [milestoneIds]
+  );
+
+  const contributionsByMilestone = new Map();
+  for (const row of contributionRows) {
+    if (!contributionsByMilestone.has(row.milestone_id)) {
+      contributionsByMilestone.set(row.milestone_id, []);
+    }
+    contributionsByMilestone.get(row.milestone_id).push({
+      contractor_id: row.contractor_id,
+      contractor_name: row.contractor_name,
+      approved_hours: Number(row.approved_hours),
+      hourly_rate: Number(row.hourly_rate),
+      billing_amount: Number(row.billing_amount),
+      created_at: row.created_at,
+    });
+  }
+
+  return milestoneRows.map((m) => ({
+    id: m.id,
+    project_id: m.project_id,
+    name: m.name,
+    threshold_hours: Number(m.threshold_hours),
+    status: m.status,
+    met_at: m.met_at,
+    created_at: m.created_at,
+    contributions: contributionsByMilestone.get(m.id) || [],
   }));
 }
 
 /**
- * Locks every currently-PENDING milestone for one contractor+project for
- * the duration of the caller's transaction (`SELECT ... FOR UPDATE` —
- * must run on `conn` inside an open transaction, see
- * milestoneService.evaluateMilestonesForContractorProject). This is the
- * actual concurrency guarantee: a second, concurrent evaluation for the
- * SAME contractor+project (e.g. two timesheet approvals landing at
- * nearly the same time) blocks here until the first transaction commits
- * or rolls back — so the second evaluation only ever sees milestones
- * that are still genuinely PENDING after the first one's decisions, and
- * can never mark/bill the same milestone twice. ORDER BY threshold_hours
- * ASC is not required for correctness (idx_milestones_project_contractor_status
- * already scopes the lock to a small range) but keeps evaluation order
- * predictable (lowest threshold first) for anyone reading logs/tests.
- * Already-MET milestones are excluded here on purpose — nothing about
- * evaluation ever needs to touch them again.
+ * Locks every currently-PENDING milestone for a WHOLE PROJECT (across
+ * every contractor — the redesign's core change) for the duration of the
+ * caller's transaction (`SELECT ... FOR UPDATE` — must run on `conn`
+ * inside an open transaction, see
+ * milestoneService.checkAndTriggerMilestones). This is the actual
+ * concurrency guarantee: a second, concurrent evaluation for the SAME
+ * project (e.g. two timesheet approvals for different contractors landing
+ * at nearly the same time) blocks here until the first transaction
+ * commits or rolls back, so the second evaluation only ever sees
+ * milestones that are still genuinely PENDING after the first one's
+ * decisions, and can never mark/bill the same milestone twice. ORDER BY
+ * threshold_hours ASC matters here too (MVP fix 2): when a single
+ * evaluation call crosses several thresholds at once, milestones are
+ * still processed lowest-to-highest, so the EARLIEST-crossed milestone is
+ * the one that bills each contractor's available (never-before-billed)
+ * hours first — see milestoneService.checkAndTriggerMilestones for why
+ * that ordering, not threshold math, is what "WHEN a milestone is
+ * reached" actually determines. Already-MET milestones are excluded here
+ * on purpose — nothing about evaluation ever needs to touch them again.
  */
-async function lockPendingForContractorProject(conn, projectId, contractorId) {
+async function lockPendingForProject(conn, projectId) {
   const [rows] = await conn.query(
-    `SELECT id, project_id, contractor_id, name, threshold_hours, status
+    `SELECT id, project_id, name, threshold_hours, status
      FROM milestones
-     WHERE project_id = ? AND contractor_id = ? AND status = 'PENDING'
+     WHERE project_id = ? AND status = 'PENDING'
      ORDER BY threshold_hours ASC
      FOR UPDATE`,
-    [projectId, contractorId]
+    [projectId]
   );
   return rows;
 }
 
 /**
+ * SUM(approved_hours) already billed to each contractor across EVERY
+ * milestone of a project, grouped by contractor — MVP fix 2 ("billing
+ * must use each contractor's actual approved hours"). This is the
+ * per-contractor "already billed" ledger milestoneService.
+ * checkAndTriggerMilestones needs to compute each contractor's marginal
+ * (never-before-billed) hours when a new milestone is met: a contractor's
+ * billable amount for a newly-met milestone is their own total APPROVED
+ * hours minus whatever this query returns for them, never anything
+ * derived from another contractor's hours or from the milestone's own
+ * threshold_hours. Must run on `conn` inside the SAME transaction as
+ * lockPendingForProject, so it reflects exactly what is already
+ * immutably billed as of the moment being evaluated — reading the
+ * `milestone_billings` rows themselves (rather than re-deriving from
+ * `threshold_hours` math) is the auditable approach: every already-billed
+ * hour is accounted for by an actual row, never inferred.
+ *
+ * Returns a Map<contractorId, totalHoursAlreadyBilled> (contractors with
+ * no billing rows yet on this project simply have no entry).
+ */
+async function sumBilledHoursByContractorForProject(conn, projectId) {
+  const [rows] = await conn.query(
+    `SELECT b.contractor_id, SUM(b.approved_hours) AS total
+     FROM milestone_billings b
+     INNER JOIN milestones m ON m.id = b.milestone_id
+     WHERE m.project_id = ?
+     GROUP BY b.contractor_id`,
+    [projectId]
+  );
+  return new Map(rows.map((r) => [r.contractor_id, Number(r.total)]));
+}
+
+/**
  * Conditionally transitions PENDING -> MET, stamping met_at. The
  * `AND status = 'PENDING'` guard is the real atomicity backstop, on top
- * of the row lock from lockPendingForContractorProject above — same
+ * of the row lock from lockPendingForProject above — same
  * belt-and-suspenders pattern as timesheetRepository.markReviewed. Under
  * the row lock this should always affect exactly one row when called,
  * but the caller still checks affectedRows rather than assuming it.
@@ -124,43 +194,23 @@ async function markMet(conn, milestoneId) {
 }
 
 /**
- * Sums a contractor's APPROVED hours for a single project — the
- * authoritative "how many hours has this contractor had approved on
- * this project" figure, recomputed fresh from timesheets every time
- * rather than trusting any caller-supplied total (Module 5 spec: never
- * trust a request payload for anything billing-related). Deliberately
- * takes `conn` and must run inside the SAME transaction that holds the
- * milestone row lock (see evaluateMilestonesForContractorProject) so this
- * read is consistent with the milestones being evaluated against it —
- * matches the "Approved Hours excludes PENDING and REJECTED" convention
- * already established by assignmentRepository.listAssignedContractorsWithHours
- * and ProjectTeamModal.
- */
-async function sumApprovedHours(conn, contractorId, projectId) {
-  const [rows] = await conn.query(
-    `SELECT COALESCE(SUM(hours_logged), 0) AS total
-     FROM timesheets
-     WHERE contractor_id = ? AND project_id = ? AND status = 'APPROVED'`,
-    [contractorId, projectId]
-  );
-  return Number(rows[0].total);
-}
-
-/**
- * Inserts the immutable billing snapshot for a just-MET milestone. Must
- * run on the same transaction-scoped `conn` as markMet above — both the
- * PENDING -> MET transition and its billing snapshot succeed or fail
- * together (Module 5 spec: a milestone is never left MET without a
- * billing row, or billed without being MET).
+ * Inserts one contributor's immutable contribution/billing snapshot for a
+ * just-MET milestone. Must run on the same transaction-scoped `conn` as
+ * markMet above — both the PENDING -> MET transition and every one of its
+ * contribution rows succeed or fail together. Called once PER
+ * contributing contractor (a project-level milestone can have several) —
+ * see milestoneService.checkAndTriggerMilestones, which computes each
+ * contractor's own marginal (never-before-billed) approved hours,
+ * independent of every other contractor, before calling this.
  *
  * Relies on UNIQUE(milestone_id, contractor_id) (migration 014) as the
- * actual duplicate-billing guarantee under concurrency — the row lock
- * from lockPendingForContractorProject already prevents this in
- * practice, but the constraint is what's really relied on, same
- * "friendly pre-check backed by a real constraint" pattern as every
- * other ER_DUP_ENTRY catch in this codebase. The caller
- * (billingService.createBillingRecord) catches ER_DUP_ENTRY and treats it
- * as "already billed, nothing to do" rather than an error.
+ * actual duplicate-contribution guarantee under concurrency — the row
+ * lock from lockPendingForProject already prevents this in practice, but
+ * the constraint is what's really relied on, same "friendly pre-check
+ * backed by a real constraint" pattern as every other ER_DUP_ENTRY catch
+ * in this codebase. The caller (billingService.createBillingRecord)
+ * catches ER_DUP_ENTRY and treats it as "already billed, nothing to do"
+ * rather than an error.
  */
 async function createBilling(conn, { milestoneId, contractorId, approvedHours, hourlyRate, billingAmount }) {
   const [result] = await conn.query(
@@ -208,9 +258,9 @@ module.exports = {
   create,
   findById,
   listByProject,
-  lockPendingForContractorProject,
+  lockPendingForProject,
+  sumBilledHoursByContractorForProject,
   markMet,
-  sumApprovedHours,
   createBilling,
   findBillingById,
 };

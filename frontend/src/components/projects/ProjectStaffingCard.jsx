@@ -1,13 +1,26 @@
-import { formatDate, StaffingBadge, StaffingProgress } from "./format";
+import {
+  formatDate,
+  StaffingBadge,
+  StaffingProgress,
+  HoursStaffingBadge,
+  WorkProgress,
+  HoursStaffingProgress,
+} from "./format";
 
 /**
  * One project card in the Vendor's staffing-available browse list
  * (Module 3 revision spec section 9). Presentational only — all data and
  * the "view team" click handler come from VendorAssignmentsPage, which
  * owns the page-level state.
+ *
+ * Project hours/allocation redesign: also shows the hours-based staffing
+ * (allocated/expected) and work-progress (approved/expected) readouts
+ * alongside the existing headcount Team readout, when the project has
+ * expected_hours set (see vendorProjectService.toProjectView).
  */
 export default function ProjectStaffingCard({ project, onViewTeam }) {
   const isFullyStaffed = project.staffing_status === "FULLY_STAFFED";
+  const hasHours = project.expected_hours !== undefined && project.expected_hours !== null;
 
   return (
     <div className="rounded-lg border border-border bg-surface p-4 shadow-panel sm:p-5">
@@ -30,6 +43,23 @@ export default function ProjectStaffingCard({ project, onViewTeam }) {
         <span>Team:</span>
         <StaffingProgress assigned={project.total_assigned} required={project.total_required} />
       </div>
+
+      {hasHours && (
+        <div className="mt-2 flex flex-col gap-1 text-sm text-text-secondary">
+          <WorkProgress
+            approvedHours={project.approved_hours}
+            expectedHours={project.expected_hours}
+            progressPercent={project.work_progress_percent}
+          />
+          <div className="flex items-center gap-2">
+            <HoursStaffingProgress
+              allocatedHours={project.allocated_hours}
+              expectedHours={project.expected_hours}
+            />
+            <HoursStaffingBadge status={project.hours_staffing_status} />
+          </div>
+        </div>
+      )}
 
       <button
         type="button"

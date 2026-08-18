@@ -61,8 +61,21 @@ export default function ContractorTimesheetsPage() {
   // rejects COMPLETED/ON_HOLD projects too — see
   // contractorTimesheetService.submitTimesheet) — filtered here so the
   // Log Hours dropdown never offers a project that would just bounce.
+  //
+  // PROJECT HOURS/ALLOCATION REDESIGN: also requires assignment_status
+  // === "ACTIVE" — a project can stay lifecycle-ACTIVE while THIS
+  // contractor has already been RELEASED from it (e.g. after project
+  // completion auto-released everyone, or an individual release), and a
+  // released contractor should never be offered that project to log
+  // against even though the project itself is still open. Legacy rows
+  // with assignment_status undefined (pre-redesign data) are treated as
+  // eligible, same "undefined means not yet migrated, don't block on it"
+  // convention used elsewhere in this redesign.
   const activeProjects = useMemo(
-    () => assignedProjects.filter((p) => p.status === "ACTIVE"),
+    () =>
+      assignedProjects.filter(
+        (p) => p.status === "ACTIVE" && (p.assignment_status === undefined || p.assignment_status === "ACTIVE")
+      ),
     [assignedProjects]
   );
 
@@ -70,6 +83,17 @@ export default function ContractorTimesheetsPage() {
     () => groupTimesheetsByProjectAndWeek(timesheets),
     [timesheets]
   );
+
+  // Project hours/allocation redesign: looked up per project group so
+  // ProjectTimesheetGroup can show an Allocated/Approved/Pending/
+  // Remaining banner — assignedProjects (not the flat timesheets list)
+  // is the source of truth for allocation, since a week with no logs yet
+  // still has an allocation worth showing.
+  const allocationByProjectId = useMemo(() => {
+    const map = new Map();
+    for (const p of assignedProjects) map.set(p.id, p);
+    return map;
+  }, [assignedProjects]);
 
   const editingProject = useMemo(
     () => (editingLog ? assignedProjects.find((p) => p.id === editingLog.project_id) || null : null),
@@ -115,7 +139,12 @@ export default function ContractorTimesheetsPage() {
         ) : (
           <div className="flex flex-col gap-6 rounded-lg bg-surface p-4 shadow-panel ring-1 ring-border sm:p-6">
             {groupedProjects.map((project) => (
-              <ProjectTimesheetGroup key={project.project_id} project={project} onEdit={setEditingLog} />
+              <ProjectTimesheetGroup
+                key={project.project_id}
+                project={project}
+                allocation={allocationByProjectId.get(project.project_id)}
+                onEdit={setEditingLog}
+              />
             ))}
           </div>
         )}

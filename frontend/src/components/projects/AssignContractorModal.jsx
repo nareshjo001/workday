@@ -16,8 +16,17 @@ import { formatSkill } from "../../constants/skills";
  * vendor, ACTIVE, matching skill, not assigned to ANY project — see
  * vendorProjectService.getEligibleContractors /
  * contractorRepository.listEligibleForVendorAndSkill), so nothing is
- * re-filtered client-side; this component only handles selection +
- * the remaining-slots cap.
+ * re-filtered client-side; this component only handles selection.
+ *
+ * MVP FIX 1 ("work-hour allocation must belong to the PM, not the
+ * Vendor"): this modal deliberately has NO hours input anywhere — the
+ * Vendor's only job is picking which contractors fill the requirement's
+ * open slots. Allocating hours to an assigned contractor is a PM-only
+ * control (see PmMilestonesPage's "Team on this project" section /
+ * pmProjectService.updateContractorAllocation); this component never
+ * reads or sends an hours value, and the backend enforces the same rule
+ * independently — see vendorAssignmentValidators.validateAssignContractors
+ * and vendorAssignmentService.assignContractors.
  */
 export default function AssignContractorModal({
   project,

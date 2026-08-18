@@ -17,11 +17,14 @@ async function listMilestones(projectId) {
  * pmMilestoneValidators.validateCreateMilestone) — same camelCase-in/
  * snake_case-out translation pmProjectService.createProject already does
  * for requirements.
+ *
+ * PROJECT-LEVEL REDESIGN: no contractorId anymore — a milestone is a
+ * project-wide checkpoint every staffed contractor contributes toward
+ * (see CreateMilestoneModal / pmMilestoneValidators).
  */
-async function createMilestone({ projectId, contractorId, name, thresholdHours }) {
+async function createMilestone({ projectId, name, thresholdHours }) {
   const { data } = await apiClient.post("/pm/milestones", {
     project_id: projectId,
-    contractor_id: contractorId,
     name,
     threshold_hours: thresholdHours,
   });

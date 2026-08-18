@@ -9,7 +9,7 @@ function todayDateString() {
   return new Date().toISOString().slice(0, 10);
 }
 
-const initialForm = { name: "", description: "", start_date: "", end_date: "" };
+const initialForm = { name: "", description: "", start_date: "", end_date: "", expected_hours: "" };
 const emptyRequirementRow = () => ({ skill: "", required_count: "" });
 
 export default function CreateProjectModal({ onClose, onCreate }) {
@@ -60,6 +60,13 @@ export default function CreateProjectModal({ onClose, onCreate }) {
       }
     }
 
+    // Project hours/allocation redesign: total hours capacity for the
+    // whole project (every contractor combined) — required, positive.
+    const expectedHours = Number(form.expected_hours);
+    if (!form.expected_hours || !Number.isFinite(expectedHours) || expectedHours <= 0) {
+      errors.expected_hours = "Enter a positive number of hours.";
+    }
+
     const rowErrors = requirements.map((row) => {
       const rowErr = {};
       if (!row.skill) rowErr.skill = "Select a skill.";
@@ -94,6 +101,7 @@ export default function CreateProjectModal({ onClose, onCreate }) {
         description: form.description.trim(),
         startDate: form.start_date,
         endDate: form.end_date,
+        expectedHours: Number(form.expected_hours),
         requirements: requirements.map((r) => ({
           skill: r.skill,
           requiredCount: Number(r.required_count),
@@ -152,6 +160,16 @@ export default function CreateProjectModal({ onClose, onCreate }) {
             required={false}
           />
         </div>
+
+        <FormField
+          id="expected_hours"
+          label="Expected Hours (total project capacity)"
+          type="number"
+          value={form.expected_hours}
+          onChange={handleChange}
+          error={fieldErrors.expected_hours}
+          placeholder="e.g. 150"
+        />
 
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">

@@ -1,6 +1,8 @@
+const { pool } = require("../config/db");
 const projectRepository = require("../repositories/projectRepository");
 const contractorRepository = require("../repositories/contractorRepository");
 const assignmentRepository = require("../repositories/assignmentRepository");
+const timesheetRepository = require("../repositories/timesheetRepository");
 const ApiError = require("../utils/ApiError");
 
 function todayDateString() {
@@ -39,15 +41,38 @@ function toRequirementView(row, contractorsByRequirement) {
       name: c.contractor_name,
       skill: c.contractor_skill,
       status: c.contractor_status,
+      // Project hours/allocation redesign additions — powers the
+      // extended Vendor "Project Team" modal table (Contractor/Skill/
+      // Allocated/Worked/Remaining), never present before this redesign.
+      allocated_hours: c.allocated_hours,
+      assignment_status: c.assignment_status,
+      released_at: c.released_at,
       logged_hours: c.logged_hours,
       approved_hours: c.approved_hours,
+      pending_hours: c.pending_hours,
+      remaining_hours: c.remaining_hours,
     })),
   };
 }
 
-function toProjectView(row, requirements, contractorsByRequirement) {
+/**
+ * `hoursMetrics` is an OPTIONAL { allocatedHours, approvedHours } pair —
+ * see pmProjectService.toProjectView's identical convention. Kept as a
+ * parallel (not shared) implementation because the two services read
+ * from slightly different row/ownership shapes, same "small duplication
+ * over a cross-role coupling" tradeoff this codebase already makes for
+ * deriveStaffingStatus itself.
+ */
+function toProjectView(row, requirements, contractorsByRequirement, hoursMetrics) {
   const totalRequired = requirements.reduce((sum, r) => sum + r.required_count, 0);
   const totalAssigned = requirements.reduce((sum, r) => sum + r.assigned_count, 0);
+
+  const expectedHours = row.expected_hours === null || row.expected_hours === undefined ? null : Number(row.expected_hours);
+  const allocatedHours = Number(hoursMetrics?.allocatedHours ?? 0);
+  const approvedHours = Number(hoursMetrics?.approvedHours ?? 0);
+  const remainingAllocationHours = expectedHours === null ? null : Math.max(0, expectedHours - allocatedHours);
+  const workProgressPercent =
+    expectedHours === null || expectedHours === 0 ? null : Math.min(100, Math.round((approvedHours / expectedHours) * 1000) / 10);
 
   return {
     id: row.id,
@@ -62,6 +87,11 @@ function toProjectView(row, requirements, contractorsByRequirement) {
     total_required: totalRequired,
     total_assigned: totalAssigned,
     staffing_status: deriveStaffingStatus(requirements),
+    expected_hours: expectedHours,
+    allocated_hours: allocatedHours,
+    remaining_allocation_hours: remainingAllocationHours,
+    approved_hours: approvedHours,
+    work_progress_percent: workProgressPercent,
   };
 }
 
@@ -81,15 +111,26 @@ async function listAvailableProjects() {
   if (projects.length === 0) return [];
 
   const projectIds = projects.map((p) => p.id);
-  const requirementRows = await projectRepository.listRequirementsWithCounts(projectIds);
+  const [requirementRows, allocatedRows, approvedRows] = await Promise.all([
+    projectRepository.listRequirementsWithCounts(projectIds),
+    assignmentRepository.sumAllocatedHoursForProjects(projectIds),
+    timesheetRepository.sumApprovedHoursForProjects(projectIds),
+  ]);
 
   const requirementsByProject = new Map();
   for (const row of requirementRows) {
     if (!requirementsByProject.has(row.project_id)) requirementsByProject.set(row.project_id, []);
     requirementsByProject.get(row.project_id).push(row);
   }
+  const allocatedByProject = new Map(allocatedRows.map((r) => [r.project_id, r.allocated_hours]));
+  const approvedByProject = new Map(approvedRows.map((r) => [r.project_id, r.approved_hours]));
 
-  return projects.map((p) => toProjectView(p, requirementsByProject.get(p.id) || []));
+  return projects.map((p) =>
+    toProjectView(p, requirementsByProject.get(p.id) || [], null, {
+      allocatedHours: allocatedByProject.get(p.id) || 0,
+      approvedHours: approvedByProject.get(p.id) || 0,
+    })
+  );
 }
 
 /**
@@ -122,9 +163,11 @@ async function getProjectDetail(projectId) {
     throw ApiError.notFound("Project not found.");
   }
 
-  const [requirements, contractorRows] = await Promise.all([
+  const [requirements, contractorRows, allocatedHours, approvedHours] = await Promise.all([
     projectRepository.listRequirementsWithCounts([projectId]),
     assignmentRepository.listAssignedContractorsWithHours(projectId),
+    assignmentRepository.sumAllocatedHoursForProject(pool, projectId),
+    timesheetRepository.sumApprovedHoursForProject(projectId),
   ]);
 
   const contractorsByRequirement = new Map();
@@ -135,7 +178,7 @@ async function getProjectDetail(projectId) {
     contractorsByRequirement.get(row.requirement_id).push(row);
   }
 
-  return toProjectView(project, requirements, contractorsByRequirement);
+  return toProjectView(project, requirements, contractorsByRequirement, { allocatedHours, approvedHours });
 }
 
 /**

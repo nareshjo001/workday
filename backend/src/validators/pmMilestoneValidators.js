@@ -24,11 +24,20 @@ function validateProjectIdParam(params = {}) {
 
 /**
  * Validates + normalizes the payload for POST /api/pm/milestones.
- * Returns { projectId, contractorId, name, thresholdHours } on success,
- * throws ApiError(400) otherwise. Deliberately does NOT accept pm_id —
- * ownership of project_id is derived server-side from the authenticated
- * PM's JWT (see pmMilestoneService.createMilestone), same convention as
+ * Returns { projectId, name, thresholdHours } on success, throws
+ * ApiError(400) otherwise. Deliberately does NOT accept pm_id — ownership
+ * of project_id is derived server-side from the authenticated PM's JWT
+ * (see pmMilestoneService.createMilestone), same convention as
  * pmProjectValidators.validateCreateProject never accepting pm_id.
+ *
+ * PROJECT-LEVEL REDESIGN: no contractor_id anymore — a milestone is a
+ * project-wide checkpoint, not tied to any one contractor (see
+ * pmMilestoneService's own comment on why). The
+ * threshold_hours <= project.expected_hours check needs the project row,
+ * which this pure shape-only validator doesn't have access to — that
+ * business-rule check lives in pmMilestoneService.createMilestone
+ * instead, same division of responsibility as every other validator in
+ * this codebase (shape here, ownership/business rules in the service).
  *
  * threshold_hours accepts up to 2 decimal places, matching
  * milestones.threshold_hours DECIMAL(7,2) — the same precision timesheets
@@ -39,9 +48,6 @@ function validateCreateMilestone(body = {}) {
 
   const projectId = parsePositiveInt(body.project_id);
   if (!projectId) errors.push("project_id must be a positive integer.");
-
-  const contractorId = parsePositiveInt(body.contractor_id);
-  if (!contractorId) errors.push("contractor_id must be a positive integer.");
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
   if (!name) errors.push("name is required.");
@@ -65,7 +71,7 @@ function validateCreateMilestone(body = {}) {
     throw ApiError.badRequest("Validation failed", errors);
   }
 
-  return { projectId, contractorId, name, thresholdHours };
+  return { projectId, name, thresholdHours };
 }
 
 module.exports = { validateCreateMilestone, validateProjectIdParam };

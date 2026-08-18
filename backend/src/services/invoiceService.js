@@ -26,21 +26,50 @@ const contractorRepository = require("../repositories/contractorRepository");
 
 /**
  * Cents-integer comparison so a floating-point rounding artifact (e.g.
- * 9999.995 vs. 9999.9949999999) can never flip which side of the
- * threshold an amount lands on — the same "round to integer cents,
- * compare integers" approach billingService.calculateBillingAmount
- * already uses for the billing_amount value itself, applied here to the
- * threshold comparison too. amount === threshold lands on the
- * PENDING_REVIEW side (spec: "amount < threshold -> AUTO_APPROVED;
- * amount >= threshold -> PENDING_REVIEW" — a strict less-than for auto-
- * approval, deliberately not <=).
+ * 9999.995 vs. 9999.9949999999) can never flip which side of a threshold
+ * an amount lands on — the same "round to integer cents, compare
+ * integers" approach billingService.calculateBillingAmount already uses
+ * for the billing_amount value itself. Kept even though the threshold
+ * comparison it originally supported (see FLAGGED DECISION below) is no
+ * longer exercised by determineInitialStatus, in case a future change
+ * needs it again.
  */
 function toCents(value) {
   return Math.round(Number(value) * 100);
 }
 
-function determineInitialStatus(amount) {
-  return toCents(amount) < toCents(env.invoice.autoApprovalThreshold) ? "AUTO_APPROVED" : "PENDING_REVIEW";
+/**
+ * FLAGGED DECISION (per the invoice-workflow redesign's explicit
+ * instruction: "if an existing auto-approval threshold exists in code,
+ * flag it before changing behavior and explain migration/compatibility
+ * impact" — flagging it here, in the code, not just in a chat message):
+ *
+ * Before this redesign, invoices under `env.invoice.autoApprovalThreshold`
+ * (default $10,000, see config/env.js) were generated as AUTO_APPROVED —
+ * no human ever reviewed them — and everything else went to a PM's
+ * manual PATCH /api/pm/invoices/:id. The redesign moves approval
+ * authority to the VENDOR (see vendorInvoiceService.reviewInvoice) and
+ * makes manual review the default for every invoice, regardless of
+ * amount: this function now ALWAYS returns PENDING_REVIEW.
+ * env.invoice.autoApprovalThreshold is left in config/env.js unused
+ * rather than deleted (a deployment's .env may still define
+ * INVOICE_AUTO_APPROVAL_THRESHOLD; removing the config read would make
+ * that setting silently do nothing without comment, whereas leaving the
+ * constant but not consulting it is easy to grep for and revert if a
+ * future spec change wants auto-approval back).
+ *
+ * COMPATIBILITY IMPACT: any invoice rows already sitting at status
+ * AUTO_APPROVED from before this change are left exactly as they are —
+ * this migration/redesign never rewrites existing invoice rows, only
+ * changes what NEW ones get generated as. The `AUTO_APPROVED` value
+ * itself is left in the `invoices.status` ENUM (migration 015, untouched
+ * by migration 016) specifically so old rows keep a valid, meaningful
+ * status rather than becoming an orphaned enum value with no rows using
+ * it going forward — see migration 016 for the "don't touch invoices'
+ * schema" decision this pairs with.
+ */
+function determineInitialStatus() {
+  return "PENDING_REVIEW";
 }
 
 /**

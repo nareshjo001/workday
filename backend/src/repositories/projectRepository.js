@@ -25,12 +25,12 @@ const { pool } = require("../config/db");
  * fall back to it only for pre-migration-009 legacy projects via
  * COALESCE(cc.name, p.company_name).
  */
-async function create(conn, { name, description, pmId, startDate, endDate }) {
+async function create(conn, { name, description, pmId, startDate, endDate, expectedHours }) {
   const runner = conn || pool;
   const [result] = await runner.query(
-    `INSERT INTO projects (name, description, pm_id, start_date, end_date, status)
-     VALUES (?, ?, ?, ?, ?, 'ACTIVE')`,
-    [name, description, pmId, startDate, endDate]
+    `INSERT INTO projects (name, description, pm_id, start_date, end_date, expected_hours, status)
+     VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE')`,
+    [name, description, pmId, startDate, endDate, expectedHours]
   );
   return result.insertId;
 }
@@ -77,7 +77,7 @@ async function createRequirements(conn, projectId, requirements) {
 async function listByPm(pmId) {
   const [rows] = await pool.query(
     `SELECT p.id, p.name, p.description, ${COMPANY_PM_SELECT},
-            p.start_date, p.end_date, p.status
+            p.start_date, p.end_date, p.expected_hours, p.status
      FROM projects p
      ${COMPANY_PM_JOIN}
      WHERE p.pm_id = ?
@@ -98,7 +98,7 @@ async function listByPm(pmId) {
 async function findById(projectId) {
   const [rows] = await pool.query(
     `SELECT p.id, p.name, p.description, ${COMPANY_PM_SELECT},
-            p.pm_id, p.start_date, p.end_date, p.status
+            p.pm_id, p.start_date, p.end_date, p.expected_hours, p.status
      FROM projects p
      ${COMPANY_PM_JOIN}
      WHERE p.id = ?
@@ -106,6 +106,46 @@ async function findById(projectId) {
     [projectId]
   );
   return rows[0] || null;
+}
+
+/**
+ * Row-locked variant of findById (`SELECT ... FOR UPDATE`) — must run on
+ * `conn` inside an open transaction. This is the actual concurrency
+ * guarantee behind "SUM(allocated_hours) <= expected_hours can never be
+ * violated even under simultaneous requests" (vendorAssignmentService)
+ * and behind project-completion's atomic release-all-assignments step
+ * (pmProjectService.completeProject): a second, concurrent transaction
+ * trying to lock the SAME project row blocks here until the first commits
+ * or rolls back, so two nearly-simultaneous allocation requests against
+ * the same project can never both read a stale "capacity available"
+ * figure. No COMPANY_PM_JOIN here — this internal, transaction-scoped
+ * read only needs the columns those business rules actually touch, not
+ * the display-only company/PM name join every read-facing query carries.
+ */
+async function lockByIdForUpdate(conn, projectId) {
+  const [rows] = await conn.query(
+    `SELECT id, pm_id, start_date, end_date, expected_hours, status
+     FROM projects WHERE id = ? LIMIT 1 FOR UPDATE`,
+    [projectId]
+  );
+  return rows[0] || null;
+}
+
+/**
+ * Conditionally transitions a project to COMPLETED. `WHERE status !=
+ * 'COMPLETED'` is the real atomicity backstop (same conditional-UPDATE
+ * pattern as timesheetRepository.markReviewed / milestoneRepository.markMet)
+ * on top of the row lock from lockByIdForUpdate above — a project can be
+ * marked COMPLETED from ACTIVE or ON_HOLD, but re-completing an
+ * already-COMPLETED project is a no-op (affectedRows = 0), not a second
+ * release-all-assignments pass.
+ */
+async function markCompleted(conn, projectId) {
+  const [result] = await conn.query(
+    `UPDATE projects SET status = 'COMPLETED' WHERE id = ? AND status != 'COMPLETED'`,
+    [projectId]
+  );
+  return result.affectedRows > 0;
 }
 
 /**
@@ -120,7 +160,7 @@ async function findById(projectId) {
 async function listAvailableForVendor() {
   const [rows] = await pool.query(
     `SELECT p.id, p.name, p.description, ${COMPANY_PM_SELECT},
-            p.start_date, p.end_date, p.status
+            p.start_date, p.end_date, p.expected_hours, p.status
      FROM projects p
      ${COMPANY_PM_JOIN}
      WHERE p.status = 'ACTIVE'
@@ -180,6 +220,8 @@ module.exports = {
   createRequirements,
   listByPm,
   findById,
+  lockByIdForUpdate,
+  markCompleted,
   listAvailableForVendor,
   listRequirementsWithCounts,
   findRequirementById,

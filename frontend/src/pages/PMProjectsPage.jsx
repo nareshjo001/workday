@@ -19,6 +19,8 @@ export default function PMProjectsPage() {
   const [loadError, setLoadError] = useState(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState(null);
+  const [actionError, setActionError] = useState(null);
+  const [completingId, setCompletingId] = useState(null);
 
   const loadProjects = useCallback(async () => {
     setIsLoading(true);
@@ -52,6 +54,30 @@ export default function PMProjectsPage() {
     );
   };
 
+  // Project hours/allocation redesign: marks a project COMPLETED and
+  // auto-releases every active assignment on it (see
+  // pmProjectService.completeProject on the backend) — a released
+  // contractor becomes reassignable elsewhere immediately. Re-fetches the
+  // whole list afterward rather than patching one row in place, since
+  // completion also changes every released assignment's staffing/hours
+  // figures that this list may be showing.
+  const handleComplete = async (project) => {
+    setActionError(null);
+    setCompletingId(project.id);
+    try {
+      const { released_assignment_count } = await pmProjectService.completeProject(project.id);
+      await loadProjects();
+      setSuccessMessage(
+        `Project "${project.name}" marked complete — ${released_assignment_count} contractor` +
+          `${released_assignment_count === 1 ? "" : "s"} released and now reassignable.`
+      );
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setCompletingId(null);
+    }
+  };
+
   return (
     <DashboardLayout title="Projects">
       <div className="mx-auto flex max-w-4xl flex-col gap-5">
@@ -63,7 +89,7 @@ export default function PMProjectsPage() {
         </div>
 
         <AlertBanner message={successMessage} variant="success" />
-        <AlertBanner message={loadError} />
+        <AlertBanner message={actionError || loadError} />
 
         {isLoading ? (
           <Spinner label="Loading projects…" />
@@ -71,8 +97,8 @@ export default function PMProjectsPage() {
           <EmptyState onAdd={() => setIsCreateOpen(true)} />
         ) : (
           <div className="rounded-lg bg-surface p-4 shadow-panel ring-1 ring-border sm:p-6">
-            <ProjectTable projects={projects} />
-            <ProjectCardList projects={projects} />
+            <ProjectTable projects={projects} onComplete={handleComplete} completingId={completingId} />
+            <ProjectCardList projects={projects} onComplete={handleComplete} completingId={completingId} />
           </div>
         )}
       </div>

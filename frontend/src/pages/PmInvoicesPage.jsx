@@ -4,32 +4,32 @@ import Spinner from "../components/Spinner";
 import AlertBanner from "../components/AlertBanner";
 import InvoiceTable from "../components/invoices/InvoiceTable";
 import InvoiceCardList from "../components/invoices/InvoiceCardList";
-import InvoiceReviewModal from "../components/invoices/InvoiceReviewModal";
 import pmInvoiceService from "../services/pmInvoiceService";
 
 /**
- * PM's invoice-review queue (Module 6): every PENDING_REVIEW invoice
- * across the PM's own projects, with inline Approve / Reject actions.
- * AUTO_APPROVED invoices never appear here — they were never PM-actioned
- * in the first place (see invoiceService.determineInitialStatus on the
- * backend). This component never sends or reads a pm id itself; ownership
- * is enforced entirely server-side (see pmInvoiceService.listPending →
- * invoiceRepository.listPendingForPm's SQL join on projects.pm_id).
+ * PM's invoice HISTORY (Module 6, narrowed by the invoice-workflow
+ * redesign): every invoice across the PM's own projects, any status,
+ * READ-ONLY — a PM no longer approves or rejects (that authority moved
+ * to the Vendor, see VendorInvoicesPage). Vendor-approved invoices sort
+ * first (see invoiceRepository.listForPm's ORDER BY) since they're the
+ * primary financial record a PM cares about; PENDING_REVIEW/
+ * AUTO_APPROVED/REJECTED still show for full visibility. No
+ * approve/reject controls are rendered anywhere on this page — passing
+ * neither onApprove nor onReject to InvoiceTable/InvoiceCardList puts
+ * both into their read-only branch (see those components' own comments).
+ * Ownership is enforced entirely server-side (pmInvoiceService.listInvoices
+ * → invoiceRepository.listForPm's SQL join on projects.pm_id).
  */
 export default function PmInvoicesPage() {
   const [invoices, setInvoices] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
-  const [reviewingId, setReviewingId] = useState(null);
-  const [actionError, setActionError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
-  const [rejectTarget, setRejectTarget] = useState(null);
 
-  const loadPending = useCallback(async () => {
+  const loadInvoices = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const data = await pmInvoiceService.listPending();
+      const data = await pmInvoiceService.listInvoices();
       setInvoices(data);
     } catch (err) {
       setLoadError(err.message);
@@ -39,88 +39,37 @@ export default function PmInvoicesPage() {
   }, []);
 
   useEffect(() => {
-    loadPending();
-  }, [loadPending]);
-
-  useEffect(() => {
-    if (!successMessage) return undefined;
-    const timer = setTimeout(() => setSuccessMessage(null), 5000);
-    return () => clearTimeout(timer);
-  }, [successMessage]);
-
-  const handleApprove = async (invoiceId) => {
-    setActionError(null);
-    setReviewingId(invoiceId);
-    try {
-      await pmInvoiceService.approveInvoice(invoiceId);
-      // A reviewed invoice drops out of the PENDING_REVIEW queue
-      // immediately — re-fetching the full list isn't necessary since
-      // the only thing that changed is this one row leaving that state.
-      setInvoices((prev) => prev.filter((inv) => inv.id !== invoiceId));
-      setSuccessMessage("Invoice approved.");
-    } catch (err) {
-      setActionError(err.message);
-    } finally {
-      setReviewingId(null);
-    }
-  };
-
-  const handleRejectConfirm = async (invoiceId, rejectionReason) => {
-    setActionError(null);
-    setReviewingId(invoiceId);
-    try {
-      await pmInvoiceService.rejectInvoice(invoiceId, rejectionReason);
-      setInvoices((prev) => prev.filter((inv) => inv.id !== invoiceId));
-      setSuccessMessage("Invoice rejected.");
-      setRejectTarget(null);
-    } finally {
-      setReviewingId(null);
-    }
-  };
+    loadInvoices();
+  }, [loadInvoices]);
 
   return (
-    <DashboardLayout title="Invoice Review">
+    <DashboardLayout title="Invoices">
       <div className="mx-auto flex max-w-4xl flex-col gap-5">
-        <h1 className="text-xl font-semibold text-text">Invoice Review</h1>
+        <h1 className="text-xl font-semibold text-text">Invoices</h1>
+        <p className="text-sm text-muted">
+          Read-only billing history for your projects. Vendors review and approve or reject each
+          invoice — once approved, it appears here as your project's financial record.
+        </p>
 
-        <AlertBanner message={successMessage} variant="success" />
-        <AlertBanner message={actionError || loadError} />
+        <AlertBanner message={loadError} />
 
         {isLoading ? (
-          <Spinner label="Loading pending invoices…" />
+          <Spinner label="Loading invoices…" />
         ) : invoices.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-surface px-6 py-12 text-center">
-            <p className="text-text-secondary">No invoices awaiting review.</p>
+            <p className="text-text-secondary">No invoices yet.</p>
             <p className="max-w-sm text-sm text-muted">
-              Invoices generated for milestones on your projects that are at or above the auto-approval
-              threshold will show up here.
+              Invoices are generated automatically once a project milestone is met, and appear here
+              once a Vendor has reviewed them.
             </p>
           </div>
         ) : (
           <div className="rounded-lg bg-surface p-4 shadow-panel ring-1 ring-border sm:p-6">
-            <InvoiceTable
-              invoices={invoices}
-              reviewingId={reviewingId}
-              onApprove={handleApprove}
-              onReject={(id) => setRejectTarget(invoices.find((inv) => inv.id === id))}
-            />
-            <InvoiceCardList
-              invoices={invoices}
-              reviewingId={reviewingId}
-              onApprove={handleApprove}
-              onReject={(id) => setRejectTarget(invoices.find((inv) => inv.id === id))}
-            />
+            <InvoiceTable invoices={invoices} />
+            <InvoiceCardList invoices={invoices} />
           </div>
         )}
       </div>
-
-      {rejectTarget && (
-        <InvoiceReviewModal
-          invoice={rejectTarget}
-          onClose={() => setRejectTarget(null)}
-          onReject={handleRejectConfirm}
-        />
-      )}
     </DashboardLayout>
   );
 }

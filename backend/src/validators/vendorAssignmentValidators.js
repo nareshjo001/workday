@@ -9,11 +9,25 @@ function parsePositiveInt(value) {
  * Validates the URL params + body for
  * POST /api/vendor/projects/:projectId/requirements/:requirementId/assign.
  * Returns { projectId, requirementId, contractorIds } on success, throws
- * ApiError(400) otherwise. Deliberately does NOT accept vendor_id or
- * pm ownership from the body — the assigning vendor is always derived
- * server-side from the authenticated JWT (see
- * vendorAssignmentService.assignContractors), and project/requirement
- * ownership is re-verified in the service, not trusted from params alone.
+ * ApiError(400) otherwise.
+ *
+ * MVP FIX 1 ("work-hour allocation must belong to the PM, not the
+ * Vendor"): the body shape is a plain `contractorIds: number[]` — there
+ * is deliberately NO `allocatedHours`/`allocated_hours` field parsed
+ * anywhere in this file. This is not a UI-only restriction: if a caller
+ * sends `{ contractorIds: [...], allocatedHours: ... }` (or any other
+ * hours-shaped field) anyway, this validator simply never reads it — it
+ * is dropped on the floor before ever reaching vendorAssignmentService,
+ * which itself has no parameter for it either (see that function's own
+ * doc comment). Allocating hours to an already-assigned contractor is
+ * exclusively a PM action — see pmProjectValidators.validateUpdateAllocation
+ * and pmProjectService.updateContractorAllocation.
+ *
+ * Deliberately does NOT accept vendor_id or pm ownership from the body —
+ * the assigning vendor is always derived server-side from the
+ * authenticated JWT (see vendorAssignmentService.assignContractors), and
+ * project/requirement ownership is re-verified in the service, not
+ * trusted from params alone.
  */
 function validateAssignContractors(params = {}, body = {}) {
   const errors = [];
@@ -26,16 +40,22 @@ function validateAssignContractors(params = {}, body = {}) {
 
   const contractorIdsInput = Array.isArray(body.contractorIds) ? body.contractorIds : null;
   const contractorIds = [];
+  const seenContractorIds = new Set();
   if (!contractorIdsInput || contractorIdsInput.length === 0) {
     errors.push("contractorIds is required and must be a non-empty array.");
   } else {
-    contractorIdsInput.forEach((raw, index) => {
-      const id = parsePositiveInt(raw);
-      if (!id) {
+    contractorIdsInput.forEach((entry, index) => {
+      const contractorId = parsePositiveInt(entry);
+      if (!contractorId) {
         errors.push(`contractorIds[${index}] must be a positive integer.`);
-      } else {
-        contractorIds.push(id);
+        return;
       }
+      if (seenContractorIds.has(contractorId)) {
+        errors.push(`contractorIds contains duplicate contractorId ${contractorId}.`);
+        return;
+      }
+      seenContractorIds.add(contractorId);
+      contractorIds.push(contractorId);
     });
   }
 
