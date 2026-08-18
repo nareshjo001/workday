@@ -6,7 +6,7 @@ import PasswordField from "../components/PasswordField";
 import PrimaryButton from "../components/PrimaryButton";
 import AlertBanner from "../components/AlertBanner";
 import RoleSelector from "../components/RoleSelector";
-import { ROLES } from "../constants/roles";
+import { SELF_SIGNUP_ROLES } from "../constants/roles";
 import { useAuth } from "../context/AuthContext";
 
 const initialForm = {
@@ -14,7 +14,9 @@ const initialForm = {
   email: "",
   password: "",
   confirmPassword: "",
-  role: ROLES.CONTRACTOR,
+  // First self-signup-eligible role — Contractor is not offered here (see
+  // RoleSelector), so it must never be the default.
+  role: SELF_SIGNUP_ROLES[0],
 };
 
 export default function SignupPage() {

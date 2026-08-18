@@ -1,4 +1,4 @@
-import { ALL_ROLES, ROLE_META } from "../constants/roles";
+import { SELF_SIGNUP_ROLES, ROLE_META } from "../constants/roles";
 
 /**
  * Compact, responsive role-selection control for signup. Renders as a
@@ -15,7 +15,7 @@ export default function RoleSelector({ value, onChange, error }) {
         aria-describedby={error ? "role-error" : undefined}
         className="grid grid-cols-1 gap-2.5 sm:grid-cols-3"
       >
-        {ALL_ROLES.map((role) => {
+        {SELF_SIGNUP_ROLES.map((role) => {
           const meta = ROLE_META[role];
           const isSelected = value === role;
           return (

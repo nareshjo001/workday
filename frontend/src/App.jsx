@@ -9,6 +9,7 @@ import HomeRedirect from "./pages/HomeRedirect";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import VendorHomePage from "./pages/VendorHomePage";
+import VendorContractorsPage from "./pages/VendorContractorsPage";
 import ContractorHomePage from "./pages/ContractorHomePage";
 import PmHomePage from "./pages/PmHomePage";
 
@@ -23,6 +24,7 @@ export default function App() {
 
         <Route element={<ProtectedRoute allowedRoles={[ROLES.VENDOR]} />}>
           <Route path="/vendor" element={<VendorHomePage />} />
+          <Route path="/vendor/contractors" element={<VendorContractorsPage />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={[ROLES.CONTRACTOR]} />}>

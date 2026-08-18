@@ -10,6 +10,7 @@ export default function PrimaryButton({
   isLoading = false,
   type = "submit",
   disabled = false,
+  fullWidth = true,
   className = "",
   ...rest
 }) {
@@ -20,7 +21,7 @@ export default function PrimaryButton({
       type={type}
       disabled={isDisabled}
       aria-busy={isLoading}
-      className={`inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-base font-medium text-primary-foreground shadow-panel transition-colors duration-150 hover:bg-primary-hover active:bg-primary-active disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-primary ${className}`}
+      className={`inline-flex ${fullWidth ? "w-full" : "w-auto"} items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-base font-medium text-primary-foreground shadow-panel transition-colors duration-150 hover:bg-primary-hover active:bg-primary-active disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-primary ${className}`}
       {...rest}
     >
       {isLoading && (

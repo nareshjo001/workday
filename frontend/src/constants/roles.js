@@ -10,6 +10,16 @@ export const ROLES = Object.freeze({
 
 export const ALL_ROLES = Object.freeze(Object.values(ROLES));
 
+/**
+ * Roles selectable on the signup form. CONTRACTOR is deliberately
+ * excluded — for MVP, a Contractor account is only ever created by a
+ * Vendor (see VendorContractorsPage), never self-registered. Mirrors
+ * backend/src/constants/roles.js's SELF_SIGNUP_ROLES, which is the
+ * actual enforcement point; this just keeps the UI from offering an
+ * option the backend will reject.
+ */
+export const SELF_SIGNUP_ROLES = Object.freeze([ROLES.VENDOR, ROLES.PM]);
+
 /** Where each role lands after login. */
 export const ROLE_HOME_PATH = Object.freeze({
   [ROLES.VENDOR]: "/vendor",
