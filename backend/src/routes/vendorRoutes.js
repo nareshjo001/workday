@@ -6,6 +6,7 @@ const vendorContractorController = require("../controllers/vendorContractorContr
 const vendorAssignmentController = require("../controllers/vendorAssignmentController");
 const vendorProjectController = require("../controllers/vendorProjectController");
 const vendorInvoiceController = require("../controllers/vendorInvoiceController");
+const vendorDashboardController = require("../controllers/vendorDashboardController");
 
 /**
  * Every route in this router requires a valid JWT AND role = VENDOR.
@@ -46,5 +47,13 @@ router.post(
 // authenticate/authorizeRoles declaration needed.
 router.get("/invoices", vendorInvoiceController.list);
 router.patch("/invoices/:id", vendorInvoiceController.review);
+
+// UI + analytics redesign: a single read-only aggregated dashboard
+// payload for the Vendor home screen (KPIs, earnings, project progress,
+// invoice overview, recent activity) — see vendorDashboardService.js.
+// Same gate reuse rationale as /contractors above — no new
+// authenticate/authorizeRoles declaration needed, and no existing route
+// above this line was changed.
+router.get("/dashboard", vendorDashboardController.getDashboard);
 
 module.exports = router;

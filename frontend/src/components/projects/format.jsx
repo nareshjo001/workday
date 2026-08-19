@@ -1,3 +1,5 @@
+import ProgressBar from "../dashboard/ProgressBar";
+
 export function formatDate(dateStr) {
   if (!dateStr) return "—";
   const [year, month, day] = dateStr.split("-");
@@ -97,13 +99,16 @@ export function HoursStaffingBadge({ status }) {
 export function WorkProgress({ approvedHours, expectedHours, progressPercent }) {
   if (expectedHours === null || expectedHours === undefined) return null;
   return (
-    <span className="text-text-secondary">
-      Work: <span className="font-medium text-text">{formatHours(approvedHours)}</span>/
-      {formatHours(expectedHours)}h{" "}
-      <span className={progressPercent >= 100 ? "font-medium text-success" : ""}>
-        {progressPercent}%
+    <div className="flex flex-col gap-1">
+      <span className="text-text-secondary">
+        Work: <span className="font-medium text-text">{formatHours(approvedHours)}</span>/
+        {formatHours(expectedHours)}h{" "}
+        <span className={progressPercent >= 100 ? "font-medium text-success" : ""}>
+          {progressPercent}%
+        </span>
       </span>
-    </span>
+      <ProgressBar percent={progressPercent} size="sm" />
+    </div>
   );
 }
 

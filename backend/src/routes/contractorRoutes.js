@@ -5,6 +5,7 @@ const { ROLES } = require("../constants/roles");
 const contractorProjectController = require("../controllers/contractorProjectController");
 const contractorProfileController = require("../controllers/contractorProfileController");
 const contractorTimesheetController = require("../controllers/contractorTimesheetController");
+const contractorDashboardController = require("../controllers/contractorDashboardController");
 
 /**
  * Every route here requires a valid JWT AND role = CONTRACTOR — same
@@ -33,5 +34,11 @@ router.patch("/profile/skill", contractorProfileController.updateProfile);
 router.post("/timesheets", contractorTimesheetController.submit);
 router.get("/timesheets", contractorTimesheetController.list);
 router.patch("/timesheets/:id", contractorTimesheetController.update);
+
+// UI + analytics redesign: a single read-only aggregated dashboard
+// payload for the Contractor home screen — see
+// contractorDashboardService.js. Same gate reuse rationale as /profile
+// above; no existing route above this line was changed.
+router.get("/dashboard", contractorDashboardController.getDashboard);
 
 module.exports = router;
