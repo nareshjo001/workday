@@ -21,7 +21,7 @@
 //
 // Usage: node eligible_contractor_release_test.js   (server on :5000)
 
-const BASE = "http://localhost:5000/api";
+const BASE = process.env.API_BASE_URL || "http://localhost:5000/api";
 let pass = 0;
 let fail = 0;
 const failures = [];
