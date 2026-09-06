@@ -60,8 +60,9 @@ async function listByVendor(vendorId, opts = {}) {
  * A single contractor, but ONLY if it belongs to the given vendor — the
  * ownership check is baked into the WHERE clause, not applied afterward.
  */
-async function findByVendorAndId(vendorId, contractorId) {
-  const [rows] = await pool.query(
+async function findByVendorAndId(vendorId, contractorId, conn) {
+  const runner = conn || pool;
+  const [rows] = await runner.query(
     `SELECT c.id, c.hourly_rate, c.status, c.skill, u.name, u.email
      FROM contractors c
      INNER JOIN users u ON u.id = c.user_id
@@ -144,7 +145,7 @@ async function findByVendorAndIdForUpdate(conn, vendorId, contractorId) {
  * exists but belongs to a different vendor, affectedRows is 0 and nothing
  * is changed — the caller (service layer) turns that into a 404.
  */
-async function updateOwned(vendorId, contractorId, fields) {
+async function updateOwned(vendorId, contractorId, fields, conn) {
   const setClauses = [];
   const values = [];
 
@@ -163,7 +164,8 @@ async function updateOwned(vendorId, contractorId, fields) {
 
   values.push(contractorId, vendorId);
 
-  const [result] = await pool.query(
+  const runner = conn || pool;
+  const [result] = await runner.query(
     `UPDATE contractors SET ${setClauses.join(", ")} WHERE id = ? AND vendor_id = ?`,
     values
   );

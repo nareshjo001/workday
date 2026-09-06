@@ -21,7 +21,7 @@ const review = asyncHandler(async (req, res) => {
   const invoice = await vendorInvoiceService.reviewInvoice(req.user.userId, invoiceId, {
     status,
     rejectionReason,
-  });
+  }, { ...req.user, requestId: req.requestId });
   res.status(200).json(invoice);
 });
 

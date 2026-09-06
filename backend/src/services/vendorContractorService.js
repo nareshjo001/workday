@@ -5,6 +5,7 @@ const { hashPassword } = require("../utils/password");
 const ApiError = require("../utils/ApiError");
 const crypto = require("crypto");
 const authService = require("./authService");
+const auditService = require("./auditService");
 
 function toContractorView(row) {
   return {
@@ -23,7 +24,7 @@ function toContractorView(row) {
  * resolved from the JWT by the controller — never taken from the request
  * body).
  */
-async function createContractor(vendorId, { name, email, hourlyRate, testPassword }) {
+async function createContractor(vendorId, { name, email, hourlyRate, testPassword }, auditActor) {
   // Friendly pre-check so the common case returns a clean 409 without ever
   // opening a transaction. The UNIQUE constraint on users.email is still
   // the real guarantee — see the ER_DUP_ENTRY catch below — so a second
@@ -46,6 +47,11 @@ async function createContractor(vendorId, { name, email, hourlyRate, testPasswor
       vendorId,
       hourlyRate,
     });
+    if (auditActor) {
+      await auditService.write(conn, auditActor, "CONTRACTOR_CREATED", "contractor", contractorId, null, {
+        name, email, hourly_rate: hourlyRate, status: "ACTIVE",
+      });
+    }
     await conn.commit();
 
     const contractor = {
@@ -90,17 +96,34 @@ async function listContractors(vendorId, opts = {}) {
  * outside — both come back as 404 — so this endpoint can't be used to
  * probe which contractor ids exist under other vendors.
  */
-async function updateContractor(vendorId, contractorId, fields) {
+async function updateContractor(vendorId, contractorId, fields, auditActor) {
   if (!Number.isInteger(contractorId) || contractorId <= 0) {
     throw ApiError.badRequest("Invalid contractor id.");
   }
 
-  const updated = await contractorRepository.updateOwned(vendorId, contractorId, fields);
-  if (!updated) {
-    throw ApiError.notFound("Contractor not found.");
+  const conn = await pool.getConnection();
+  let contractor;
+  try {
+    await conn.beginTransaction();
+    const before = await contractorRepository.findByVendorAndIdForUpdate(conn, vendorId, contractorId);
+    if (!before) throw ApiError.notFound("Contractor not found.");
+    const updated = await contractorRepository.updateOwned(vendorId, contractorId, fields, conn);
+    if (!updated) throw ApiError.notFound("Contractor not found.");
+    contractor = await contractorRepository.findByVendorAndId(vendorId, contractorId, conn);
+    if (auditActor) {
+      await auditService.write(conn, auditActor, "CONTRACTOR_UPDATED", "contractor", contractorId, {
+        hourly_rate: Number(before.hourly_rate), status: before.status,
+      }, {
+        hourly_rate: Number(contractor.hourly_rate), status: contractor.status,
+      });
+    }
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback().catch(() => {});
+    throw err;
+  } finally {
+    conn.release();
   }
-
-  const contractor = await contractorRepository.findByVendorAndId(vendorId, contractorId);
   return toContractorView(contractor);
 }
 

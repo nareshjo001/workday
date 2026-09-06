@@ -2,6 +2,8 @@ const projectRepository = require("../repositories/projectRepository");
 const milestoneRepository = require("../repositories/milestoneRepository");
 const milestoneService = require("./milestoneService");
 const ApiError = require("../utils/ApiError");
+const { pool } = require("../config/db");
+const auditService = require("./auditService");
 
 /**
  * Verifies `projectId` exists AND is owned by `pmId`, returning the
@@ -52,20 +54,33 @@ async function assertOwnedProject(pmId, projectId) {
  * This call can never throw (see that function's own doc comment) and
  * never rolls back the milestone that was just created.
  */
-async function createMilestone(pmId, { projectId, name, thresholdHours }) {
-  const project = await assertOwnedProject(pmId, projectId);
-
-  if (project.expected_hours !== null && thresholdHours > Number(project.expected_hours)) {
-    throw ApiError.badRequest("Validation failed", [
-      `threshold_hours (${thresholdHours}) cannot exceed the project's expected_hours (${Number(
-        project.expected_hours
-      )}).`,
-    ]);
+async function createMilestone(pmId, { projectId, name, thresholdHours }, auditActor) {
+  const conn = await pool.getConnection();
+  let milestoneId;
+  try {
+    await conn.beginTransaction();
+    const project = await projectRepository.lockByIdForUpdate(conn, projectId);
+    if (!project || project.pm_id !== pmId) throw ApiError.notFound("Project not found.");
+    if (project.expected_hours !== null && thresholdHours > Number(project.expected_hours)) {
+      throw ApiError.badRequest("Validation failed", [
+        `threshold_hours (${thresholdHours}) cannot exceed the project's expected_hours (${Number(project.expected_hours)}).`,
+      ]);
+    }
+    milestoneId = await milestoneRepository.create(conn, { projectId, name, thresholdHours });
+    if (auditActor) {
+      await auditService.write(conn, auditActor, "MILESTONE_CREATED", "milestone", milestoneId, null, {
+        project_id: projectId, name, threshold_hours: thresholdHours, status: "PENDING",
+      });
+    }
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback().catch(() => {});
+    throw err;
+  } finally {
+    conn.release();
   }
 
-  const milestoneId = await milestoneRepository.create({ projectId, name, thresholdHours });
-
-  await milestoneService.checkAndTriggerMilestones(projectId);
+  await milestoneService.checkAndTriggerMilestones(projectId, auditActor);
 
   return findMilestoneView(projectId, milestoneId);
 }

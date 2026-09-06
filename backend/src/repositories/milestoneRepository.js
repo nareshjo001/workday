@@ -25,8 +25,8 @@ const { pool } = require("../config/db");
  * called (pmMilestoneService.createMilestone) — this function trusts its
  * caller, same convention as projectRepository.create.
  */
-async function create({ projectId, name, thresholdHours }) {
-  const [result] = await pool.query(
+async function create(conn, { projectId, name, thresholdHours }) {
+  const [result] = await conn.query(
     `INSERT INTO milestones (project_id, name, threshold_hours, status)
      VALUES (?, ?, ?, 'PENDING')`,
     [projectId, name, thresholdHours]

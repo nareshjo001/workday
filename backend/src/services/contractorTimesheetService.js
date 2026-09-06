@@ -4,6 +4,7 @@ const projectRepository = require("../repositories/projectRepository");
 const assignmentRepository = require("../repositories/assignmentRepository");
 const timesheetRepository = require("../repositories/timesheetRepository");
 const ApiError = require("../utils/ApiError");
+const auditService = require("./auditService");
 
 function todayDateString() {
   return new Date().toISOString().slice(0, 10);
@@ -132,7 +133,7 @@ function assertWithinRemainingAllocation(project, assignment, reservedHours, hou
  *      migration 013 (the actual guarantee under concurrency, not just
  *      this check).
  */
-async function submitTimesheet(userId, { projectId, workDate, hoursLogged }) {
+async function submitTimesheet(userId, { projectId, workDate, hoursLogged }, auditActor) {
   const contractor = await contractorRepository.findByUserId(userId);
   if (!contractor) {
     throw ApiError.notFound("Contractor record not found for this account.");
@@ -170,7 +171,7 @@ async function submitTimesheet(userId, { projectId, workDate, hoursLogged }) {
     assertWithinRemainingAllocation(project, assignment, reservedHours, hoursLogged);
 
     try {
-      timesheetId = await timesheetRepository.create({
+      timesheetId = await timesheetRepository.create(conn, {
         contractorId: contractor.id,
         projectId,
         workDate,
@@ -185,6 +186,12 @@ async function submitTimesheet(userId, { projectId, workDate, hoursLogged }) {
         throw ApiError.conflict("A timesheet for this project and date has already been submitted.");
       }
       throw err;
+    }
+
+    if (auditActor) {
+      await auditService.write(conn, auditActor, "TIMESHEET_SUBMITTED", "timesheet", timesheetId, null, {
+        project_id: projectId, work_date: workDate, hours_logged: hoursLogged, status: "PENDING",
+      });
     }
 
     await conn.commit();
@@ -252,7 +259,7 @@ async function listMyTimesheets(userId) {
  * concurrent new submission against the same allocation — can't
  * interleave with this one.
  */
-async function updateTimesheet(userId, timesheetId, { workDate, hoursLogged }) {
+async function updateTimesheet(userId, timesheetId, { workDate, hoursLogged }, auditActor) {
   const contractor = await contractorRepository.findByUserId(userId);
   if (!contractor) {
     throw ApiError.notFound("Contractor record not found for this account.");
@@ -315,6 +322,14 @@ async function updateTimesheet(userId, timesheetId, { workDate, hoursLogged }) {
       // but the conditional WHERE status = 'REJECTED' is the real
       // guarantee, not the lock alone).
       throw ApiError.conflict("Only rejected timesheets can be edited.");
+    }
+
+    if (auditActor) {
+      await auditService.write(conn, auditActor, "TIMESHEET_RESUBMITTED", "timesheet", timesheetId, {
+        work_date: existing.work_date, hours_logged: Number(existing.hours_logged), status: existing.status,
+      }, {
+        work_date: workDate, hours_logged: hoursLogged, status: "PENDING",
+      });
     }
 
     await conn.commit();

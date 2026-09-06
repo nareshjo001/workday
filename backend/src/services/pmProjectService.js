@@ -3,6 +3,7 @@ const projectRepository = require("../repositories/projectRepository");
 const assignmentRepository = require("../repositories/assignmentRepository");
 const timesheetRepository = require("../repositories/timesheetRepository");
 const ApiError = require("../utils/ApiError");
+const auditService = require("./auditService");
 
 /**
  * Derives overall SKILL-HEADCOUNT staffing status from a project's
@@ -109,7 +110,7 @@ function toProjectView(row, requirements, hoursMetrics) {
  * `expectedHours` (project hours/allocation redesign) is stored on the
  * project row itself in the same insert — no separate step.
  */
-async function createProject(pmId, { name, description, startDate, endDate, expectedHours, requirements }) {
+async function createProject(pmId, { name, description, startDate, endDate, expectedHours, requirements }, auditActor) {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -124,6 +125,11 @@ async function createProject(pmId, { name, description, startDate, endDate, expe
     });
 
     await projectRepository.createRequirements(conn, projectId, requirements);
+    if (auditActor) {
+      await auditService.write(conn, auditActor, "PROJECT_CREATED", "project", projectId, null, {
+        name, expected_hours: expectedHours, requirement_count: requirements.length, status: "ACTIVE",
+      });
+    }
 
     await conn.commit();
 
@@ -251,7 +257,7 @@ async function listAssignedContractors(pmId, projectId) {
  * project_assignments.status/released_at, per the spec's explicit
  * "historical timesheets stay untouched" requirement.
  */
-async function completeProject(pmId, projectId) {
+async function completeProject(pmId, projectId, auditActor) {
   const conn = await pool.getConnection();
   let releasedCount;
   try {
@@ -274,6 +280,7 @@ async function completeProject(pmId, projectId) {
     }
 
     releasedCount = await assignmentRepository.releaseAllActiveForProject(conn, projectId);
+    if (auditActor) await auditService.write(conn,auditActor,"PROJECT_COMPLETED","project",projectId,{status:project.status},{status:"COMPLETED",released_assignment_count:releasedCount});
 
     await conn.commit();
   } catch (err) {
@@ -333,7 +340,7 @@ async function completeProject(pmId, projectId) {
  *      never captured" stance used everywhere else in this codebase.
  *   5. UPDATE. COMMIT.
  */
-async function updateContractorAllocation(pmId, projectId, contractorId, allocatedHours) {
+async function updateContractorAllocation(pmId, projectId, contractorId, allocatedHours, auditActor) {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -375,6 +382,7 @@ async function updateContractorAllocation(pmId, projectId, contractorId, allocat
     }
 
     await assignmentRepository.updateAllocatedHours(conn, assignment.id, allocatedHours);
+    if (auditActor) await auditService.write(conn,auditActor,"ASSIGNMENT_ALLOCATION_CHANGED","project_assignment",assignment.id,{allocated_hours:assignment.allocated_hours},{allocated_hours:allocatedHours,project_id:projectId,contractor_id:contractorId});
 
     await conn.commit();
   } catch (err) {

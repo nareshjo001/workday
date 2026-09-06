@@ -13,7 +13,7 @@ const asyncHandler = require("../utils/asyncHandler");
 
 const create = asyncHandler(async (req, res) => {
   const payload = validateCreateMilestone(req.body);
-  const milestone = await pmMilestoneService.createMilestone(req.user.userId, payload);
+  const milestone = await pmMilestoneService.createMilestone(req.user.userId, payload, { ...req.user, requestId: req.requestId });
   res.status(201).json(milestone);
 });
 

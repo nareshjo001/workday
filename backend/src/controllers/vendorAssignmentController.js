@@ -14,7 +14,8 @@ const assign = asyncHandler(async (req, res) => {
     req.user.userId,
     projectId,
     requirementId,
-    contractorIds
+    contractorIds,
+    { ...req.user, requestId: req.requestId }
   );
   res.status(201).json(result);
 });
