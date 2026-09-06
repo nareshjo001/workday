@@ -25,3 +25,7 @@ M01 preserves architecture and security boundaries. Test DB destruction is expli
 **Issue:** CI used Node `20.20.2`, while the locked Vitest/jsdom/undici dependency tree requires a newer runtime. The worker failed before any assertion with jsdom's undici `markAsUncloneable` compatibility error.
 
 **Fix:** Root `.nvmrc` pins Node `24.18.0`; GitHub Actions now reads it through `node-version-file`; frontend declares `>=24.15.0 <25`. Node 24.18.0 satisfies Vitest 5.0.0, jsdom 30.0.1, undici 8.10.2, and the existing backend `>=18` engine. The lockfile remains deterministic and no production dependency/test semantics changed.
+
+## Final closure
+
+Both M01 CI findings are closed. The repository owner verified successful GitHub Actions `push` and `pull_request` runs after the c8 shell-portability and Node-runtime fixes. No remaining M01 audit finding prevents module completion.

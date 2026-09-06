@@ -33,3 +33,7 @@ The command now quotes both c8 include patterns and names the owned integration 
 The subsequent CI failure occurred before test execution on Node `20.20.2`: `webidl.util.markAsUncloneable is not a function` arose while jsdom loaded resolved undici. The lockfile resolves Vitest `5.0.0` (Node `^22.12.0 || ^24.0.0 || >=26`), jsdom `30.0.1` (Node `^22.22.2 || ^24.15.0 || >=26`), and undici `8.10.2` (Node `>=22.19.0`). Node 20 is therefore outside the supported dependency range.
 
 Local Windows had passed on Node `24.18.0` and npm `11.16.0`. CI now reads the same `24.18.0` runtime from root `.nvmrc`; frontend `package.json` declares Node `>=24.15.0 <25`. No tests, jsdom environment, workers, dependencies, or coverage thresholds changed.
+
+## Final CI verification
+
+The repository owner verified that the GitHub Actions `push` and `pull_request` runs for M01 completed successfully after the shell-portability and Node-runtime fixes. This confirms the MySQL-backed backend coverage step, frontend test step, lint, and production build run successfully in the configured Linux CI environment.
