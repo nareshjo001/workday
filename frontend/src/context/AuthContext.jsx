@@ -18,13 +18,13 @@ export function AuthProvider({ children }) {
   const [error, setError] = useState(null);
 
   const resolveSession = useCallback(async () => {
-    const token = getToken();
-    if (!token) {
-      setUser(null);
-      setIsLoading(false);
-      return;
-    }
     try {
+      if (!getToken()) {
+        const refreshed = await authService.refresh();
+        setToken(refreshed.token);
+        setUser(refreshed.user);
+        return;
+      }
       const currentUser = await authService.getCurrentUser();
       setUser(currentUser);
     } catch {
@@ -54,7 +54,7 @@ export function AuthProvider({ children }) {
     return newUser;
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     // Clear token -> clear user -> reset auth state -> navigate to login,
     // all synchronously, so no protected route ever re-renders in between
     // with a mismatched (token, user) pair. Navigating here — rather than
@@ -63,10 +63,15 @@ export function AuthProvider({ children }) {
     // .from`, which would otherwise get replayed as the redirect target
     // after the *next* login regardless of the newly authenticated user's
     // role.
+    try { await authService.logout(); } catch { /* local cleanup still protects the UI */ }
     clearToken();
     setUser(null);
     setError(null);
     navigate("/login", { replace: true });
+  }, [navigate]);
+
+  const logoutAll = useCallback(async () => {
+    try { await authService.logoutAll(); } finally { clearToken(); setUser(null); navigate("/login", { replace: true }); }
   }, [navigate]);
 
   const value = useMemo(
@@ -78,8 +83,9 @@ export function AuthProvider({ children }) {
       login,
       signup,
       logout,
+      logoutAll,
     }),
-    [user, isLoading, error, login, signup, logout]
+    [user, isLoading, error, login, signup, logout, logoutAll]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

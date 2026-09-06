@@ -21,6 +21,8 @@ import PmTimesheetsPage from "./pages/PmTimesheetsPage";
 import PmMilestonesPage from "./pages/PmMilestonesPage";
 import PmInvoicesPage from "./pages/PmInvoicesPage";
 import VendorInvoicesPage from "./pages/VendorInvoicesPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import PasswordActionPage from "./pages/PasswordActionPage";
 
 export default function App() {
   return (
@@ -29,6 +31,9 @@ export default function App() {
         <Route path="/" element={<HomeRedirect />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<PasswordActionPage mode="reset" />} />
+        <Route path="/setup-password" element={<PasswordActionPage mode="setup" />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
         <Route element={<ProtectedRoute allowedRoles={[ROLES.VENDOR]} />}>

@@ -3,6 +3,8 @@ const userRepository = require("../repositories/userRepository");
 const contractorRepository = require("../repositories/contractorRepository");
 const { hashPassword } = require("../utils/password");
 const ApiError = require("../utils/ApiError");
+const crypto = require("crypto");
+const authService = require("./authService");
 
 function toContractorView(row) {
   return {
@@ -21,7 +23,7 @@ function toContractorView(row) {
  * resolved from the JWT by the controller — never taken from the request
  * body).
  */
-async function createContractor(vendorId, { name, email, password, hourlyRate }) {
+async function createContractor(vendorId, { name, email, hourlyRate, testPassword }) {
   // Friendly pre-check so the common case returns a clean 409 without ever
   // opening a transaction. The UNIQUE constraint on users.email is still
   // the real guarantee — see the ER_DUP_ENTRY catch below — so a second
@@ -31,7 +33,8 @@ async function createContractor(vendorId, { name, email, password, hourlyRate })
     throw ApiError.conflict("An account with this email already exists.");
   }
 
-  const passwordHash = await hashPassword(password);
+  // Placeholder cannot be used as a known credential; contractor chooses the real password via invitation.
+  const passwordHash = await hashPassword(testPassword || crypto.randomBytes(48).toString("base64url"));
 
   const conn = await pool.getConnection();
   try {
@@ -45,13 +48,16 @@ async function createContractor(vendorId, { name, email, password, hourlyRate })
     });
     await conn.commit();
 
-    return {
+    const contractor = {
       id: contractorId,
       name,
       email,
       hourly_rate: hourlyRate,
       status: "ACTIVE",
     };
+    // Delivery happens after the identity transaction commits. If it fails, resend can safely replace the prior token.
+    await authService.issueAction(email, "CONTRACTOR_INVITATION");
+    return contractor;
   } catch (err) {
     await conn.rollback();
     if (err?.code === "ER_DUP_ENTRY") {
@@ -98,4 +104,11 @@ async function updateContractor(vendorId, contractorId, fields) {
   return toContractorView(contractor);
 }
 
-module.exports = { createContractor, listContractors, updateContractor };
+async function resendInvitation(vendorId, contractorId) {
+  if (!Number.isInteger(contractorId) || contractorId <= 0) throw ApiError.badRequest("Invalid contractor id.");
+  const recipient = await contractorRepository.findInvitationRecipientByVendorAndId(vendorId, contractorId);
+  if (!recipient) throw ApiError.notFound("Contractor not found.");
+  await authService.issueActionForUser(recipient, "CONTRACTOR_INVITATION");
+}
+
+module.exports = { createContractor, listContractors, updateContractor, resendInvitation };

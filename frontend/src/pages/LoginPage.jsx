@@ -75,6 +75,7 @@ export default function LoginPage() {
         <PrimaryButton isLoading={isSubmitting} loadingText="Signing in…" className="mt-2">
           Sign in
         </PrimaryButton>
+        <p className="text-center text-sm text-muted"><Link to="/forgot-password" className="font-medium text-accent hover:underline">Forgot your password?</Link></p>
 
         <p className="text-center text-sm text-muted">
           Don't have an account?{" "}

@@ -16,6 +16,8 @@ function normalizeEmail(email) {
  */
 function validateSignup(body = {}) {
   const errors = [];
+  const allowed = ["name", "email", "password", "role", "companyName"];
+  if (Object.keys(body).some((key) => !allowed.includes(key))) errors.push("Unexpected field in request.");
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const email = normalizeEmail(body.email);
@@ -73,6 +75,7 @@ function validateSignup(body = {}) {
  */
 function validateLogin(body = {}) {
   const errors = [];
+  if (Object.keys(body).some((key) => !["email", "password"].includes(key))) errors.push("Unexpected field in request.");
 
   const email = normalizeEmail(body.email);
   const password = typeof body.password === "string" ? body.password : "";
@@ -89,6 +92,25 @@ function validateLogin(body = {}) {
   return { email, password };
 }
 
+function validateActionToken(body = {}) {
+  if (Object.keys(body).some((key) => !["token", "password"].includes(key))) throw ApiError.badRequest("Unexpected field in request.");
+  if (!body || typeof body.token !== "string" || !body.token.trim()) throw ApiError.badRequest("A valid token is required.");
+  return body.token.trim();
+}
+
+function validateNewPassword(body = {}) {
+  const password = typeof body.password === "string" ? body.password : "";
+  if (password.length < PASSWORD_MIN_LENGTH) throw ApiError.badRequest(`Password must be at least ${PASSWORD_MIN_LENGTH} characters.`);
+  return password;
+}
+
+function validateRecoveryRequest(body = {}) {
+  if (Object.keys(body).some((key) => key !== "email")) throw ApiError.badRequest("Invalid recovery request.");
+  const email = normalizeEmail(body.email);
+  // Deliberately treat malformed and unknown addresses alike at the endpoint.
+  return typeof email === "string" && EMAIL_REGEX.test(email) ? email : null;
+}
+
 module.exports = {
   validateSignup,
   validateLogin,
@@ -99,4 +121,7 @@ module.exports = {
   EMAIL_REGEX,
   NAME_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
+  validateActionToken,
+  validateNewPassword,
+  validateRecoveryRequest,
 };

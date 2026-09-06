@@ -7,7 +7,7 @@ import { useAuth } from "../context/AuthContext";
  * demonstrate working, role-protected routing with a consistent look.
  */
 export default function DashboardLayout({ title, children }) {
-  const { user, logout } = useAuth();
+  const { user, logout, logoutAll } = useAuth();
 
   return (
     <div className="min-h-screen w-full bg-background">
@@ -26,6 +26,12 @@ export default function DashboardLayout({ title, children }) {
             className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-text-secondary transition hover:bg-surface-muted"
           >
             Logout
+          </button>
+          <button
+            onClick={logoutAll}
+            className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-text-secondary transition hover:bg-surface-muted"
+          >
+            Logout all sessions
           </button>
         </div>
       </header>

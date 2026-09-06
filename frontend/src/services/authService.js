@@ -23,4 +23,11 @@ async function getCurrentUser() {
   return data.user;
 }
 
-export default { signup, login, getCurrentUser };
+async function refresh() { const { data } = await apiClient.post("/auth/refresh"); return data; }
+async function forgotPassword(email) { const { data } = await apiClient.post("/auth/forgot-password", { email }); return data; }
+async function resetPassword(token, password) { await apiClient.post("/auth/reset-password", { token, password }); }
+async function setupPassword(token, password) { await apiClient.post("/auth/setup-password", { token, password }); }
+async function logoutAll() { await apiClient.post("/auth/logout-all"); }
+async function logout() { await apiClient.post("/auth/logout"); }
+
+export default { signup, login, refresh, forgotPassword, resetPassword, setupPassword, logout, logoutAll, getCurrentUser };

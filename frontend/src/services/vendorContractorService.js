@@ -21,11 +21,10 @@ async function listContractors({ skill } = {}) {
   return data;
 }
 
-async function createContractor({ name, email, password, hourlyRate }) {
+async function createContractor({ name, email, hourlyRate }) {
   const { data } = await apiClient.post("/vendor/contractors", {
     name,
     email,
-    password,
     hourly_rate: hourlyRate,
   });
   return data;
