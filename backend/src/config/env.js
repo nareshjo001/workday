@@ -13,6 +13,7 @@ const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT) || 5000,
   clientOrigin: process.env.CLIENT_ORIGIN || "http://localhost:5173",
+  corsOrigins: (process.env.CLIENT_ORIGIN || "http://localhost:5173").split(",").map((origin) => origin.trim()).filter(Boolean),
 
   db: {
     host: required("DB_HOST", "localhost"),
@@ -24,7 +25,21 @@ const env = {
 
   jwt: {
     secret: required("JWT_SECRET"),
-    expiresIn: process.env.JWT_EXPIRES_IN || "1d",
+    expiresIn: process.env.JWT_EXPIRES_IN || "15m",
+  },
+  auth: {
+    refreshExpiresDays: Number(process.env.REFRESH_TOKEN_EXPIRES_DAYS) || 14,
+    actionTokenExpiresMinutes: Number(process.env.ACTION_TOKEN_EXPIRES_MINUTES) || 30,
+    maxFailedLogins: Number(process.env.AUTH_MAX_FAILED_LOGINS) || 5,
+    lockoutMinutes: Number(process.env.AUTH_LOCKOUT_MINUTES) || 15,
+  },
+  mail: {
+    from: process.env.MAIL_FROM || "no-reply@vms.local",
+    publicUrl: process.env.PUBLIC_APP_URL || process.env.CLIENT_ORIGIN || "http://localhost:5173",
+    smtpHost: process.env.SMTP_HOST || "",
+    smtpPort: Number(process.env.SMTP_PORT) || 587,
+    smtpUser: process.env.SMTP_USER || "",
+    smtpPassword: process.env.SMTP_PASSWORD || "",
   },
 
   invoice: {

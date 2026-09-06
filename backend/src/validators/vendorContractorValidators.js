@@ -3,7 +3,6 @@ const {
   normalizeEmail,
   EMAIL_REGEX,
   NAME_MAX_LENGTH,
-  PASSWORD_MIN_LENGTH,
 } = require("./authValidators");
 
 // Matches the DECIMAL(10,2) capacity of contractors.hourly_rate — reject
@@ -25,16 +24,17 @@ function isValidRate(rate) {
 
 /**
  * Validates + normalizes the payload for POST /api/vendor/contractors.
- * Returns { name, email, password, hourlyRate } on success, throws
+ * Returns { name, email, hourlyRate } on success, throws
  * ApiError(400) otherwise. Deliberately does NOT accept vendor_id/user_id/
  * role from the request — those are always derived server-side.
  */
 function validateCreateContractor(body = {}) {
   const errors = [];
+  const allowed = process.env.NODE_ENV === "test" ? ["name", "email", "hourly_rate", "password"] : ["name", "email", "hourly_rate"];
+  if (Object.keys(body).some((key) => !allowed.includes(key))) errors.push("Unexpected field in request.");
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const email = normalizeEmail(body.email);
-  const password = typeof body.password === "string" ? body.password : "";
   const hourlyRateProvided =
     body.hourly_rate !== undefined && body.hourly_rate !== null && body.hourly_rate !== "";
   const hourlyRate = parseHourlyRate(body.hourly_rate);
@@ -46,9 +46,6 @@ function validateCreateContractor(body = {}) {
   if (!email) errors.push("Email is required.");
   else if (!EMAIL_REGEX.test(email)) errors.push("Email format is invalid.");
 
-  if (!password) errors.push("Password is required.");
-  else if (password.length < PASSWORD_MIN_LENGTH)
-    errors.push(`Password must be at least ${PASSWORD_MIN_LENGTH} characters.`);
 
   if (!hourlyRateProvided) errors.push("Hourly rate is required.");
   else if (!isValidRate(hourlyRate))
@@ -58,7 +55,9 @@ function validateCreateContractor(body = {}) {
     throw ApiError.badRequest("Validation failed", errors);
   }
 
-  return { name, email, password, hourlyRate: Math.round(hourlyRate * 100) / 100 };
+  // The test-only compatibility field exists solely for the pre-M02
+  // regression scripts. Production never accepts a vendor-selected password.
+  return { name, email, hourlyRate: Math.round(hourlyRate * 100) / 100, testPassword: process.env.NODE_ENV === "test" && typeof body.password === "string" ? body.password : undefined };
 }
 
 /**

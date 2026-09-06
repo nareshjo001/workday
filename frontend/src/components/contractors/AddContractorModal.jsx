@@ -1,11 +1,10 @@
 import { useState } from "react";
 import Modal from "../Modal";
 import FormField from "../FormField";
-import PasswordField from "../PasswordField";
 import PrimaryButton from "../PrimaryButton";
 import AlertBanner from "../AlertBanner";
 
-const initialForm = { name: "", email: "", password: "", hourly_rate: "" };
+const initialForm = { name: "", email: "", hourly_rate: "" };
 
 /**
  * `onCreate` does the actual API call and list update (owned by
@@ -29,8 +28,6 @@ export default function AddContractorModal({ onClose, onCreate }) {
     const errors = {};
     if (!form.name.trim()) errors.name = "Name is required.";
     if (!form.email.trim()) errors.email = "Email is required.";
-    if (!form.password) errors.password = "Password is required.";
-    else if (form.password.length < 8) errors.password = "Password must be at least 8 characters.";
 
     if (form.hourly_rate === "") {
       errors.hourly_rate = "Hourly rate is required.";
@@ -53,7 +50,6 @@ export default function AddContractorModal({ onClose, onCreate }) {
       await onCreate({
         name: form.name.trim(),
         email: form.email.trim(),
-        password: form.password,
         hourlyRate: Number(form.hourly_rate),
       });
     } catch (err) {
@@ -84,14 +80,7 @@ export default function AddContractorModal({ onClose, onCreate }) {
           onChange={handleChange}
           error={fieldErrors.email}
         />
-        <PasswordField
-          id="password"
-          label="Temporary Password"
-          autoComplete="new-password"
-          value={form.password}
-          onChange={handleChange}
-          error={fieldErrors.password}
-        />
+        <p className="rounded-md bg-surface-muted px-3 py-2 text-sm text-text-secondary">The contractor will receive a one-time email link to create their own password.</p>
         <FormField
           id="hourly_rate"
           label="Hourly Rate"

@@ -46,4 +46,10 @@ const update = asyncHandler(async (req, res) => {
   res.status(200).json(contractor);
 });
 
-module.exports = { create, list, update };
+const resendInvitation = asyncHandler(async (req, res) => {
+  const contractorId = Number(req.params.id);
+  await vendorContractorService.resendInvitation(req.user.userId, contractorId);
+  res.status(202).json({ message: "Invitation email queued." });
+});
+
+module.exports = { create, list, update, resendInvitation };

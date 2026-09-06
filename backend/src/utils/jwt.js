@@ -5,8 +5,8 @@ const env = require("../config/env");
  * Reusable JWT utility. Payload is intentionally minimal — only what is
  * needed for authentication/authorization decisions.
  */
-function signToken({ userId, role }) {
-  return jwt.sign({ userId, role }, env.jwt.secret, {
+function signToken({ userId, role, sessionId }) {
+  return jwt.sign({ userId, role, sessionId }, env.jwt.secret, {
     expiresIn: env.jwt.expiresIn,
   });
 }

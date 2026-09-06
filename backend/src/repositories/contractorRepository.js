@@ -72,6 +72,16 @@ async function findByVendorAndId(vendorId, contractorId) {
   return rows[0] || null;
 }
 
+async function findInvitationRecipientByVendorAndId(vendorId, contractorId) {
+  const [rows] = await pool.query(
+    `SELECT u.id, u.name, u.email
+     FROM contractors c INNER JOIN users u ON u.id = c.user_id
+     WHERE c.id = ? AND c.vendor_id = ? LIMIT 1`,
+    [contractorId, vendorId]
+  );
+  return rows[0] || null;
+}
+
 /**
  * Contractors eligible for a specific vendor+skill assignment: belongs to
  * this vendor, ACTIVE status, skill matches, AND has no CURRENTLY ACTIVE
@@ -237,6 +247,7 @@ module.exports = {
   createUserAndContractor,
   listByVendor,
   findByVendorAndId,
+  findInvitationRecipientByVendorAndId,
   listEligibleForVendorAndSkill,
   findByVendorAndIdForUpdate,
   updateOwned,

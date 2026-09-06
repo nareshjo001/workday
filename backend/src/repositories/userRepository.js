@@ -8,7 +8,7 @@ const { pool } = require("../config/db");
 
 async function findByEmail(email) {
   const [rows] = await pool.query(
-    "SELECT id, name, email, password_hash, role, created_at FROM users WHERE email = ? LIMIT 1",
+    "SELECT id, name, email, password_hash, role, failed_login_count, locked_until, created_at FROM users WHERE email = ? LIMIT 1",
     [email]
   );
   return rows[0] || null;
@@ -39,4 +39,16 @@ async function createUser({ name, email, passwordHash, role }, conn) {
   return findById(result.insertId, conn);
 }
 
-module.exports = { findByEmail, findById, createUser };
+async function setPassword(conn, userId, passwordHash) {
+  await conn.query("UPDATE users SET password_hash=?, password_set_at=NOW(), failed_login_count=0, locked_until=NULL WHERE id=?", [passwordHash, userId]);
+}
+
+async function recordLoginFailure(conn, userId, maxFailures, lockoutMinutes) {
+  await conn.query("UPDATE users SET failed_login_count=failed_login_count+1, locked_until=IF(failed_login_count+1 >= ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), locked_until) WHERE id=?", [maxFailures, lockoutMinutes, userId]);
+}
+
+async function clearLoginFailures(conn, userId) {
+  await conn.query("UPDATE users SET failed_login_count=0, locked_until=NULL WHERE id=?", [userId]);
+}
+
+module.exports = { findByEmail, findById, createUser, setPassword, recordLoginFailure, clearLoginFailures };

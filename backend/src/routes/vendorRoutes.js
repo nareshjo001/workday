@@ -21,6 +21,7 @@ router.use(authenticate, authorizeRoles(ROLES.VENDOR));
 router.post("/contractors", vendorContractorController.create);
 router.get("/contractors", vendorContractorController.list);
 router.patch("/contractors/:id", vendorContractorController.update);
+router.post("/contractors/:id/resend-invitation", vendorContractorController.resendInvitation);
 
 // Module 3 revision: browsing projects open for staffing. Vendor-centric
 // workflow revision replaced the old "type in a project ID" flow (and the
