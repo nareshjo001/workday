@@ -87,6 +87,17 @@ async function listByPm(pmId) {
   return rows;
 }
 
+async function listPageByPm(pmId, query) {
+  const where = ["p.pm_id = ?"]; const params = [pmId];
+  if (query.filters.status) { where.push("p.status = ?"); params.push(query.filters.status); }
+  if (query.filters.search) { where.push("(p.name LIKE ? OR COALESCE(cc.name, p.company_name) LIKE ?)"); const term = `%${query.filters.search}%`; params.push(term, term); }
+  if (query.filters.startDate) { where.push("p.start_date >= ?"); params.push(query.filters.startDate); }
+  const clause = where.join(" AND ");
+  const [[count]] = await pool.query(`SELECT COUNT(*) AS total FROM projects p ${COMPANY_PM_JOIN} WHERE ${clause}`, params);
+  const [rows] = await pool.query(`SELECT p.id, p.name, p.description, ${COMPANY_PM_SELECT}, p.start_date, p.end_date, p.expected_hours, p.status FROM projects p ${COMPANY_PM_JOIN} WHERE ${clause} ORDER BY ${query.sortColumn} ${query.order}, p.id ${query.order} LIMIT ? OFFSET ?`, [...params, query.pageSize, query.offset]);
+  return { rows, total: Number(count.total) };
+}
+
 /**
  * A project by id, with NO ownership scoping — per the Module 3 MVP
  * decision, a Vendor may assign their contractor to any existing
@@ -170,6 +181,16 @@ async function listAvailableForVendor() {
   return rows;
 }
 
+async function listAvailablePageForVendor(query) {
+  const where = ["p.status = 'ACTIVE'", "(p.end_date IS NULL OR p.end_date >= CURDATE())"]; const params = [];
+  if (query.filters.search) { where.push("(p.name LIKE ? OR COALESCE(cc.name, p.company_name) LIKE ?)"); const term = `%${query.filters.search}%`; params.push(term, term); }
+  if (query.filters.startDate) { where.push("p.start_date >= ?"); params.push(query.filters.startDate); }
+  const clause = where.join(" AND ");
+  const [[count]] = await pool.query(`SELECT COUNT(*) AS total FROM projects p ${COMPANY_PM_JOIN} WHERE ${clause}`, params);
+  const [rows] = await pool.query(`SELECT p.id, p.name, p.description, ${COMPANY_PM_SELECT}, p.start_date, p.end_date, p.expected_hours, p.status FROM projects p ${COMPANY_PM_JOIN} WHERE ${clause} ORDER BY ${query.sortColumn} ${query.order}, p.id ${query.order} LIMIT ? OFFSET ?`, [...params, query.pageSize, query.offset]);
+  return { rows, total: Number(count.total) };
+}
+
 /**
  * Staffing requirements for a set of project ids, each row annotated with
  * how many project_assignments currently point at it. One query for
@@ -219,10 +240,12 @@ module.exports = {
   create,
   createRequirements,
   listByPm,
+  listPageByPm,
   findById,
   lockByIdForUpdate,
   markCompleted,
   listAvailableForVendor,
+  listAvailablePageForVendor,
   listRequirementsWithCounts,
   findRequirementById,
 };

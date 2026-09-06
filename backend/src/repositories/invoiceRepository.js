@@ -175,6 +175,16 @@ async function listForVendor(vendorId) {
   return rows.map(toDetailView);
 }
 
+async function listPageForVendor(vendorId, query) {
+  const where = ["i.vendor_id = ?"]; const params = [vendorId];
+  if (query.filters.status) { where.push("i.status = ?"); params.push(query.filters.status); }
+  if (query.filters.projectId) { where.push("i.project_id = ?"); params.push(query.filters.projectId); }
+  const clause = where.join(" AND ");
+  const [[count]] = await pool.query(`SELECT COUNT(*) AS total FROM invoices i WHERE ${clause}`, params);
+  const [rows] = await pool.query(`${DETAIL_SELECT} WHERE ${clause} ORDER BY ${query.sortColumn} ${query.order}, i.id ${query.order} LIMIT ? OFFSET ?`, [...params, query.pageSize, query.offset]);
+  return { rows: rows.map(toDetailView), total: Number(count.total) };
+}
+
 /**
  * Locks the target invoice row for the duration of the caller's
  * transaction (`SELECT ... FOR UPDATE`), scoped to `vendor_id = ?` —
@@ -219,13 +229,25 @@ async function listForPm(pmId) {
   return rows.map(toDetailView);
 }
 
+async function listPageForPm(pmId, query) {
+  const where = ["p.pm_id = ?"]; const params = [pmId];
+  if (query.filters.status) { where.push("i.status = ?"); params.push(query.filters.status); }
+  if (query.filters.projectId) { where.push("i.project_id = ?"); params.push(query.filters.projectId); }
+  const clause = where.join(" AND ");
+  const [[count]] = await pool.query(`SELECT COUNT(*) AS total FROM invoices i INNER JOIN projects p ON p.id = i.project_id WHERE ${clause}`, params);
+  const [rows] = await pool.query(`${DETAIL_SELECT} WHERE ${clause} ORDER BY ${query.sortColumn} ${query.order}, i.id ${query.order} LIMIT ? OFFSET ?`, [...params, query.pageSize, query.offset]);
+  return { rows: rows.map(toDetailView), total: Number(count.total) };
+}
+
 module.exports = {
   create,
   findByMilestoneBillingId,
   findById,
   findDetailedById,
   listForPm,
+  listPageForPm,
   lockOwnedByVendorForReview,
   applyReview,
   listForVendor,
+  listPageForVendor,
 };

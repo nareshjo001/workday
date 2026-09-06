@@ -56,6 +56,24 @@ async function listByVendor(vendorId, opts = {}) {
   return rows;
 }
 
+async function listPageByVendor(vendorId, query) {
+  const where = ["c.vendor_id = ?"];
+  const params = [vendorId];
+  if (query.filters.skill) { where.push("c.skill = ?"); params.push(query.filters.skill); }
+  if (query.filters.status) { where.push("c.status = ?"); params.push(query.filters.status); }
+  if (query.filters.search) {
+    where.push("(u.name LIKE ? OR u.email LIKE ?)");
+    const term = `%${query.filters.search}%`; params.push(term, term);
+  }
+  const sql = `FROM contractors c INNER JOIN users u ON u.id = c.user_id WHERE ${where.join(" AND ")}`;
+  const [[count]] = await pool.query(`SELECT COUNT(*) AS total ${sql}`, params);
+  const [rows] = await pool.query(
+    `SELECT c.id, c.hourly_rate, c.status, c.skill, u.name, u.email ${sql} ORDER BY ${query.sortColumn} ${query.order}, c.id ${query.order} LIMIT ? OFFSET ?`,
+    [...params, query.pageSize, query.offset]
+  );
+  return { rows, total: Number(count.total) };
+}
+
 /**
  * A single contractor, but ONLY if it belongs to the given vendor — the
  * ownership check is baked into the WHERE clause, not applied afterward.
@@ -248,6 +266,7 @@ async function findByIdForUpdate(conn, contractorId) {
 module.exports = {
   createUserAndContractor,
   listByVendor,
+  listPageByVendor,
   findByVendorAndId,
   findInvitationRecipientByVendorAndId,
   listEligibleForVendorAndSkill,

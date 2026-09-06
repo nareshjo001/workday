@@ -1,0 +1,134 @@
+openapi: 3.0.3
+info:
+  title: Workday VMS API
+  version: 1.0.0
+  description: JWT-protected Vendor Management System API. Errors use code, message, optional details, and request_id.
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    Page:
+      type: object
+      required: [items, page, page_size, total, total_pages]
+      properties:
+        items: { type: array, items: {} }
+        page: { type: integer }
+        page_size: { type: integer }
+        total: { type: integer }
+        total_pages: { type: integer }
+paths:
+  /api/vendor/contractors:
+    post:
+      security: [{ bearerAuth: [] }]
+      responses: { '201': { description: Contractor identity and invitation created }, '400': { description: Invalid input }, '403': { description: Wrong role } }
+    get:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: page, in: query, schema: { type: integer } }, { name: pageSize, in: query, schema: { type: integer } }, { name: search, in: query, schema: { type: string } }, { name: skill, in: query, schema: { type: string } }, { name: status, in: query, schema: { type: string } }]
+      responses: { '200': { description: Paginated, content: { application/json: { schema: { $ref: '#/components/schemas/Page' } } } }, '401': { description: Unauthenticated }, '403': { description: Wrong role } }
+  /api/pm/projects:
+    post:
+      security: [{ bearerAuth: [] }]
+      responses: { '201': { description: Project and requirements created }, '400': { description: Invalid input }, '403': { description: Wrong role } }
+    get:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: page, in: query, schema: { type: integer } }, { name: pageSize, in: query, schema: { type: integer } }, { name: search, in: query, schema: { type: string } }, { name: status, in: query, schema: { type: string } }]
+      responses: { '200': { description: Paginated, content: { application/json: { schema: { $ref: '#/components/schemas/Page' } } } } }
+  /api/contractor/timesheets:
+    post:
+      security: [{ bearerAuth: [] }]
+      responses: { '201': { description: Daily timesheet submitted }, '400': { description: Invalid input }, '409': { description: Duplicate or allocation conflict } }
+    get:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: page, in: query, schema: { type: integer } }, { name: pageSize, in: query, schema: { type: integer } }, { name: projectId, in: query, schema: { type: integer } }, { name: status, in: query, schema: { type: string } }]
+      responses: { '200': { description: Paginated, content: { application/json: { schema: { $ref: '#/components/schemas/Page' } } } } }
+  /api/vendor/invoices:
+    get:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: page, in: query, schema: { type: integer } }, { name: pageSize, in: query, schema: { type: integer } }, { name: projectId, in: query, schema: { type: integer } }, { name: status, in: query, schema: { type: string } }]
+      responses: { '200': { description: Paginated, content: { application/json: { schema: { $ref: '#/components/schemas/Page' } } } } }
+  /api/vendor/projects:
+    get:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: page, in: query, schema: { type: integer } }, { name: pageSize, in: query, schema: { type: integer } }, { name: search, in: query, schema: { type: string } }, { name: startDate, in: query, schema: { type: string, format: date } }, { name: sort, in: query, schema: { type: string } }, { name: order, in: query, schema: { type: string, enum: [asc, desc] } }]
+      responses: { '200': { description: Paginated staffing-available projects, content: { application/json: { schema: { $ref: '#/components/schemas/Page' } } } }, '401': { description: Unauthenticated }, '403': { description: Wrong role } }
+  /api/pm/timesheets/pending:
+    get:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: page, in: query, schema: { type: integer } }, { name: pageSize, in: query, schema: { type: integer } }, { name: projectId, in: query, schema: { type: integer } }, { name: startDate, in: query, schema: { type: string, format: date } }, { name: search, in: query, schema: { type: string } }]
+      responses: { '200': { description: Paginated pending timesheets for PM-owned projects, content: { application/json: { schema: { $ref: '#/components/schemas/Page' } } } }, '401': { description: Unauthenticated }, '403': { description: Wrong role } }
+  /api/pm/invoices:
+    get:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: page, in: query, schema: { type: integer } }, { name: pageSize, in: query, schema: { type: integer } }, { name: projectId, in: query, schema: { type: integer } }, { name: status, in: query, schema: { type: string } }]
+      responses: { '200': { description: Paginated invoices for PM-owned projects, content: { application/json: { schema: { $ref: '#/components/schemas/Page' } } } }, '401': { description: Unauthenticated }, '403': { description: Wrong role } }
+  /api/auth/signup:
+    post: { responses: { '201': { description: Vendor or PM account created }, '400': { description: Invalid input } } }
+  /api/auth/login:
+    post: { responses: { '200': { description: Access token and refresh cookie issued }, '401': { description: Invalid credentials }, '429': { description: Rate limited or locked } } }
+  /api/auth/refresh:
+    post: { responses: { '200': { description: Rotated access session }, '401': { description: Expired or revoked refresh cookie } } }
+  /api/auth/logout:
+    post: { responses: { '204': { description: Refresh session revoked } } }
+  /api/auth/forgot-password:
+    post: { responses: { '202': { description: Generic recovery response } } }
+  /api/auth/reset-password:
+    post: { responses: { '204': { description: Password reset and sessions invalidated }, '400': { description: Invalid token or password } } }
+  /api/auth/setup-password:
+    post: { responses: { '204': { description: Contractor invitation redeemed }, '400': { description: Invalid or used invitation } } }
+  /api/auth/logout-all:
+    post: { security: [{ bearerAuth: [] }], responses: { '204': { description: All refresh sessions revoked } } }
+  /api/auth/me:
+    get:
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: Authenticated account }, '401': { description: Unauthenticated } }
+  /api/vendor/contractors/{id}:
+    patch:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: Updated vendor-owned contractor }, '400': { description: Invalid input }, '401': { description: Unauthenticated }, '403': { description: Wrong role }, '404': { description: Not found in vendor scope } }
+  /api/vendor/contractors/{id}/resend-invitation:
+    post: { security: [{ bearerAuth: [] }], responses: { '202': { description: Invitation email queued }, '404': { description: Not found in vendor scope } } }
+  /api/vendor/projects/{id}/requirements:
+    get:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: Project staffing detail }, '404': { description: Project not found } }
+  /api/vendor/projects/{id}/requirements/{requirementId}/eligible-contractors:
+    get:
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }, { name: requirementId, in: path, required: true, schema: { type: integer } }]
+      responses: { '200': { description: Vendor-scoped eligible contractors }, '404': { description: Requirement not found } }
+  /api/vendor/projects/{id}/requirements/{requirementId}/assign:
+    post:
+      security: [{ bearerAuth: [] }]
+      responses: { '201': { description: Assignment created }, '409': { description: Capacity or active-assignment conflict } }
+  /api/vendor/invoices/{id}:
+    patch:
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: Vendor invoice review recorded }, '404': { description: Not found in vendor scope }, '409': { description: Already reviewed } }
+  /api/vendor/dashboard:
+    get: { security: [{ bearerAuth: [] }], responses: { '200': { description: Vendor dashboard } } }
+  /api/pm/projects/{id}/contractors:
+    get: { security: [{ bearerAuth: [] }], responses: { '200': { description: Assigned contractors }, '404': { description: Not found in PM scope } } }
+  /api/pm/projects/{id}/complete:
+    patch: { security: [{ bearerAuth: [] }], responses: { '200': { description: Project completed and active assignments released }, '409': { description: Invalid project state } } }
+  /api/pm/projects/{projectId}/contractors/{contractorId}/allocation:
+    patch: { security: [{ bearerAuth: [] }], responses: { '200': { description: PM allocation updated }, '404': { description: Not found in PM scope }, '409': { description: Capacity conflict } } }
+  /api/pm/timesheets/{id}:
+    patch: { security: [{ bearerAuth: [] }], responses: { '200': { description: Pending timesheet reviewed }, '404': { description: Not found in PM scope }, '409': { description: Already reviewed } } }
+  /api/pm/milestones:
+    post: { security: [{ bearerAuth: [] }], responses: { '201': { description: Milestone created } } }
+  /api/pm/milestones/{projectId}:
+    get: { security: [{ bearerAuth: [] }], responses: { '200': { description: Project milestones }, '404': { description: Not found in PM scope } } }
+  /api/pm/dashboard:
+    get: { security: [{ bearerAuth: [] }], responses: { '200': { description: PM dashboard } } }
+  /api/contractor/projects:
+    get: { security: [{ bearerAuth: [] }], responses: { '200': { description: Contractor project history } } }
+  /api/contractor/profile:
+    get: { security: [{ bearerAuth: [] }], responses: { '200': { description: Contractor profile } } }
+  /api/contractor/profile/skill:
+    patch: { security: [{ bearerAuth: [] }], responses: { '200': { description: Skill updated } } }
+  /api/contractor/timesheets/{id}:
+    patch: { security: [{ bearerAuth: [] }], responses: { '200': { description: Rejected timesheet resubmitted }, '404': { description: Not found in contractor scope }, '409': { description: Invalid state or duplicate date } } }
+  /api/contractor/dashboard:
+    get: { security: [{ bearerAuth: [] }], responses: { '200': { description: Contractor dashboard } } }

@@ -313,7 +313,7 @@ async function main() {
 
   // Project total = 14h -> M1 (10h) is reached. Project progress = 70%, remaining = 6h.
   const projAfterM1 = await req("GET", "/pm/projects", undefined, pm.token);
-  const p1View = projAfterM1.data.find((p) => p.id === project1Id);
+  const p1View = projAfterM1.data.items.find((p) => p.id === project1Id);
   assert(p1View.approved_hours === 14, `project approved hours: expected 14, got ${p1View.approved_hours}`);
   assert(p1View.work_progress_percent === 70, `project progress: expected 70, got ${p1View.work_progress_percent}`);
 
@@ -464,7 +464,7 @@ async function main() {
 
   // Project progress must now be 100%, never exceeding it.
   const projAfterM2 = await req("GET", "/pm/projects", undefined, pm.token);
-  const p1ViewAfterM2 = projAfterM2.data.find((p) => p.id === project1Id);
+  const p1ViewAfterM2 = projAfterM2.data.items.find((p) => p.id === project1Id);
   assert(p1ViewAfterM2.approved_hours === 20, `project approved hours after M2: expected 20, got ${p1ViewAfterM2.approved_hours}`);
   assert(p1ViewAfterM2.work_progress_percent === 100, `project progress after M2: expected 100, got ${p1ViewAfterM2.work_progress_percent}`);
 
@@ -519,7 +519,7 @@ async function main() {
   console.log("\n--- Module 6 regression: invoice generation / Vendor approval / PM read-only ---");
   const invoicesForVendor = await req("GET", "/vendor/invoices", undefined, vendor.token);
   assert(invoicesForVendor.status === 200, `vendor list invoices: expected 200, got ${invoicesForVendor.status}`);
-  const pendingInvoice = invoicesForVendor.data.find((inv) => inv.status === "PENDING_REVIEW");
+  const pendingInvoice = invoicesForVendor.data.items.find((inv) => inv.status === "PENDING_REVIEW");
   assert(!!pendingInvoice, "at least one PENDING_REVIEW invoice should exist from the billing above");
   if (pendingInvoice) {
     const approveInvoice = await req("PATCH", `/vendor/invoices/${pendingInvoice.id}`, { status: "APPROVED" }, vendor.token);

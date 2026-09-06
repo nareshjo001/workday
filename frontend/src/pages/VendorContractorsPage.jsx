@@ -8,6 +8,8 @@ import ContractorCardList from "../components/contractors/ContractorCardList";
 import AddContractorModal from "../components/contractors/AddContractorModal";
 import EditContractorModal from "../components/contractors/EditContractorModal";
 import vendorContractorService from "../services/vendorContractorService";
+import ListControls from "../components/ListControls";
+import useDebouncedValue from "../hooks/useDebouncedValue";
 
 /**
  * Vendor's contractor-management screen: list + add + edit (rate/status).
@@ -22,19 +24,31 @@ export default function VendorContractorsPage() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingContractor, setEditingContractor] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+  const [page, setPage] = useState(() => Number(new URLSearchParams(window.location.search).get("page")) || 1);
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("search") || "");
+  const [pageInfo, setPageInfo] = useState({ total_pages: 1, total: 0 });
+  const debouncedSearch = useDebouncedValue(search);
 
   const loadContractors = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const data = await vendorContractorService.listContractors();
-      setContractors(data);
+      const data = await vendorContractorService.listContractors({ page, pageSize: 25, sort: "name", order: "asc", ...(debouncedSearch ? { search: debouncedSearch } : {}) });
+      setContractors(data.items);
+      setPageInfo(data);
     } catch (err) {
       setLoadError(err.message);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [page, debouncedSearch]);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (page > 1) params.set("page", String(page));
+    if (search) params.set("search", search);
+    window.history.replaceState(null, "", `${window.location.pathname}${params.size ? `?${params}` : ""}`);
+  }, [page, search]);
 
   useEffect(() => {
     loadContractors();
@@ -81,6 +95,7 @@ export default function VendorContractorsPage() {
           <div className="rounded-lg bg-surface p-4 shadow-panel ring-1 ring-border sm:p-6">
             <ContractorTable contractors={contractors} onEdit={setEditingContractor} />
             <ContractorCardList contractors={contractors} onEdit={setEditingContractor} />
+            <ListControls page={page} totalPages={pageInfo.total_pages} total={pageInfo.total} search={search} onSearchChange={(value) => { setPage(1); setSearch(value); }} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
           </div>
         )}
       </div>

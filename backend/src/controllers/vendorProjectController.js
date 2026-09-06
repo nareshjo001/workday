@@ -1,6 +1,7 @@
 const vendorProjectService = require("../services/vendorProjectService");
 const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/ApiError");
+const { parseListQuery, isoDateFilter } = require("../utils/listQuery");
 
 function parsePositiveInt(value) {
   const n = Number(value);
@@ -14,8 +15,8 @@ function parsePositiveInt(value) {
  * sections 9-10).
  */
 const list = asyncHandler(async (req, res) => {
-  const projects = await vendorProjectService.listAvailableProjects();
-  res.status(200).json(projects);
+  const query = parseListQuery(req.query, { allowedSorts: { default: "p.created_at", created_at: "p.created_at", name: "p.name", start_date: "p.start_date" }, allowedFilters: { search: (v) => String(v).trim().slice(0, 100), startDate: isoDateFilter } });
+  res.status(200).json(await vendorProjectService.listAvailableProjectsPage(query));
 });
 
 /**

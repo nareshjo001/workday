@@ -2,6 +2,7 @@ const { pool } = require("../config/db");
 const invoiceRepository = require("../repositories/invoiceRepository");
 const ApiError = require("../utils/ApiError");
 const auditService = require("./auditService");
+const { pageResult } = require("../utils/listQuery");
 
 /**
  * Vendor-facing invoice list (Module 6). Only ever returns invoices whose
@@ -15,6 +16,10 @@ const auditService = require("./auditService");
  */
 async function listForVendor(vendorId) {
   return invoiceRepository.listForVendor(vendorId);
+}
+async function listPageForVendor(vendorId, query) {
+  const { rows, total } = await invoiceRepository.listPageForVendor(vendorId, query);
+  return pageResult(rows, total, query);
 }
 
 /**
@@ -107,4 +112,4 @@ async function reviewInvoice(vendorId, invoiceId, { status, rejectionReason }, a
   return invoiceRepository.findDetailedById(invoiceId);
 }
 
-module.exports = { listForVendor, reviewInvoice };
+module.exports = { listForVendor, listPageForVendor, reviewInvoice };

@@ -4,6 +4,7 @@ const {
   validateReviewTimesheet,
 } = require("../validators/pmTimesheetValidators");
 const asyncHandler = require("../utils/asyncHandler");
+const { parseListQuery, positiveIntegerFilter, isoDateFilter } = require("../utils/listQuery");
 
 /**
  * `req.user.userId` (set by `authenticate` from the verified JWT) is the
@@ -12,8 +13,11 @@ const asyncHandler = require("../utils/asyncHandler");
  */
 
 const listPending = asyncHandler(async (req, res) => {
-  const timesheets = await pmTimesheetService.listPending(req.user.userId);
-  res.status(200).json(timesheets);
+  const query = parseListQuery(req.query, {
+    allowedSorts: { default: "t.submitted_at", submitted_at: "t.submitted_at", work_date: "t.work_date", project: "p.name", contractor: "u.name" },
+    allowedFilters: { projectId: positiveIntegerFilter, startDate: isoDateFilter, search: (value) => String(value).trim().slice(0, 100) },
+  });
+  res.status(200).json(await pmTimesheetService.listPendingPage(req.user.userId, query));
 });
 
 const review = asyncHandler(async (req, res) => {

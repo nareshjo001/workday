@@ -6,6 +6,7 @@ import InvoiceTable from "../components/invoices/InvoiceTable";
 import InvoiceCardList from "../components/invoices/InvoiceCardList";
 import InvoiceReviewModal from "../components/invoices/InvoiceReviewModal";
 import vendorInvoiceService from "../services/vendorInvoiceService";
+import ListControls from "../components/ListControls";
 
 /**
  * Vendor's invoice review queue (Module 6, invoice-workflow redesign):
@@ -27,19 +28,22 @@ export default function VendorInvoicesPage() {
   const [actionError, setActionError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [rejectTarget, setRejectTarget] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageInfo, setPageInfo] = useState({ total_pages: 1, total: 0 });
 
   const loadInvoices = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const data = await vendorInvoiceService.listInvoices();
-      setInvoices(data);
+      const data = await vendorInvoiceService.listInvoices({ page, pageSize: 25, sort: "generated_at", order: "desc" });
+      setInvoices(data.items);
+      setPageInfo(data);
     } catch (err) {
       setLoadError(err.message);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     loadInvoices();
@@ -124,6 +128,7 @@ export default function VendorInvoicesPage() {
               onApprove={handleApprove}
               onReject={(id) => setRejectTarget(invoices.find((inv) => inv.id === id))}
             />
+            <ListControls page={page} totalPages={pageInfo.total_pages} total={pageInfo.total} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
           </div>
         )}
       </div>

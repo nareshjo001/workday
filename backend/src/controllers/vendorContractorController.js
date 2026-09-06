@@ -6,6 +6,7 @@ const {
 const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/ApiError");
 const { SKILLS } = require("../constants/skills");
+const { parseListQuery } = require("../utils/listQuery");
 
 /**
  * `req.user` is set by the `authenticate` middleware from the verified JWT
@@ -21,15 +22,15 @@ const create = asyncHandler(async (req, res) => {
 });
 
 const list = asyncHandler(async (req, res) => {
-  const skillParam = typeof req.query.skill === "string" ? req.query.skill.trim().toUpperCase() : "";
-  if (skillParam && !SKILLS.includes(skillParam)) {
-    throw ApiError.badRequest(`skill must be one of: ${SKILLS.join(", ")}.`);
-  }
-  const contractors = await vendorContractorService.listContractors(
-    req.user.userId,
-    skillParam ? { skill: skillParam } : {}
-  );
-  res.status(200).json(contractors);
+  const query = parseListQuery(req.query, {
+    allowedSorts: { default: "u.name", name: "u.name", email: "u.email", status: "c.status", created_at: "c.created_at" },
+    allowedFilters: {
+      skill: (value) => { const skill = String(value).trim().toUpperCase(); if (!SKILLS.includes(skill)) throw ApiError.badRequest(`skill must be one of: ${SKILLS.join(", ")}.`); return skill; },
+      status: (value) => { const status = String(value).trim().toUpperCase(); if (!["ACTIVE", "INACTIVE"].includes(status)) throw ApiError.badRequest("status must be ACTIVE or INACTIVE."); return status; },
+      search: (value) => String(value).trim().slice(0, 100),
+    },
+  });
+  res.status(200).json(await vendorContractorService.listContractorsPage(req.user.userId, query));
 });
 
 const update = asyncHandler(async (req, res) => {

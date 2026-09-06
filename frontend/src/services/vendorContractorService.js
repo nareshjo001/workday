@@ -14,9 +14,9 @@ import apiClient from "./apiClient";
  * VendorAssignmentsPage) so only compatible contractors are offered.
  * Still scoped to this vendor's own contractors server-side regardless.
  */
-async function listContractors({ skill } = {}) {
+async function listContractors(params = {}) {
   const { data } = await apiClient.get("/vendor/contractors", {
-    params: skill ? { skill } : undefined,
+    params,
   });
   return data;
 }

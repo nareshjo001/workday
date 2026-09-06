@@ -6,8 +6,8 @@ import apiClient from "./apiClient";
  * ever passes a pm id explicitly.
  */
 
-async function listPending() {
-  const { data } = await apiClient.get("/pm/timesheets/pending");
+async function listPending(params = {}) {
+  const { data } = await apiClient.get("/pm/timesheets/pending", { params });
   return data;
 }
 
