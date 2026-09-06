@@ -19,3 +19,9 @@ M01 preserves architecture and security boundaries. Test DB destruction is expli
 **Why it mattered:** Ubuntu expands unquoted globs before starting c8, while Windows `cmd.exe` passes them literally. This made a command that passed locally fail in GitHub Actions with `spawn src/services/billingService.js EACCES`.
 
 **Fix:** c8 include patterns are quoted in the npm script, retaining `--all` and all original thresholds. The owned integration test entry point is named explicitly, preventing both shell glob expansion and accidental default discovery of historical root scripts. This eliminates shell-dependent behavior without excluding any coverage files or weakening the gate.
+
+## Frontend runtime compatibility follow-up
+
+**Issue:** CI used Node `20.20.2`, while the locked Vitest/jsdom/undici dependency tree requires a newer runtime. The worker failed before any assertion with jsdom's undici `markAsUncloneable` compatibility error.
+
+**Fix:** Root `.nvmrc` pins Node `24.18.0`; GitHub Actions now reads it through `node-version-file`; frontend declares `>=24.15.0 <25`. Node 24.18.0 satisfies Vitest 5.0.0, jsdom 30.0.1, undici 8.10.2, and the existing backend `>=18` engine. The lockfile remains deterministic and no production dependency/test semantics changed.

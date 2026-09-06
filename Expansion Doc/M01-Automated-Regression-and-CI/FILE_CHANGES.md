@@ -11,6 +11,7 @@
 ## Modified files
 
 - `backend/package.json` and lockfile — test and coverage commands/dependency; c8 include patterns are quoted and test discovery is shell-independent.
+- `.github/workflows/ci.yml`, `.nvmrc`, and `frontend/package.json` — standardize CI/development on Node 24.18.0, which the resolved frontend test dependencies support.
 - `backend/src/config/env.js` — test database name guard.
 - `backend/mvp_fix_test.js` and `backend/eligible_contractor_release_test.js` — configurable API base URL for automated execution.
 - `frontend/package.json` and lockfile — Vitest/React Testing Library commands/dependencies.
