@@ -9,10 +9,14 @@ const pmRoutes = require("./routes/pmRoutes");
 const contractorRoutes = require("./routes/contractorRoutes");
 const sampleProtectedRoutes = require("./routes/sampleProtectedRoutes");
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
+const requestContext = require("./middleware/requestContext");
+const { testConnection } = require("./config/db");
+const mailService = require("./services/mailService");
 
 const app = express();
 
 app.use(helmet());
+app.use(requestContext);
 
 app.use(
   cors({
@@ -36,7 +40,14 @@ const authLimiter = rateLimit({
 });
 
 app.get("/api/health", (req, res) => {
-  res.status(200).json({ status: "ok" });
+  res.status(200).json({ status: "live" });
+});
+app.get("/api/health/live", (req, res) => res.status(200).json({ status: "live" }));
+app.get("/api/health/ready", async (req, res, next) => {
+  try {
+    await testConnection();
+    res.status(200).json({ status: "ready", dependencies: { database: "ready", mail: mailService.status() } });
+  } catch (err) { next(err); }
 });
 
 app.use("/api/auth/login", authLimiter);

@@ -59,7 +59,9 @@ function normalizeApiError(error) {
     return {
       status,
       message: data?.message || "Something went wrong. Please try again.",
-      errors: data?.errors || null,
+      errors: data?.details || data?.errors || null,
+      code: data?.code || null,
+      requestId: data?.request_id || null,
     };
   }
   if (error.request) {

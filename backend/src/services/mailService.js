@@ -18,4 +18,5 @@ async function sendAction({ to, name, purpose, token }) {
 }
 function getOutbox() { return [...outbox]; }
 function clearOutbox() { outbox.length = 0; }
-module.exports = { sendAction, getOutbox, clearOutbox };
+function status() { return env.mail.smtpHost ? "configured" : "outbox"; }
+module.exports = { sendAction, getOutbox, clearOutbox, status };
