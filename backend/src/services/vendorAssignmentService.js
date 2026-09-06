@@ -3,6 +3,7 @@ const contractorRepository = require("../repositories/contractorRepository");
 const projectRepository = require("../repositories/projectRepository");
 const assignmentRepository = require("../repositories/assignmentRepository");
 const ApiError = require("../utils/ApiError");
+const auditService = require("./auditService");
 
 function todayDateString() {
   return new Date().toISOString().slice(0, 10);
@@ -59,7 +60,7 @@ function todayDateString() {
  *      anywhere (a RELEASED contractor IS eligible again — see migration
  *      016's active_contractor_key generated column)
  */
-async function assignContractors(vendorId, projectId, requirementId, contractorIds) {
+async function assignContractors(vendorId, projectId, requirementId, contractorIds, auditActor) {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -141,6 +142,7 @@ async function assignContractors(vendorId, projectId, requirementId, contractorI
         // via pmProjectService.updateContractorAllocation.
         await assignmentRepository.createWithRequirement(conn, contractorId, projectId, requirement.id, null);
       }
+      if (auditActor) await auditService.write(conn, auditActor, "ASSIGNMENT_CREATED", "staffing_requirement", requirement.id, null, { project_id: projectId, contractor_ids: contractorIds });
     } catch (err) {
       // Race-safety net: two near-simultaneous requests could still
       // collide on the UNIQUE(contractor_id, project_id) or the new

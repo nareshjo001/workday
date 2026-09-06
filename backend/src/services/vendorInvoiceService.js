@@ -1,6 +1,7 @@
 const { pool } = require("../config/db");
 const invoiceRepository = require("../repositories/invoiceRepository");
 const ApiError = require("../utils/ApiError");
+const auditService = require("./auditService");
 
 /**
  * Vendor-facing invoice list (Module 6). Only ever returns invoices whose
@@ -54,7 +55,7 @@ async function listForVendor(vendorId) {
  *      affectedRows = 0 becomes a 409 too, never a silent overwrite.
  *   6. COMMIT.
  */
-async function reviewInvoice(vendorId, invoiceId, { status, rejectionReason }) {
+async function reviewInvoice(vendorId, invoiceId, { status, rejectionReason }, auditActor) {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -80,6 +81,17 @@ async function reviewInvoice(vendorId, invoiceId, { status, rejectionReason }) {
       // conditional UPDATE is the real guarantee — guard anyway rather
       // than assuming the lock alone is sufficient).
       throw ApiError.conflict("This invoice has already been reviewed.");
+    }
+
+    if (auditActor) {
+      await auditService.write(conn, auditActor, "INVOICE_REVIEWED", "invoice", invoiceId, {
+        status: invoice.status,
+        rejection_reason: invoice.rejection_reason || null,
+      }, {
+        status,
+        rejection_reason: status === "REJECTED" ? rejectionReason : null,
+        reviewed_by: vendorId,
+      });
     }
 
     await conn.commit();

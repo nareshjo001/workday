@@ -19,7 +19,7 @@ const listPending = asyncHandler(async (req, res) => {
 const review = asyncHandler(async (req, res) => {
   const timesheetId = validateTimesheetIdParam(req.params);
   const { status } = validateReviewTimesheet(req.body);
-  const timesheet = await pmTimesheetService.reviewTimesheet(req.user.userId, timesheetId, status);
+  const timesheet = await pmTimesheetService.reviewTimesheet(req.user.userId, timesheetId, status, { ...req.user, requestId: req.requestId });
   res.status(200).json(timesheet);
 });
 

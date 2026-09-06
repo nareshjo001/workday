@@ -14,7 +14,7 @@ const asyncHandler = require("../utils/asyncHandler");
 
 const create = asyncHandler(async (req, res) => {
   const payload = validateCreateProject(req.body);
-  const project = await pmProjectService.createProject(req.user.userId, payload);
+  const project = await pmProjectService.createProject(req.user.userId, payload, { ...req.user, requestId: req.requestId });
   res.status(201).json(project);
 });
 
@@ -40,7 +40,7 @@ const listContractors = asyncHandler(async (req, res) => {
  */
 const complete = asyncHandler(async (req, res) => {
   const projectId = validateProjectIdParam(req.params);
-  const result = await pmProjectService.completeProject(req.user.userId, projectId);
+  const result = await pmProjectService.completeProject(req.user.userId, projectId, { ...req.user, requestId: req.requestId });
   res.status(200).json(result);
 });
 
@@ -57,7 +57,8 @@ const allocateHours = asyncHandler(async (req, res) => {
     req.user.userId,
     projectId,
     contractorId,
-    allocatedHours
+    allocatedHours,
+    { ...req.user, requestId: req.requestId }
   );
   res.status(200).json(result);
 });

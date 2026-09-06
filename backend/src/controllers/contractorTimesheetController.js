@@ -14,7 +14,7 @@ const asyncHandler = require("../utils/asyncHandler");
 
 const submit = asyncHandler(async (req, res) => {
   const payload = validateSubmitTimesheet(req.body);
-  const timesheet = await contractorTimesheetService.submitTimesheet(req.user.userId, payload);
+  const timesheet = await contractorTimesheetService.submitTimesheet(req.user.userId, payload, { ...req.user, requestId: req.requestId });
   res.status(201).json(timesheet);
 });
 
@@ -34,7 +34,8 @@ const update = asyncHandler(async (req, res) => {
   const timesheet = await contractorTimesheetService.updateTimesheet(
     req.user.userId,
     timesheetId,
-    payload
+    payload,
+    { ...req.user, requestId: req.requestId }
   );
   res.status(200).json(timesheet);
 });

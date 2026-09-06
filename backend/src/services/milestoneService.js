@@ -4,6 +4,7 @@ const timesheetRepository = require("../repositories/timesheetRepository");
 const contractorRepository = require("../repositories/contractorRepository");
 const billingService = require("./billingService");
 const invoiceService = require("./invoiceService");
+const auditService = require("./auditService");
 
 /**
  * Module 5 integration boundary — PROJECT-LEVEL MILESTONES, INDEPENDENT
@@ -141,7 +142,7 @@ function computeContractorDeltas(orderedApprovedRows, alreadyBilledByContractor)
  * approval, or a successful milestone creation). Errors are logged and
  * swallowed; see the try/catch below.
  */
-async function checkAndTriggerMilestones(projectId) {
+async function checkAndTriggerMilestones(projectId, auditActor) {
   const conn = await pool.getConnection();
   let newlyCreatedContributions = [];
   try {
@@ -183,6 +184,13 @@ async function checkAndTriggerMilestones(projectId) {
         // Lost an (unreachable, under this row lock) race — skip, not an
         // error.
         continue;
+      }
+      if (auditActor) {
+        await auditService.write(conn, auditActor, "MILESTONE_MET", "milestone", milestone.id, {
+          status: "PENDING",
+        }, {
+          status: "MET", project_id: projectId, threshold_hours: threshold,
+        });
       }
 
       for (const [contractorId, hours] of deltas) {

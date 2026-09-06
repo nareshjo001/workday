@@ -2,6 +2,7 @@ const { pool } = require("../config/db");
 const timesheetRepository = require("../repositories/timesheetRepository");
 const milestoneService = require("./milestoneService");
 const ApiError = require("../utils/ApiError");
+const auditService = require("./auditService");
 
 /**
  * PENDING daily timesheets for projects owned by the authenticated PM.
@@ -48,7 +49,7 @@ async function listPending(pmId) {
  * must never roll back the approval itself). Module 4 does not know or
  * care what the hook does; see milestoneService.js.
  */
-async function reviewTimesheet(pmId, timesheetId, status) {
+async function reviewTimesheet(pmId, timesheetId, status, auditActor) {
   const conn = await pool.getConnection();
   let reviewed;
   try {
@@ -72,6 +73,7 @@ async function reviewTimesheet(pmId, timesheetId, status) {
       // than assuming the lock alone is sufficient).
       throw ApiError.conflict("This timesheet has already been reviewed.");
     }
+    if (auditActor) await auditService.write(conn, auditActor, "TIMESHEET_REVIEWED", "timesheet", timesheetId, { status: timesheet.status }, { status, reviewed_by: pmId });
 
     await conn.commit();
     reviewed = timesheet;
@@ -89,7 +91,7 @@ async function reviewTimesheet(pmId, timesheetId, status) {
     // approvedHours from this specific approval, only which project to
     // re-evaluate. Never blocks or affects this response either way (see
     // that function's own doc comment on why it never throws).
-    await milestoneService.checkAndTriggerMilestones(reviewed.project_id);
+    await milestoneService.checkAndTriggerMilestones(reviewed.project_id, auditActor);
   }
 
   // Re-fetch fresh, post-commit state for the response, same convention

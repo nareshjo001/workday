@@ -24,8 +24,8 @@ const { pool } = require("../config/db");
  * clean 409, same pattern as vendorAssignmentService/ER_DUP_ENTRY
  * handling.
  */
-async function create({ contractorId, projectId, workDate, hoursLogged }) {
-  const [result] = await pool.query(
+async function create(conn, { contractorId, projectId, workDate, hoursLogged }) {
+  const [result] = await conn.query(
     `INSERT INTO timesheets (contractor_id, project_id, work_date, hours_logged, status, submitted_at)
      VALUES (?, ?, ?, ?, 'PENDING', NOW())`,
     [contractorId, projectId, workDate, hoursLogged]

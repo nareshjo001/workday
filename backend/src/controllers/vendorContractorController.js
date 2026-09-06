@@ -16,7 +16,7 @@ const { SKILLS } = require("../constants/skills");
 
 const create = asyncHandler(async (req, res) => {
   const payload = validateCreateContractor(req.body);
-  const contractor = await vendorContractorService.createContractor(req.user.userId, payload);
+  const contractor = await vendorContractorService.createContractor(req.user.userId, payload, { ...req.user, requestId: req.requestId });
   res.status(201).json(contractor);
 });
 
@@ -41,7 +41,8 @@ const update = asyncHandler(async (req, res) => {
   const contractor = await vendorContractorService.updateContractor(
     req.user.userId,
     contractorId,
-    payload
+    payload,
+    { ...req.user, requestId: req.requestId }
   );
   res.status(200).json(contractor);
 });
