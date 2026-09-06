@@ -38,4 +38,8 @@ const env = {
   },
 };
 
+if (env.nodeEnv === "test" && !env.db.name.endsWith("_test")) {
+  throw new Error("Refusing to run tests against a database whose name does not end in _test.");
+}
+
 module.exports = env;
