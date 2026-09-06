@@ -78,6 +78,17 @@ async function listByContractor(contractorId) {
   return rows.map(toView);
 }
 
+async function listPageByContractor(contractorId, query) {
+  const where = ["t.contractor_id = ?"]; const params = [contractorId];
+  if (query.filters.status) { where.push("t.status = ?"); params.push(query.filters.status); }
+  if (query.filters.projectId) { where.push("t.project_id = ?"); params.push(query.filters.projectId); }
+  if (query.filters.startDate) { where.push("t.work_date >= ?"); params.push(query.filters.startDate); }
+  const clause = where.join(" AND ");
+  const [[count]] = await pool.query(`SELECT COUNT(*) AS total FROM timesheets t WHERE ${clause}`, params);
+  const [rows] = await pool.query(`SELECT t.id, t.contractor_id, t.project_id, p.name AS project_name, t.work_date, t.hours_logged, t.status, t.submitted_at, t.reviewed_at, reviewer.name AS reviewer_name FROM timesheets t INNER JOIN projects p ON p.id=t.project_id LEFT JOIN users reviewer ON reviewer.id=t.reviewed_by WHERE ${clause} ORDER BY ${query.sortColumn} ${query.order}, t.id ${query.order} LIMIT ? OFFSET ?`, [...params, query.pageSize, query.offset]);
+  return { rows: rows.map(toView), total: Number(count.total) };
+}
+
 /**
  * PENDING daily timesheets for projects owned by the given PM. Ownership
  * is enforced in the WHERE/JOIN clause (t.project_id -> p.id, p.pm_id =
@@ -109,6 +120,21 @@ async function listPendingForPm(pmId) {
     hours_logged: Number(r.hours_logged),
     submitted_at: r.submitted_at,
   }));
+}
+
+async function listPendingPageForPm(pmId, query) {
+  const where = ["p.pm_id = ?", "t.status = 'PENDING'"];
+  const params = [pmId];
+  if (query.filters.projectId) { where.push("t.project_id = ?"); params.push(query.filters.projectId); }
+  if (query.filters.startDate) { where.push("t.work_date >= ?"); params.push(query.filters.startDate); }
+  if (query.filters.search) { where.push("(p.name LIKE ? OR u.name LIKE ?)"); const pattern = `%${query.filters.search}%`; params.push(pattern, pattern); }
+  const clause = where.join(" AND ");
+  const [[count]] = await pool.query(`SELECT COUNT(*) AS total FROM timesheets t INNER JOIN projects p ON p.id = t.project_id INNER JOIN contractors c ON c.id = t.contractor_id INNER JOIN users u ON u.id = c.user_id WHERE ${clause}`, params);
+  const [rows] = await pool.query(`SELECT t.id, t.project_id, p.name AS project_name, c.id AS contractor_id, u.name AS contractor_name, c.skill AS contractor_skill, t.work_date, t.hours_logged, t.submitted_at FROM timesheets t INNER JOIN projects p ON p.id = t.project_id INNER JOIN contractors c ON c.id = t.contractor_id INNER JOIN users u ON u.id = c.user_id WHERE ${clause} ORDER BY ${query.sortColumn} ${query.order}, t.id ${query.order} LIMIT ? OFFSET ?`, [...params, query.pageSize, query.offset]);
+  return {
+    rows: rows.map((r) => ({ id: r.id, project_id: r.project_id, project_name: r.project_name, contractor_id: r.contractor_id, contractor_name: r.contractor_name, contractor_skill: r.contractor_skill, work_date: r.work_date, hours_logged: Number(r.hours_logged), submitted_at: r.submitted_at })),
+    total: Number(count.total),
+  };
 }
 
 /**
@@ -342,7 +368,9 @@ module.exports = {
   create,
   findById,
   listByContractor,
+  listPageByContractor,
   listPendingForPm,
+  listPendingPageForPm,
   lockForReview,
   markReviewed,
   lockForOwnerEdit,

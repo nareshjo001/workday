@@ -395,7 +395,7 @@ async function main() {
   assertEqual(Object.keys(m2c).length, 1, "CASE3: M2 has exactly one contributor (only E3's row overlapped [50,60))");
   assertEqual(Object.keys(m3c).length, 1, "CASE3: M3 has exactly one contributor (only E3's row overlapped [60,65))");
 
-  const p3View = (await req("GET", "/pm/projects", { token: pm.token })).body.find((p) => p.id === p3.id);
+  const p3View = (await req("GET", "/pm/projects", { token: pm.token })).body.items.find((p) => p.id === p3.id);
   assertEqual(p3View.work_progress_percent, 100, "P3 work_progress_percent capped at exactly 100, never exceeds");
 
   // Allocation still correctly prevents total work from exceeding

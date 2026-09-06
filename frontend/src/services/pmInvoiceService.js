@@ -8,8 +8,8 @@ import apiClient from "./apiClient";
  * pmMilestoneService/pmTimesheetService — the JWT is attached
  * automatically, so nothing here ever passes a pm id explicitly.
  */
-async function listInvoices() {
-  const { data } = await apiClient.get("/pm/invoices");
+async function listInvoices(params = {}) {
+  const { data } = await apiClient.get("/pm/invoices", { params });
   return data;
 }
 

@@ -11,8 +11,8 @@ import apiClient from "./apiClient";
  * into the project -> week -> day view.
  */
 
-async function listMyTimesheets() {
-  const { data } = await apiClient.get("/contractor/timesheets");
+async function listMyTimesheets(params = {}) {
+  const { data } = await apiClient.get("/contractor/timesheets", { params });
   return data;
 }
 

@@ -4,6 +4,7 @@ const contractorRepository = require("../repositories/contractorRepository");
 const assignmentRepository = require("../repositories/assignmentRepository");
 const timesheetRepository = require("../repositories/timesheetRepository");
 const ApiError = require("../utils/ApiError");
+const { pageResult } = require("../utils/listQuery");
 
 function todayDateString() {
   return new Date().toISOString().slice(0, 10);
@@ -132,6 +133,14 @@ async function listAvailableProjects() {
     })
   );
 }
+async function listAvailableProjectsPage(query) {
+  const { rows, total } = await projectRepository.listAvailablePageForVendor(query);
+  if (!rows.length) return pageResult([], total, query);
+  const ids = rows.map((row) => row.id); const [requirements, allocated, approved] = await Promise.all([projectRepository.listRequirementsWithCounts(ids), assignmentRepository.sumAllocatedHoursForProjects(ids), timesheetRepository.sumApprovedHoursForProjects(ids)]);
+  const byProject = new Map(); for (const row of requirements) { if (!byProject.has(row.project_id)) byProject.set(row.project_id, []); byProject.get(row.project_id).push(row); }
+  const allocation = new Map(allocated.map((row) => [row.project_id, row.allocated_hours])); const approvals = new Map(approved.map((row) => [row.project_id, row.approved_hours]));
+  return pageResult(rows.map((row) => toProjectView(row, byProject.get(row.id) || [], null, { allocatedHours: allocation.get(row.id) || 0, approvedHours: approvals.get(row.id) || 0 })), total, query);
+}
 
 /**
  * A single project's detail (name/company/PM/dates/requirements with
@@ -219,4 +228,4 @@ async function getEligibleContractorsForRequirement(vendorId, projectId, require
   };
 }
 
-module.exports = { listAvailableProjects, getProjectDetail, getEligibleContractorsForRequirement };
+module.exports = { listAvailableProjects, listAvailableProjectsPage, getProjectDetail, getEligibleContractorsForRequirement };

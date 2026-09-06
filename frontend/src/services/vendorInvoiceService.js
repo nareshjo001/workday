@@ -11,8 +11,8 @@ import apiClient from "./apiClient";
  * still PENDING_REVIEW (see PmInvoicesPage for the PM's now-read-only
  * equivalent).
  */
-async function listInvoices() {
-  const { data } = await apiClient.get("/vendor/invoices");
+async function listInvoices(params = {}) {
+  const { data } = await apiClient.get("/vendor/invoices", { params });
   return data;
 }
 

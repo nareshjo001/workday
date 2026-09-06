@@ -46,9 +46,9 @@ export default function PmMilestonesPage() {
     setIsLoadingProjects(true);
     setLoadError(null);
     try {
-      const data = await pmProjectService.listProjects();
-      setProjects(data);
-      if (data.length > 0) {
+      const data = await pmProjectService.listProjects({ page: 1, pageSize: 100, sort: "created_at", order: "desc" });
+      setProjects(data.items);
+      if (data.items.length > 0) {
         setSelectedProjectId(String(data[0].id));
       }
     } catch (err) {

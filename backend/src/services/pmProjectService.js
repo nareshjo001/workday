@@ -4,6 +4,7 @@ const assignmentRepository = require("../repositories/assignmentRepository");
 const timesheetRepository = require("../repositories/timesheetRepository");
 const ApiError = require("../utils/ApiError");
 const auditService = require("./auditService");
+const { pageResult } = require("../utils/listQuery");
 
 /**
  * Derives overall SKILL-HEADCOUNT staffing status from a project's
@@ -189,6 +190,16 @@ async function listProjects(pmId) {
       approvedHours: approvedByProject.get(p.id) || 0,
     })
   );
+}
+
+async function listProjectsPage(pmId, query) {
+  const { rows, total } = await projectRepository.listPageByPm(pmId, query);
+  if (!rows.length) return pageResult([], total, query);
+  const ids = rows.map((row) => row.id);
+  const [requirements, allocated, approved] = await Promise.all([projectRepository.listRequirementsWithCounts(ids), assignmentRepository.sumAllocatedHoursForProjects(ids), timesheetRepository.sumApprovedHoursForProjects(ids)]);
+  const byProject = new Map(); for (const row of requirements) { if (!byProject.has(row.project_id)) byProject.set(row.project_id, []); byProject.get(row.project_id).push(row); }
+  const allocation = new Map(allocated.map((row) => [row.project_id, row.allocated_hours])); const approvals = new Map(approved.map((row) => [row.project_id, row.approved_hours]));
+  return pageResult(rows.map((row) => toProjectView(row, byProject.get(row.id) || [], { allocatedHours: allocation.get(row.id) || 0, approvedHours: approvals.get(row.id) || 0 })), total, query);
 }
 
 /**
@@ -410,6 +421,7 @@ async function updateContractorAllocation(pmId, projectId, contractorId, allocat
 module.exports = {
   createProject,
   listProjects,
+  listProjectsPage,
   listAssignedContractors,
   completeProject,
   updateContractorAllocation,

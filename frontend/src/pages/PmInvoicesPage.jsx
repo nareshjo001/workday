@@ -5,6 +5,7 @@ import AlertBanner from "../components/AlertBanner";
 import InvoiceTable from "../components/invoices/InvoiceTable";
 import InvoiceCardList from "../components/invoices/InvoiceCardList";
 import pmInvoiceService from "../services/pmInvoiceService";
+import ListControls from "../components/ListControls";
 
 /**
  * PM's invoice HISTORY (Module 6, narrowed by the invoice-workflow
@@ -24,19 +25,22 @@ export default function PmInvoicesPage() {
   const [invoices, setInvoices] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageInfo, setPageInfo] = useState({ total_pages: 1, total: 0 });
 
   const loadInvoices = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const data = await pmInvoiceService.listInvoices();
-      setInvoices(data);
+      const data = await pmInvoiceService.listInvoices({ page, pageSize: 25, sort: "generated_at", order: "desc" });
+      setInvoices(data.items);
+      setPageInfo(data);
     } catch (err) {
       setLoadError(err.message);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     loadInvoices();
@@ -67,6 +71,7 @@ export default function PmInvoicesPage() {
           <div className="rounded-lg bg-surface p-4 shadow-panel ring-1 ring-border sm:p-6">
             <InvoiceTable invoices={invoices} />
             <InvoiceCardList invoices={invoices} />
+            <ListControls page={page} totalPages={pageInfo.total_pages} total={pageInfo.total} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
           </div>
         )}
       </div>

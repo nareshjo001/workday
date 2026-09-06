@@ -9,6 +9,7 @@ import EditLogModal from "../components/timesheets/EditLogModal";
 import { groupTimesheetsByProjectAndWeek } from "../components/timesheets/weekGrouping";
 import contractorTimesheetService from "../services/contractorTimesheetService";
 import contractorProjectService from "../services/contractorProjectService";
+import ListControls from "../components/ListControls";
 
 /**
  * Contractor's own timesheet history + daily "Log Hours" submission.
@@ -29,23 +30,26 @@ export default function ContractorTimesheetsPage() {
   const [isLogOpen, setIsLogOpen] = useState(false);
   const [editingLog, setEditingLog] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageInfo, setPageInfo] = useState({ total_pages: 1, total: 0 });
 
   const loadAll = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
     try {
       const [timesheetData, projectData] = await Promise.all([
-        contractorTimesheetService.listMyTimesheets(),
+        contractorTimesheetService.listMyTimesheets({ page, pageSize: 25, sort: "work_date", order: "desc" }),
         contractorProjectService.listAssignedProjects(),
       ]);
-      setTimesheets(timesheetData);
+      setTimesheets(timesheetData.items);
+      setPageInfo(timesheetData);
       setAssignedProjects(projectData);
     } catch (err) {
       setLoadError(err.message);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     loadAll();
@@ -146,6 +150,7 @@ export default function ContractorTimesheetsPage() {
                 onEdit={setEditingLog}
               />
             ))}
+            <ListControls page={page} totalPages={pageInfo.total_pages} total={pageInfo.total} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
           </div>
         )}
       </div>

@@ -5,8 +5,8 @@ import apiClient from "./apiClient";
  * with requirement/staffing-progress data attached. Replaces the old
  * "ask the PM for a numeric ID" flow (see VendorAssignmentsPage).
  */
-async function listAvailableProjects() {
-  const { data } = await apiClient.get("/vendor/projects");
+async function listAvailableProjects(params = {}) {
+  const { data } = await apiClient.get("/vendor/projects", { params });
   return data;
 }
 

@@ -6,6 +6,7 @@ const ApiError = require("../utils/ApiError");
 const crypto = require("crypto");
 const authService = require("./authService");
 const auditService = require("./auditService");
+const { pageResult } = require("../utils/listQuery");
 
 function toContractorView(row) {
   return {
@@ -89,6 +90,11 @@ async function listContractors(vendorId, opts = {}) {
   return rows.map(toContractorView);
 }
 
+async function listContractorsPage(vendorId, query) {
+  const { rows, total } = await contractorRepository.listPageByVendor(vendorId, query);
+  return pageResult(rows.map(toContractorView), total, query);
+}
+
 /**
  * Updates hourly_rate and/or status on a contractor, but only if it
  * belongs to `vendorId`. A contractor that doesn't exist and a contractor
@@ -134,4 +140,4 @@ async function resendInvitation(vendorId, contractorId) {
   await authService.issueActionForUser(recipient, "CONTRACTOR_INVITATION");
 }
 
-module.exports = { createContractor, listContractors, updateContractor, resendInvitation };
+module.exports = { createContractor, listContractors, listContractorsPage, updateContractor, resendInvitation };

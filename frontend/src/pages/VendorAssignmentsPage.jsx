@@ -7,6 +7,7 @@ import ProjectTeamModal from "../components/projects/ProjectTeamModal";
 import AssignContractorModal from "../components/projects/AssignContractorModal";
 import vendorProjectService from "../services/vendorProjectService";
 import vendorAssignmentService from "../services/vendorAssignmentService";
+import ListControls from "../components/ListControls";
 
 /**
  * Vendor's project-staffing screen: browse projects open for staffing,
@@ -31,13 +32,16 @@ export default function VendorAssignmentsPage() {
   const [pickerContractors, setPickerContractors] = useState([]);
   const [isPickerLoading, setIsPickerLoading] = useState(false);
   const [pickerLoadError, setPickerLoadError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageInfo, setPageInfo] = useState({ total_pages: 1, total: 0 });
 
   const loadProjects = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const data = await vendorProjectService.listAvailableProjects();
-      setProjects(data);
+      const data = await vendorProjectService.listAvailableProjects({ page, pageSize: 25, sort: "created_at", order: "desc" });
+      setProjects(data.items);
+      setPageInfo(data);
       return data;
     } catch (err) {
       setLoadError(err.message);
@@ -45,7 +49,7 @@ export default function VendorAssignmentsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     loadProjects();
@@ -130,6 +134,7 @@ export default function VendorAssignmentsPage() {
             {projects.map((project) => (
               <ProjectStaffingCard key={project.id} project={project} onViewTeam={handleViewTeam} />
             ))}
+            <ListControls page={page} totalPages={pageInfo.total_pages} total={pageInfo.total} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
           </div>
         )}
       </div>

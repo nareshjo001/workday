@@ -5,6 +5,7 @@ const assignmentRepository = require("../repositories/assignmentRepository");
 const timesheetRepository = require("../repositories/timesheetRepository");
 const ApiError = require("../utils/ApiError");
 const auditService = require("./auditService");
+const { pageResult } = require("../utils/listQuery");
 
 function todayDateString() {
   return new Date().toISOString().slice(0, 10);
@@ -221,6 +222,12 @@ async function listMyTimesheets(userId) {
   }
   return timesheetRepository.listByContractor(contractor.id);
 }
+async function listMyTimesheetsPage(userId, query) {
+  const contractor = await contractorRepository.findByUserId(userId);
+  if (!contractor) return pageResult([], 0, query);
+  const { rows, total } = await timesheetRepository.listPageByContractor(contractor.id, query);
+  return pageResult(rows, total, query);
+}
 
 /**
  * Edits one of the authenticated contractor's own timesheet rows —
@@ -345,4 +352,4 @@ async function updateTimesheet(userId, timesheetId, { workDate, hoursLogged }, a
   return timesheetRepository.findById(timesheetId);
 }
 
-module.exports = { submitTimesheet, listMyTimesheets, updateTimesheet };
+module.exports = { submitTimesheet, listMyTimesheets, listMyTimesheetsPage, updateTimesheet };

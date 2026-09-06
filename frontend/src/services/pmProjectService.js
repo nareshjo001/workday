@@ -6,8 +6,8 @@ import apiClient from "./apiClient";
  * so nothing here ever passes a pm id explicitly.
  */
 
-async function listProjects() {
-  const { data } = await apiClient.get("/pm/projects");
+async function listProjects(params = {}) {
+  const { data } = await apiClient.get("/pm/projects", { params });
   return data;
 }
 

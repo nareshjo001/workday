@@ -3,6 +3,7 @@ const timesheetRepository = require("../repositories/timesheetRepository");
 const milestoneService = require("./milestoneService");
 const ApiError = require("../utils/ApiError");
 const auditService = require("./auditService");
+const { pageResult } = require("../utils/listQuery");
 
 /**
  * PENDING daily timesheets for projects owned by the authenticated PM.
@@ -15,6 +16,11 @@ const auditService = require("./auditService");
  */
 async function listPending(pmId) {
   return timesheetRepository.listPendingForPm(pmId);
+}
+
+async function listPendingPage(pmId, query) {
+  const { rows, total } = await timesheetRepository.listPendingPageForPm(pmId, query);
+  return pageResult(rows, total, query);
 }
 
 /**
@@ -100,4 +106,4 @@ async function reviewTimesheet(pmId, timesheetId, status, auditActor) {
   return timesheetRepository.findById(timesheetId);
 }
 
-module.exports = { listPending, reviewTimesheet };
+module.exports = { listPending, listPendingPage, reviewTimesheet };

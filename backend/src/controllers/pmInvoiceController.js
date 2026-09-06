@@ -1,5 +1,6 @@
 const invoiceApprovalService = require("../services/invoiceApprovalService");
 const asyncHandler = require("../utils/asyncHandler");
+const { parseListQuery, enumFilter, positiveIntegerFilter } = require("../utils/listQuery");
 
 /**
  * `req.user.userId` (set by `authenticate` from the verified JWT) is the
@@ -12,8 +13,8 @@ const asyncHandler = require("../utils/asyncHandler");
  * invoiceApprovalService.js's own top comment for why.
  */
 const list = asyncHandler(async (req, res) => {
-  const invoices = await invoiceApprovalService.listForPm(req.user.userId);
-  res.status(200).json(invoices);
+  const query = parseListQuery(req.query, { allowedSorts: { default: "i.generated_at", generated_at: "i.generated_at", status: "i.status", amount: "i.amount" }, allowedFilters: { status: enumFilter(["PENDING_REVIEW", "AUTO_APPROVED", "APPROVED", "REJECTED"]), projectId: positiveIntegerFilter } });
+  return res.status(200).json(await invoiceApprovalService.listPageForPm(req.user.userId, query));
 });
 
 module.exports = { list };

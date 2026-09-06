@@ -1,4 +1,5 @@
 const invoiceRepository = require("../repositories/invoiceRepository");
+const { pageResult } = require("../utils/listQuery");
 
 /**
  * PM-facing invoice VISIBILITY — invoice-workflow redesign: this file
@@ -29,5 +30,6 @@ const invoiceRepository = require("../repositories/invoiceRepository");
 async function listForPm(pmId) {
   return invoiceRepository.listForPm(pmId);
 }
+async function listPageForPm(pmId, query) { const { rows, total } = await invoiceRepository.listPageForPm(pmId, query); return pageResult(rows, total, query); }
 
-module.exports = { listForPm };
+module.exports = { listForPm, listPageForPm };
