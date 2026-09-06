@@ -7,6 +7,7 @@ const fs = require("fs");
 const path = require("path");
 const mysql = require("mysql2/promise");
 const env = require("../config/env");
+const logger = require("../observability/logger");
 
 async function run() {
   const dir = __dirname;
@@ -27,16 +28,16 @@ async function run() {
   try {
     for (const file of files) {
       const sql = fs.readFileSync(path.join(dir, file), "utf8");
-      console.log(`Applying migration: ${file}`);
+      logger.info("migration_applying", { migration: file });
       await connection.query(sql);
     }
-    console.log("Migrations complete.");
+    logger.info("migrations_complete");
   } finally {
     await connection.end();
   }
 }
 
 run().catch((err) => {
-  console.error("Migration failed:", err.message);
+  logger.error("migration_failed", { error_message: err.message });
   process.exit(1);
 });
