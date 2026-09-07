@@ -65,15 +65,17 @@ router.patch("/candidate-submissions/:id/withdraw", candidateSubmissionControlle
 // Same gate reuse rationale as /contractors above — no new
 // authenticate/authorizeRoles declaration needed.
 router.get("/invoices", vendorInvoiceController.list);
-router.patch("/invoices/:id", vendorInvoiceController.review);
+router.patch("/invoices/:id", invoiceLifecycleController.update);
 router.get("/billing-queue", invoiceLifecycleController.queue);
 router.post("/invoices/drafts", invoiceLifecycleController.draft);
 router.post("/invoices/:id/items", invoiceLifecycleController.add);
 router.delete("/invoices/:id/items", invoiceLifecycleController.remove);
 router.post("/invoices/:id/submit", invoiceLifecycleController.submit);
+router.post("/invoices/:id/pdf", invoiceLifecycleController.regenerate);
 router.post("/invoices/:id/revise", invoiceLifecycleController.revise);
 router.post("/invoices/:id/cancel", invoiceLifecycleController.cancel);
 router.get("/invoices/:id/detail", invoiceLifecycleController.detail);
+router.get("/invoices/:id/pdf", invoiceLifecycleController.pdf);
 
 // UI + analytics redesign: a single read-only aggregated dashboard
 // payload for the Vendor home screen (KPIs, earnings, project progress,

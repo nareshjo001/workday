@@ -63,6 +63,7 @@ router.get("/milestones/:projectId", pmMilestoneController.listForProject);
 router.get("/invoices", pmInvoiceController.list);
 router.patch("/invoices/:id/review", invoiceLifecycleController.review);
 router.get("/invoices/:id/detail", invoiceLifecycleController.detail);
+router.get("/invoices/:id/pdf", invoiceLifecycleController.pdf);
 
 // UI + analytics redesign: a single read-only aggregated dashboard
 // payload for the PM home screen — see pmDashboardService.js. Same gate

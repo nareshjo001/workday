@@ -32,9 +32,8 @@ export default function InvoiceTable({ invoices, reviewingId, onApprove, onRejec
     <table className="hidden w-full text-left text-sm md:table">
       <thead>
         <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
+          <th className="py-3 pr-4 font-medium">Invoice</th>
           <th className="py-3 pr-4 font-medium">Project</th>
-          <th className="py-3 pr-4 font-medium">Contractor</th>
-          <th className="py-3 pr-4 font-medium">Milestone</th>
           <th className="py-3 pr-4 font-medium">Amount</th>
           <th className="py-3 pr-4 font-medium">Generated</th>
           {reviewModeAvailable ? (
@@ -53,10 +52,9 @@ export default function InvoiceTable({ invoices, reviewingId, onApprove, onRejec
           const showActions = reviewModeAvailable && inv.status === "PENDING_REVIEW";
           return (
             <tr key={inv.id} className="border-b border-border last:border-0">
-              <td className="py-3 pr-4 font-medium text-text">{inv.project_name}</td>
-              <td className="py-3 pr-4 text-text-secondary">{inv.contractor_name}</td>
-              <td className="py-3 pr-4 text-text-secondary">{inv.milestone_name}</td>
-              <td className="py-3 pr-4 text-text-secondary">{formatCurrency(inv.amount)}</td>
+              <td className="py-3 pr-4 font-medium text-text">{inv.invoice_number || `Draft #${inv.id}`}</td>
+              <td className="py-3 pr-4 text-text-secondary">{inv.project_name}</td>
+              <td className="py-3 pr-4 text-text-secondary">{formatCurrency(inv.total_amount ?? inv.amount)}</td>
               <td className="py-3 pr-4 text-text-secondary">{formatDateTime(inv.generated_at)}</td>
               {reviewModeAvailable ? (
                 <td className="py-3 pr-0">

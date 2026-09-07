@@ -1,0 +1,10 @@
+import { formatCurrency } from "./format";
+
+export default function InvoiceDocumentPanel({ invoice, onDownload, onPrint }) {
+  if (!invoice) return null;
+  return <section className="rounded-lg border border-border bg-surface p-4 shadow-panel sm:p-6">
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-semibold text-text">{invoice.invoice_number || `Draft #${invoice.id}`}</h2><p className="text-sm text-muted">{invoice.project_name} · {invoice.invoice_date || "Invoice date pending"}</p></div><div className="flex gap-2"><button className="rounded border border-border px-3 py-2 text-sm" onClick={onPrint}>Print</button>{invoice.pdf_storage_key && <button className="rounded bg-primary px-3 py-2 text-sm text-white" onClick={onDownload}>Download PDF</button>}</div></div>
+    <div className="mt-4 overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b border-border text-muted"><th className="py-2">Contributor</th><th>Skill</th><th>Hours</th><th>Rate</th><th className="text-right">Amount</th></tr></thead><tbody>{invoice.items?.map((item)=><tr key={item.id} className="border-b border-border"><td className="py-2">{item.contractor_name_snapshot}</td><td>{item.skill_name_snapshot}</td><td>{item.approved_hours}</td><td>{formatCurrency(item.bill_rate)}</td><td className="text-right">{formatCurrency(item.amount)}</td></tr>)}</tbody></table></div>
+    <div className="ml-auto mt-4 max-w-xs space-y-1 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(invoice.subtotal_amount ?? invoice.amount)}</span></div><div className="flex justify-between"><span>Tax ({invoice.tax_rate ?? 0}%)</span><span>{formatCurrency(invoice.tax_amount)}</span></div><div className="flex justify-between"><span>Adjustment</span><span>{formatCurrency(invoice.adjustment_amount)}</span></div><div className="flex justify-between border-t border-border pt-2 font-semibold"><span>Total</span><span>{formatCurrency(invoice.total_amount ?? invoice.amount)}</span></div></div>
+  </section>;
+}

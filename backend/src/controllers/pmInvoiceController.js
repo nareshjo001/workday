@@ -1,4 +1,5 @@
 const invoiceApprovalService = require("../services/invoiceApprovalService");
+const invoiceLifecycleService = require("../services/invoiceLifecycleService");
 const asyncHandler = require("../utils/asyncHandler");
 const { parseListQuery, enumFilter, positiveIntegerFilter } = require("../utils/listQuery");
 
@@ -13,8 +14,8 @@ const { parseListQuery, enumFilter, positiveIntegerFilter } = require("../utils/
  * invoiceApprovalService.js's own top comment for why.
  */
 const list = asyncHandler(async (req, res) => {
-  const query = parseListQuery(req.query, { allowedSorts: { default: "i.generated_at", generated_at: "i.generated_at", status: "i.status", amount: "i.amount" }, allowedFilters: { status: enumFilter(["PENDING_REVIEW", "AUTO_APPROVED", "APPROVED", "REJECTED"]), projectId: positiveIntegerFilter } });
-  return res.status(200).json(await invoiceApprovalService.listPageForPm(req.user.userId, query));
+  const query = parseListQuery(req.query, { allowedSorts: { default: "i.generated_at", generated_at: "i.generated_at", status: "i.status", amount: "i.amount" }, allowedFilters: { status: enumFilter(["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "CANCELLED", "PENDING_REVIEW", "AUTO_APPROVED"]), projectId: positiveIntegerFilter } });
+  return res.status(200).json(await invoiceLifecycleService.listForActor(req.user, query));
 });
 
 module.exports = { list };

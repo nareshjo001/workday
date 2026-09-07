@@ -519,22 +519,53 @@ async function main() {
   assert(p3ContribF.approved_hours === 6, `concurrent: F's billed hours expected 6, got ${p3ContribF?.approved_hours}`);
   assert(p3ContribG.approved_hours === 8, `concurrent: G's billed hours expected 8, got ${p3ContribG?.approved_hours}`);
 
-  // ===================== M17 regression =====================
-  console.log("\n--- M17 billing queue / Vendor draft / PM review ---");
+  // ===================== M17/M18 regression =====================
+  console.log("\n--- M17 billing queue / M18 finance invoice document ---");
   const billingQueue = await req("GET", "/vendor/billing-queue", undefined, vendor.token);
   assert(billingQueue.status === 200 && billingQueue.data.items.length > 0, "eligible billings exist without auto-created invoices");
   const draft = await req("POST", "/vendor/invoices/drafts", { milestone_billing_id: billingQueue.data.items[0].milestone_billing_id }, vendor.token);
   assert(draft.status === 201 && draft.data.status === "DRAFT", `draft created: got ${draft.status}`);
-  const submitted = await req("POST", `/vendor/invoices/${draft.data.id}/submit`, undefined, vendor.token);
-  assert(submitted.status === 200 && submitted.data.status === "SUBMITTED", `draft submitted: got ${submitted.status}`);
-  const reviewed = await req("PATCH", `/pm/invoices/${draft.data.id}/review`, { status: "APPROVED" }, pm.token);
-  assert(reviewed.status === 200 && reviewed.data.status === "APPROVED", `PM approval: got ${reviewed.status}`);
+  const pricedDraft = await req("PATCH", `/vendor/invoices/${draft.data.id}`, { tax_rate: 18, adjustments: [{ description: "Travel adjustment", amount: 2.5 }], payment_terms_days: 15 }, vendor.token);
+  assert(pricedDraft.status === 200 && pricedDraft.data.tax_rate === 18 && pricedDraft.data.total_amount === Number((pricedDraft.data.subtotal_amount * 1.18 + 2.5).toFixed(2)), `derived M18 tax total: got ${pricedDraft.status}`);
+  const draftItem = pricedDraft.data.items?.[0];
+  assert(draftItem?.contractor_name_snapshot && draftItem?.skill_name_snapshot && draftItem?.milestone_name_snapshot && draftItem.approved_hours > 0 && draftItem.bill_rate > 0 && draftItem.amount > 0, "M18 item display and financial snapshots are present");
   const secondDraft = await req("POST", "/vendor/invoices/drafts", { milestone_billing_id: billingQueue.data.items[1].milestone_billing_id }, vendor.token);
   assert(secondDraft.status === 201, `second draft created: got ${secondDraft.status}`);
-  const secondSubmitted = await req("POST", `/vendor/invoices/${secondDraft.data.id}/submit`, undefined, vendor.token);
-  assert(secondSubmitted.status === 200, `second draft submitted: got ${secondSubmitted.status}`);
+  const [submitted, secondSubmitted] = await Promise.all([
+    req("POST", `/vendor/invoices/${draft.data.id}/submit`, undefined, vendor.token),
+    req("POST", `/vendor/invoices/${secondDraft.data.id}/submit`, undefined, vendor.token),
+  ]);
+  assert(submitted.status === 200 && submitted.data.status === "SUBMITTED" && /^INV-\d{4}-\d{6}$/.test(submitted.data.invoice_number) && submitted.data.pdf_storage_key, `M18 numbered document frozen on submit: got ${submitted.status}`);
+  const submittedSequences = [submitted, secondSubmitted].map((response) => Number(response.data?.invoice_number?.split("-")[2])).sort((a, b) => a - b);
+  assert(secondSubmitted.status === 200 && submittedSequences[1] === submittedSequences[0] + 1, `M18 concurrent invoice numbers are unique and consecutive: ${submittedSequences.join(",")}`);
+  const pdfResponse = await fetch(`${BASE}/vendor/invoices/${draft.data.id}/pdf`, { headers: { Authorization: `Bearer ${vendor.token}` } });
+  const pdfBytes = Buffer.from(await pdfResponse.arrayBuffer());
+  const pdfText = pdfBytes.toString("utf8");
+  const pdfTaxText = 'Tax \\(18.00%\\)';
+  const pdfMatches = pdfResponse.status === 200 && pdfBytes.subarray(0, 5).toString() === "%PDF-" && pdfText.includes(submitted.data.invoice_number) && pdfText.includes(draftItem.contractor_name_snapshot) && pdfText.includes(pdfTaxText) && pdfText.includes("Travel adjustment") && pdfText.includes(`Total: USD ${submitted.data.total_amount.toFixed(2)}`) && pdfText.includes(`Due date: ${submitted.data.due_date}`);
+  assert(pdfMatches, `authorized M18 PDF download with derived details: got ${pdfResponse.status}; number=${pdfText.includes(submitted.data.invoice_number)} contractor=${pdfText.includes(draftItem.contractor_name_snapshot)} tax=${pdfText.includes(pdfTaxText)} adjustment=${pdfText.includes('Travel adjustment')} total=${pdfText.includes(`Total: USD ${submitted.data.total_amount.toFixed(2)}`)} due=${pdfText.includes(`Due date: ${submitted.data.due_date}`)}`);
+  const immutableMetadata = await req("PATCH", `/vendor/invoices/${draft.data.id}`, { tax_rate: 0 }, vendor.token);
+  assert(immutableMetadata.status === 409, `submitted invoice metadata is immutable: got ${immutableMetadata.status}`);
+  const pmPdf = await fetch(`${BASE}/pm/invoices/${draft.data.id}/pdf`, { headers: { Authorization: `Bearer ${pm.token}` } });
+  assert(pmPdf.status === 200, `owning PM can download M18 PDF: got ${pmPdf.status}`);
+  const unrelatedVendor = await signup("VENDOR", "M18 Unrelated Vendor");
+  const unrelatedVendorPdf = await fetch(`${BASE}/vendor/invoices/${draft.data.id}/pdf`, { headers: { Authorization: `Bearer ${unrelatedVendor.token}` } });
+  const unrelatedPm = await signup("PM", "M18 Unrelated PM");
+  const unrelatedPmPdf = await fetch(`${BASE}/pm/invoices/${draft.data.id}/pdf`, { headers: { Authorization: `Bearer ${unrelatedPm.token}` } });
+  assert(unrelatedVendorPdf.status === 404 && unrelatedPmPdf.status === 404, `cross-tenant PDF probes are hidden: vendor=${unrelatedVendorPdf.status}, pm=${unrelatedPmPdf.status}`);
+  console.log("M18 acceptance checks: derived tax, concurrent numbering, frozen PDF, and authorized download.");
+  const reviewed = await req("PATCH", `/pm/invoices/${draft.data.id}/review`, { status: "APPROVED" }, pm.token);
+  assert(reviewed.status === 200 && reviewed.data.status === "APPROVED", `PM approval: got ${reviewed.status}`);
+  const approvedPdf = await fetch(`${BASE}/pm/invoices/${draft.data.id}/pdf`, { headers: { Authorization: `Bearer ${pm.token}` } });
+  assert(approvedPdf.status === 200 && Buffer.compare(pdfBytes, Buffer.from(await approvedPdf.arrayBuffer())) === 0, `approved invoice retains the frozen submitted PDF: got ${approvedPdf.status}`);
   const rejected = await req("PATCH", `/pm/invoices/${secondDraft.data.id}/review`, { status: "REJECTED", rejection_reason: "Correction required" }, pm.token);
   assert(rejected.status === 200 && rejected.data.status === "REJECTED", `PM rejection: got ${rejected.status}`);
+  const rolloverDraft = await req("POST", "/vendor/invoices/drafts", { milestone_billing_id: billingQueue.data.items[2].milestone_billing_id }, vendor.token);
+  const rolloverEdited = await req("PATCH", `/vendor/invoices/${rolloverDraft.data.id}`, { invoice_date: "2027-01-01", payment_terms_days: 30 }, vendor.token);
+  const rolloverSubmitted = await req("POST", `/vendor/invoices/${rolloverDraft.data.id}/submit`, undefined, vendor.token);
+  assert(rolloverEdited.status === 200 && rolloverSubmitted.status === 200 && rolloverSubmitted.data.invoice_number === "INV-2027-000001", `M18 year rollover starts an independent vendor/year sequence: ${rolloverSubmitted.data?.invoice_number}`);
+  const rolloverReviewed = await req("PATCH", `/pm/invoices/${rolloverDraft.data.id}/review`, { status: "APPROVED" }, pm.token);
+  assert(rolloverReviewed.status === 200, `M18 rollover invoice remains compatible with M17 review: got ${rolloverReviewed.status}`);
 
   // ===================== Module 4 regression: date rules unchanged =====================
   console.log("\n--- Module 4 regression: date-window rules still enforced ---");
