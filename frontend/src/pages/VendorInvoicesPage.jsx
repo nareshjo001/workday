@@ -30,6 +30,7 @@ export default function VendorInvoicesPage() {
   const [rejectTarget, setRejectTarget] = useState(null);
   const [page, setPage] = useState(1);
   const [pageInfo, setPageInfo] = useState({ total_pages: 1, total: 0 });
+  const [queue,setQueue]=useState([]);
 
   const loadInvoices = useCallback(async () => {
     setIsLoading(true);
@@ -47,7 +48,9 @@ export default function VendorInvoicesPage() {
 
   useEffect(() => {
     loadInvoices();
+    vendorInvoiceService.billingQueue().then(setQueue).catch(()=>{});
   }, [loadInvoices]);
+  const createDraft=async(billingId)=>{try{const draft=await vendorInvoiceService.createDraft(billingId);setSuccessMessage(`Draft #${draft.id} created.`);setQueue(q=>q.filter(x=>x.milestone_billing_id!==billingId));loadInvoices();}catch(e){setActionError(e.message);}};
 
   useEffect(() => {
     if (!successMessage) return undefined;
@@ -97,12 +100,12 @@ export default function VendorInvoicesPage() {
       <div className="mx-auto flex max-w-4xl flex-col gap-5">
         <h1 className="text-xl font-semibold text-text">Invoices</h1>
         <p className="text-sm text-muted">
-          Review and approve or reject billing for your contractors. Once you decide, the Project
-          Manager sees the outcome — they cannot approve or reject on your behalf.
+          Build drafts from eligible milestone billings, submit them, then track client review.
         </p>
 
         <AlertBanner message={successMessage} variant="success" />
         <AlertBanner message={actionError || loadError} />
+        {queue.length>0&&<section className="rounded-lg border border-border p-4"><h2 className="font-medium">Eligible billing queue</h2>{queue.map(item=><div key={item.milestone_billing_id} className="mt-2 flex items-center justify-between text-sm"><span>{item.approved_hours}h · {item.currency} {item.amount}</span><button className="rounded bg-primary px-2 py-1 text-white" onClick={()=>createDraft(item.milestone_billing_id)}>Create draft</button></div>)}</section>}
 
         {isLoading ? (
           <Spinner label="Loading invoices…" />
@@ -110,8 +113,7 @@ export default function VendorInvoicesPage() {
           <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-surface px-6 py-12 text-center">
             <p className="text-text-secondary">No invoices yet.</p>
             <p className="max-w-sm text-sm text-muted">
-              Invoices are generated automatically once one of your contractors' milestone
-              contributions is billed.
+              Select an eligible milestone contribution above to create a draft.
             </p>
           </div>
         ) : (
