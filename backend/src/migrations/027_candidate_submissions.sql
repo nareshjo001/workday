@@ -1,0 +1,22 @@
+CREATE TABLE candidate_submissions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  project_id INT NOT NULL,
+  requirement_id INT NOT NULL,
+  contractor_id INT NOT NULL,
+  vendor_id INT NOT NULL,
+  proposed_start_date DATE NOT NULL,
+  proposed_end_date DATE NULL,
+  status ENUM('SUBMITTED','WITHDRAWN','SHORTLISTED','ACCEPTED','REJECTED') NOT NULL DEFAULT 'SUBMITTED',
+  submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  reviewed_at TIMESTAMP NULL,
+  reviewed_by INT NULL,
+  review_reason VARCHAR(500) NULL,
+  CONSTRAINT fk_candidate_project FOREIGN KEY (project_id) REFERENCES projects(id),
+  CONSTRAINT fk_candidate_requirement FOREIGN KEY (requirement_id) REFERENCES project_requirements(id),
+  CONSTRAINT fk_candidate_contractor FOREIGN KEY (contractor_id) REFERENCES contractors(id),
+  CONSTRAINT fk_candidate_vendor FOREIGN KEY (vendor_id) REFERENCES users(id),
+  CONSTRAINT fk_candidate_reviewer FOREIGN KEY (reviewed_by) REFERENCES users(id),
+  UNIQUE KEY uq_candidate_open (project_id, requirement_id, contractor_id, status),
+  KEY idx_candidate_pm_queue (project_id, status, submitted_at),
+  KEY idx_candidate_vendor_queue (vendor_id, status, submitted_at)
+);

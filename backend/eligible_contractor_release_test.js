@@ -82,6 +82,12 @@ async function main() {
 
   const pm = await signup("PM", "Release Test PM");
   const vendor = await signup("VENDOR", "Release Test Vendor");
+  async function submitAndAccept(projectId, requirementId, contractorId) {
+    const submitted = await req("POST", `/vendor/projects/${projectId}/requirements/${requirementId}/candidates`, { contractor_id: contractorId }, vendor.token);
+    if (submitted.status !== 201) return submitted;
+    const accepted = await req("PATCH", `/pm/candidate-submissions/${submitted.data.id}`, { status: "ACCEPTED" }, pm.token);
+    return { status: accepted.status === 200 ? 201 : accepted.status, data: accepted.data };
+  }
 
   // 1. Create an ACTIVE contractor.
   const createRes = await req(
@@ -111,12 +117,7 @@ async function main() {
   const reqAId = projA.data.requirements[0].id;
 
   // 2. Assign contractor to Project A.
-  const assignA = await req(
-    "POST",
-    `/vendor/projects/${projA.data.id}/requirements/${reqAId}/assign`,
-    { contractorIds: [contractorId] },
-    vendor.token
-  );
+  const assignA = await submitAndAccept(projA.data.id, reqAId, contractorId);
   assert(assignA.status === 201, `assign contractor to project A: expected 201, got ${assignA.status} ${JSON.stringify(assignA.data)}`);
 
   // 3. Verify contractor is NOT returned by the eligible-contractors list
@@ -174,12 +175,7 @@ async function main() {
     pm.token
   );
   const reqBId = projB.data.requirements[0].id;
-  const assignB = await req(
-    "POST",
-    `/vendor/projects/${projB.data.id}/requirements/${reqBId}/assign`,
-    { contractorIds: [contractorId] },
-    vendor.token
-  );
+  const assignB = await submitAndAccept(projB.data.id, reqBId, contractorId);
   assert(assignB.status === 201, `assign contractor to project B: expected 201, got ${assignB.status} ${JSON.stringify(assignB.data)}`);
 
   // 9. Verify the contractor's Project B assignment is ACTIVE.

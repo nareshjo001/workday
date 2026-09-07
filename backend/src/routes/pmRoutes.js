@@ -10,6 +10,7 @@ const pmDashboardController = require("../controllers/pmDashboardController");
 const pmContractorDocumentController = require("../controllers/pmContractorDocumentController");
 const pmVendorAccessController = require("../controllers/pmVendorAccessController");
 const authController = require("../controllers/authController");
+const candidateSubmissionController = require("../controllers/candidateSubmissionController");
 
 /**
  * Every route here requires a valid JWT AND role = PM — same gate
@@ -62,6 +63,8 @@ router.get("/invoices", pmInvoiceController.list);
 // reuse rationale as /projects above; no existing route above this line
 // was changed.
 router.get("/dashboard", pmDashboardController.getDashboard);
+router.get("/candidate-submissions", candidateSubmissionController.listPm);
+router.patch("/candidate-submissions/:id", candidateSubmissionController.decide);
 router.get("/contractors/:contractorId/compliance", pmContractorDocumentController.summary);
 router.post("/vendor-access", pmVendorAccessController.connect);
 router.get("/vendors", pmVendorAccessController.listVendors);

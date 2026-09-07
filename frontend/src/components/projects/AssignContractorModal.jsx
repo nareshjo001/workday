@@ -163,7 +163,7 @@ export default function AssignContractorModal({
               disabled={selectedIds.length === 0}
               className="flex-1"
             >
-              Assign Selected ({selectedIds.length})
+              Submit Selected ({selectedIds.length})
             </PrimaryButton>
           </div>
         </form>

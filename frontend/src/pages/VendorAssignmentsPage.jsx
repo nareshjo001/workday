@@ -91,7 +91,7 @@ export default function VendorAssignmentsPage() {
   };
 
   const handleAssign = async (contractorIds, dates) => {
-    await vendorAssignmentService.assignContractors(
+    await vendorAssignmentService.submitCandidates(
       selectedProject.id,
       assigningRequirement.id,
       contractorIds,
@@ -109,7 +109,7 @@ export default function VendorAssignmentsPage() {
     setSelectedProject(refreshedDetail);
     setAssigningRequirement(null);
     setSuccessMessage(
-      `${contractorIds.length} contractor${contractorIds.length === 1 ? "" : "s"} assigned successfully.`
+      `${contractorIds.length} candidate submission${contractorIds.length === 1 ? "" : "s"} sent to the Project Manager.`
     );
   };
 

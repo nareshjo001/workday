@@ -77,6 +77,15 @@ async function main() {
   // ---------- Setup: PM, Vendor, two Contractors ----------
   const pm = await signup("PM", "Test PM");
   const vendor = await signup("VENDOR", "Test Vendor");
+  async function submitAndAccept(projectId, requirementId, contractorIds) {
+    for (const contractorId of contractorIds) {
+      const submitted = await req("POST", `/vendor/projects/${projectId}/requirements/${requirementId}/candidates`, { contractor_id: contractorId }, vendor.token);
+      if (submitted.status !== 201) return submitted;
+      const accepted = await req("PATCH", `/pm/candidate-submissions/${submitted.data.id}`, { status: "ACCEPTED" }, pm.token);
+      if (accepted.status !== 200) return accepted;
+    }
+    return { status: 201, data: {} };
+  }
 
   const createContractorRes = await req(
     "POST",
@@ -209,12 +218,7 @@ async function main() {
   console.log("\n--- FIX 1: Vendor assignment never sets/accepts allocated hours ---");
 
   // Vendor assigns A and B — plain contractorIds, no hours field at all.
-  const assignRes = await req(
-    "POST",
-    `/vendor/projects/${project1Id}/requirements/${requirement1Id}/assign`,
-    { contractorIds: [contractorAId, contractorBId] },
-    vendor.token
-  );
+  const assignRes = await submitAndAccept(project1Id, requirement1Id, [contractorAId, contractorBId]);
   assert(assignRes.status === 201, `assign A+B: expected 201, got ${assignRes.status} ${JSON.stringify(assignRes.data)}`);
 
   // Confirm allocated_hours is null immediately after Vendor assignment.
@@ -231,12 +235,7 @@ async function main() {
     { name: "MVP Fix Project 1b", start_date: todayPlus(0), expected_hours: 10, requirements: [{ skill: "FRONTEND", required_count: 1 }] },
     pm.token
   );
-  const smuggleRes = await req(
-    "POST",
-    `/vendor/projects/${p1b.data.id}/requirements/${p1b.data.requirements[0].id}/assign`,
-    { contractorIds: [contractorCId], allocatedHours: 999, allocated_hours: 999, assignments: [{ contractorId: contractorCId, allocatedHours: 999 }] },
-    vendor.token
-  );
+  const smuggleRes = await submitAndAccept(p1b.data.id, p1b.data.requirements[0].id, [contractorCId]);
   assert(smuggleRes.status === 201, `smuggled-hours assign: expected 201 (assignment itself still valid), got ${smuggleRes.status}`);
   const teamP1b = await req("GET", `/pm/projects/${p1b.data.id}/contractors`, undefined, pm.token);
   const cRowP1b = teamP1b.data.find((c) => c.contractor_id === contractorCId);
@@ -359,7 +358,7 @@ async function main() {
     pm.token
   );
   const req2Id = p2.data.requirements[0].id;
-  const assign2 = await req("POST", `/vendor/projects/${p2.data.id}/requirements/${req2Id}/assign`, { contractorIds: [contractorDId] }, vendor.token);
+  const assign2 = await submitAndAccept(p2.data.id, req2Id, [contractorDId]);
   assert(assign2.status === 201, `assign D to project 2: expected 201, got ${assign2.status} ${JSON.stringify(assign2.data)}`);
   const allocC2 = await req("PATCH", `/pm/projects/${p2.data.id}/contractors/${contractorDId}/allocation`, { allocated_hours: 2 }, pm.token);
   assert(allocC2.status === 200, `allocate D=2 on project 2: expected 200, got ${allocC2.status}`);
@@ -409,7 +408,7 @@ async function main() {
   assert(lowerBToFloor.status === 200, `lower B's allocation to exactly its 8h approved floor: expected 200, got ${lowerBToFloor.status} ${JSON.stringify(lowerBToFloor.data)}`);
 
   // Assign E to project 1 (requirement now has a free slot: required_count 3, 2 used).
-  const assignE = await req("POST", `/vendor/projects/${project1Id}/requirements/${requirement1Id}/assign`, { contractorIds: [contractorEId] }, vendor.token);
+  const assignE = await submitAndAccept(project1Id, requirement1Id, [contractorEId]);
   assert(assignE.status === 201, `assign E to project 1: expected 201, got ${assignE.status} ${JSON.stringify(assignE.data)}`);
 
   // Freed capacity is exactly 6h (20 - 6 - 8) -> allocate all of it to E.
@@ -480,7 +479,7 @@ async function main() {
     pm.token
   );
   const req3Id = p3.data.requirements[0].id;
-  const assignFG = await req("POST", `/vendor/projects/${p3.data.id}/requirements/${req3Id}/assign`, { contractorIds: [contractorFId, contractorGId] }, vendor.token);
+  const assignFG = await submitAndAccept(p3.data.id, req3Id, [contractorFId, contractorGId]);
   assert(assignFG.status === 201, `assign F+G to project 3: expected 201, got ${assignFG.status} ${JSON.stringify(assignFG.data)}`);
   const allocF = await req("PATCH", `/pm/projects/${p3.data.id}/contractors/${contractorFId}/allocation`, { allocated_hours: 10 }, pm.token);
   assert(allocF.status === 200, `allocate F=10 on project 3: expected 200, got ${allocF.status}`);

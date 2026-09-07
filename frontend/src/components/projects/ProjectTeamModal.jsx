@@ -73,7 +73,7 @@ export default function ProjectTeamModal({ project, onClose, onAssignRequirement
                     onClick={() => onAssignRequirement(req)}
                     className="shrink-0 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
                   >
-                    Assign {formatSkill(req.skill)} Contractor
+                    Submit {formatSkill(req.skill)} Candidate
                   </button>
                 )}
               </div>

@@ -10,6 +10,7 @@ const vendorDashboardController = require("../controllers/vendorDashboardControl
 const contractorDocumentController = require("../controllers/contractorDocumentController");
 const vendorClientController = require("../controllers/vendorClientController");
 const vendorAvailabilityController = require("../controllers/vendorAvailabilityController");
+const candidateSubmissionController = require("../controllers/candidateSubmissionController");
 
 /**
  * Every route in this router requires a valid JWT AND role = VENDOR.
@@ -23,6 +24,7 @@ router.use(authenticate, authorizeRoles(ROLES.VENDOR));
 
 router.post("/contractors", vendorContractorController.create);
 router.post("/contractors/:contractorId/availability", vendorAvailabilityController.create);
+router.get("/candidate-submissions", candidateSubmissionController.listVendor);
 router.get("/contractors", vendorContractorController.list);
 router.patch("/contractors/:id", vendorContractorController.update);
 router.post("/contractors/:id/resend-invitation", vendorContractorController.resendInvitation);
@@ -45,10 +47,8 @@ router.get(
   "/projects/:id/requirements/:requirementId/eligible-contractors",
   vendorProjectController.getEligibleContractors
 );
-router.post(
-  "/projects/:id/requirements/:requirementId/assign",
-  vendorAssignmentController.assign
-);
+router.post("/projects/:projectId/requirements/:requirementId/candidates", candidateSubmissionController.submit);
+router.patch("/candidate-submissions/:id/withdraw", candidateSubmissionController.withdraw);
 
 // Module 6, extended by the invoice-workflow redesign: invoice visibility
 // AND approve/reject authority for a vendor's own contractors (approval

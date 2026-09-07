@@ -22,6 +22,7 @@ async function signup(role, address) {
   const login = await request("POST", "/auth/login", { email: address, password }); assert.equal(login.response.status, 200);
   return login.data.token;
 }
+async function submitAndAccept(projectId, requirementId, contractorId, vendor, pm) { const submitted=await request("POST", `/vendor/projects/${projectId}/requirements/${requirementId}/candidates`, { contractor_id: contractorId }, vendor); assert.equal(submitted.response.status,201); return request("PATCH", `/pm/candidate-submissions/${submitted.data.id}`, { status:"ACCEPTED" }, pm); }
 
 before(async () => { await resetTestDatabase(); await new Promise((resolve) => { server = app.listen(0, "127.0.0.1", resolve); }); baseUrl = `http://127.0.0.1:${server.address().port}/api`; });
 after(async () => { await new Promise((resolve) => server.close(resolve)); await pool.end(); });
@@ -41,7 +42,8 @@ test("M10 safely manages project lifecycle, requirements, and time policies", { 
   const today = new Date().toISOString().slice(0, 10);
   const created = await request("POST", "/pm/projects", { name: "M10 Lifecycle", start_date: today, expected_hours: 10, requirements: [{ skill: "FRONTEND", required_count: 2 }] }, pm);
   assert.equal(created.response.status, 201); const projectId = created.data.id; const requirementId = created.data.requirements[0].id;
-  assert.equal((await request("POST", `/vendor/projects/${projectId}/requirements/${requirementId}/assign`, { contractorIds: [contractorCreated.data.id, secondCreated.data.id] }, vendor)).response.status, 201);
+  assert.equal((await submitAndAccept(projectId, requirementId, contractorCreated.data.id, vendor, pm)).response.status, 200);
+  assert.equal((await submitAndAccept(projectId, requirementId, secondCreated.data.id, vendor, pm)).response.status, 200);
   assert.equal((await request("PATCH", `/pm/projects/${projectId}/contractors/${contractorCreated.data.id}/allocation`, { allocated_hours: 8 }, pm)).response.status, 200);
   assert.equal((await request("PATCH", `/pm/projects/${projectId}/contractors/${secondCreated.data.id}/allocation`, { allocated_hours: 1 }, pm)).response.status, 200);
 
