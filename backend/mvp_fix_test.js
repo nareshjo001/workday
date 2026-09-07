@@ -558,6 +558,8 @@ async function main() {
   assert(reviewed.status === 200 && reviewed.data.status === "APPROVED", `PM approval: got ${reviewed.status}`);
   const approvedPdf = await fetch(`${BASE}/pm/invoices/${draft.data.id}/pdf`, { headers: { Authorization: `Bearer ${pm.token}` } });
   assert(approvedPdf.status === 200 && Buffer.compare(pdfBytes, Buffer.from(await approvedPdf.arrayBuffer())) === 0, `approved invoice retains the frozen submitted PDF: got ${approvedPdf.status}`);
+  const submittedPaymentBlocked = await req("POST", `/vendor/invoices/${secondDraft.data.id}/payments`, { amount: "1.00" }, vendor.token);
+  assert(submittedPaymentBlocked.status === 409, `M19 submitted invoice cannot receive payment: got ${submittedPaymentBlocked.status}`);
   const rejected = await req("PATCH", `/pm/invoices/${secondDraft.data.id}/review`, { status: "REJECTED", rejection_reason: "Correction required" }, pm.token);
   assert(rejected.status === 200 && rejected.data.status === "REJECTED", `PM rejection: got ${rejected.status}`);
   const rolloverDraft = await req("POST", "/vendor/invoices/drafts", { milestone_billing_id: billingQueue.data.items[2].milestone_billing_id }, vendor.token);
@@ -566,6 +568,40 @@ async function main() {
   assert(rolloverEdited.status === 200 && rolloverSubmitted.status === 200 && rolloverSubmitted.data.invoice_number === "INV-2027-000001", `M18 year rollover starts an independent vendor/year sequence: ${rolloverSubmitted.data?.invoice_number}`);
   const rolloverReviewed = await req("PATCH", `/pm/invoices/${rolloverDraft.data.id}/review`, { status: "APPROVED" }, pm.token);
   assert(rolloverReviewed.status === 200, `M18 rollover invoice remains compatible with M17 review: got ${rolloverReviewed.status}`);
+
+  // ===================== M19 regression =====================
+  console.log("\n--- M19 payment and outstanding tracking ---");
+  const unpaidDraft = await req("POST", "/vendor/invoices/drafts", { milestone_billing_id: billingQueue.data.items[4].milestone_billing_id }, vendor.token);
+  const draftPayment = await req("POST", `/vendor/invoices/${unpaidDraft.data.id}/payments`, { amount: "1.00" }, vendor.token);
+  const cancelledDraft = await req("POST", `/vendor/invoices/${unpaidDraft.data.id}/cancel`, undefined, vendor.token);
+  const cancelledPayment = await req("POST", `/vendor/invoices/${unpaidDraft.data.id}/payments`, { amount: "1.00" }, vendor.token);
+  assert(draftPayment.status === 409 && cancelledDraft.status === 200 && cancelledPayment.status === 409, `M19 draft/cancelled invoices cannot receive payment: ${draftPayment.status},${cancelledPayment.status}`);
+  const approvedInvoice = await req("GET", `/vendor/invoices/${draft.data.id}/detail`, undefined, vendor.token);
+  assert(approvedInvoice.status === 200 && approvedInvoice.data.payment_state === "UNPAID" && approvedInvoice.data.paid_amount === 0, `M19 approved unpaid invoice is UNPAID: ${JSON.stringify(approvedInvoice.data)}`);
+  const draftPaymentBlocked = await req("POST", `/vendor/invoices/${secondDraft.data.id}/payments`, { amount: "1.00" }, vendor.token);
+  assert(draftPaymentBlocked.status === 409, `M19 rejected invoice cannot receive payment: got ${draftPaymentBlocked.status}`);
+  const firstPayment = await req("POST", `/vendor/invoices/${draft.data.id}/payments`, { amount: "0.10", paid_at: "2026-01-02T03:04", reference: "SETTLE-001", method: "Bank transfer", notes: "Partial settlement" }, vendor.token);
+  assert(firstPayment.status === 201 && firstPayment.data.payment_state === "PARTIALLY_PAID" && firstPayment.data.paid_amount === 0.1 && firstPayment.data.outstanding_amount > 0, `M19 first partial payment: ${firstPayment.status} ${JSON.stringify(firstPayment.data)}`);
+  const competingAmount = String(firstPayment.data.outstanding_amount);
+  const [raceA, raceB] = await Promise.all([
+    req("POST", `/vendor/invoices/${draft.data.id}/payments`, { amount: competingAmount, reference: "SETTLE-FINAL-A" }, vendor.token),
+    req("POST", `/vendor/invoices/${draft.data.id}/payments`, { amount: competingAmount, reference: "SETTLE-FINAL-B" }, vendor.token),
+  ]);
+  assert([raceA.status, raceB.status].filter((status) => status === 201).length === 1 && [raceA.status, raceB.status].filter((status) => status === 409).length === 1, `M19 concurrent overpayment protection: ${raceA.status},${raceB.status}`);
+  const paidInvoice = await req("GET", `/vendor/invoices/${draft.data.id}/detail`, undefined, vendor.token);
+  assert(paidInvoice.status === 200 && paidInvoice.data.payment_state === "PAID" && paidInvoice.data.outstanding_amount === 0 && paidInvoice.data.payments.length === 2, `M19 exact payoff preserves payment history: ${JSON.stringify(paidInvoice.data)}`);
+  const overpayment = await req("POST", `/vendor/invoices/${draft.data.id}/payments`, { amount: "0.01" }, vendor.token);
+  const zeroPayment = await req("POST", `/vendor/invoices/${draft.data.id}/payments`, { amount: "0" }, vendor.token);
+  const foreignPayment = await req("POST", `/vendor/invoices/${draft.data.id}/payments`, { amount: "1.00" }, unrelatedVendor.token);
+  assert(overpayment.status === 409 && zeroPayment.status === 400 && foreignPayment.status === 404, `M19 invalid/cross-tenant payment protection: over=${overpayment.status}, zero=${zeroPayment.status}, foreign=${foreignPayment.status}`);
+  const overdueDraft = await req("POST", "/vendor/invoices/drafts", { milestone_billing_id: billingQueue.data.items[3].milestone_billing_id }, vendor.token);
+  const overdueEdited = await req("PATCH", `/vendor/invoices/${overdueDraft.data.id}`, { invoice_date: "2020-01-01", payment_terms_days: 0 }, vendor.token);
+  const overdueSubmitted = await req("POST", `/vendor/invoices/${overdueDraft.data.id}/submit`, undefined, vendor.token);
+  const overdueReviewed = await req("PATCH", `/pm/invoices/${overdueDraft.data.id}/review`, { status: "APPROVED" }, pm.token);
+  assert(overdueDraft.status === 201 && overdueEdited.status === 200 && overdueSubmitted.status === 200 && overdueReviewed.status === 200 && overdueReviewed.data.payment_state === "OVERDUE", `M19 overdue is deterministic after the due date: ${JSON.stringify(overdueReviewed.data)}`);
+  const overduePaid = await req("POST", `/vendor/invoices/${overdueDraft.data.id}/payments`, { amount: String(overdueReviewed.data.outstanding_amount) }, vendor.token);
+  assert(overduePaid.status === 201 && overduePaid.data.payment_state === "PAID" && !overduePaid.data.overdue, `M19 paid invoice is never overdue: ${JSON.stringify(overduePaid.data)}`);
+  console.log("M19 acceptance checks: approved-only append-only payments, derived settlement state, overdue boundary, and locked overpayment protection.");
 
   // ===================== Module 4 regression: date rules unchanged =====================
   console.log("\n--- Module 4 regression: date-window rules still enforced ---");

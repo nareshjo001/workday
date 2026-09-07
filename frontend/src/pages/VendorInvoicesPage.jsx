@@ -8,6 +8,7 @@ import InvoiceReviewModal from "../components/invoices/InvoiceReviewModal";
 import vendorInvoiceService from "../services/vendorInvoiceService";
 import ListControls from "../components/ListControls";
 import InvoiceDocumentPanel from "../components/invoices/InvoiceDocumentPanel";
+import PaymentRecordModal from "../components/invoices/PaymentRecordModal";
 
 /**
  * Vendor's invoice review queue (Module 6, invoice-workflow redesign):
@@ -33,6 +34,7 @@ export default function VendorInvoicesPage() {
   const [pageInfo, setPageInfo] = useState({ total_pages: 1, total: 0 });
   const [queue,setQueue]=useState([]);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [paymentTarget, setPaymentTarget] = useState(null);
 
   const loadInvoices = useCallback(async () => {
     setIsLoading(true);
@@ -56,6 +58,7 @@ export default function VendorInvoicesPage() {
   const createDraft=async(billingId)=>{try{const draft=await vendorInvoiceService.createDraft(billingId);setSuccessMessage(`Draft #${draft.id} created.`);setQueue(q=>q.filter(x=>x.milestone_billing_id!==billingId));loadInvoices();}catch(e){setActionError(e.message);}};
   const download = async () => { if (!selectedInvoice?.pdf_storage_key) return; try { const url = await vendorInvoiceService.downloadPdf(selectedInvoice.id); window.open(url, "_blank", "noopener"); setTimeout(() => URL.revokeObjectURL(url), 60000); } catch (error) { setActionError(error.message); } };
   const editDraftTerms = async () => { if (selectedInvoice?.status !== "DRAFT") return; const taxRate = window.prompt("Tax rate (%)", selectedInvoice.tax_rate ?? 0); if (taxRate === null) return; const description = window.prompt("Adjustment description", selectedInvoice.adjustments?.[0]?.description || ""); if (description === null) return; const amount = description ? window.prompt("Adjustment amount", selectedInvoice.adjustments?.[0]?.amount ?? 0) : "0"; if (amount === null) return; try { const updated = await vendorInvoiceService.updateDraft(selectedInvoice.id, { tax_rate: taxRate, adjustments: description ? [{ description, amount }] : [] }); setSelectedInvoice(updated); setInvoices((items) => items.map((invoice) => invoice.id === updated.id ? updated : invoice)); setSuccessMessage("Draft totals updated."); } catch (error) { setActionError(error.message); } };
+  const recordPayment = async (payload) => { const result = await vendorInvoiceService.recordPayment(paymentTarget.id, payload); const updated = { ...paymentTarget, paid_amount: result.paid_amount, outstanding_amount: result.outstanding_amount, payment_state: result.payment_state, overdue: result.overdue, payments: result.payments }; setSelectedInvoice(updated); setInvoices((items) => items.map((invoice) => invoice.id === updated.id ? updated : invoice)); setPaymentTarget(null); setSuccessMessage("Payment recorded."); };
 
   useEffect(() => {
     if (!successMessage) return undefined;
@@ -111,7 +114,7 @@ export default function VendorInvoicesPage() {
         <AlertBanner message={successMessage} variant="success" />
         <AlertBanner message={actionError || loadError} />
         {queue.length>0&&<section className="rounded-lg border border-border p-4"><h2 className="font-medium">Eligible billing queue</h2>{queue.map(item=><div key={item.milestone_billing_id} className="mt-2 flex items-center justify-between text-sm"><span>{item.approved_hours}h · {item.currency} {item.amount}</span><button className="rounded bg-primary px-2 py-1 text-white" onClick={()=>createDraft(item.milestone_billing_id)}>Create draft</button></div>)}</section>}
-        {selectedInvoice && <><InvoiceDocumentPanel invoice={selectedInvoice} onDownload={download} onPrint={() => window.print()} />{selectedInvoice.status === "DRAFT" && <button className="self-start rounded border border-border px-3 py-2 text-sm" onClick={editDraftTerms}>Edit tax and adjustment</button>}</>}
+        {selectedInvoice && <><InvoiceDocumentPanel invoice={selectedInvoice} onDownload={download} onPrint={() => window.print()} onRecordPayment={selectedInvoice.status === "APPROVED" ? () => setPaymentTarget(selectedInvoice) : undefined} />{selectedInvoice.status === "DRAFT" && <button className="self-start rounded border border-border px-3 py-2 text-sm" onClick={editDraftTerms}>Edit tax and adjustment</button>}</>}
 
         {isLoading ? (
           <Spinner label="Loading invoices…" />
@@ -149,6 +152,7 @@ export default function VendorInvoicesPage() {
           onReject={handleRejectConfirm}
         />
       )}
+      {paymentTarget && <PaymentRecordModal invoice={paymentTarget} onClose={() => setPaymentTarget(null)} onSave={recordPayment} />}
     </DashboardLayout>
   );
 }
