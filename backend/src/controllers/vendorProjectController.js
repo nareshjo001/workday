@@ -8,15 +8,10 @@ function parsePositiveInt(value) {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-/**
- * No identity-scoped filtering here by design — see
- * vendorProjectService.listAvailableProjects for why every vendor sees
- * the same staffing-available project list (Module 3 revision spec
- * sections 9-10).
- */
+/** Vendor demand is scoped to active project-vendor access. */
 const list = asyncHandler(async (req, res) => {
   const query = parseListQuery(req.query, { allowedSorts: { default: "p.created_at", created_at: "p.created_at", name: "p.name", start_date: "p.start_date" }, allowedFilters: { search: (v) => String(v).trim().slice(0, 100), startDate: isoDateFilter } });
-  res.status(200).json(await vendorProjectService.listAvailableProjectsPage(query));
+  res.status(200).json(await vendorProjectService.listAvailableProjectsPage(query, req.user.userId));
 });
 
 /**
@@ -27,7 +22,7 @@ const list = asyncHandler(async (req, res) => {
 const getRequirements = asyncHandler(async (req, res) => {
   const projectId = parsePositiveInt(req.params.id);
   if (!projectId) throw ApiError.badRequest("Invalid project id.");
-  const project = await vendorProjectService.getProjectDetail(projectId);
+  const project = await vendorProjectService.getProjectDetail(projectId, req.user.userId);
   res.status(200).json(project);
 });
 

@@ -72,6 +72,12 @@ export default function VendorHomePage() {
             >
               Invoices
             </Link>
+            <Link
+              to="/vendor/clients"
+              className="inline-flex w-fit items-center gap-1.5 rounded-md border border-border px-4 py-2.5 text-sm font-medium text-text-secondary transition hover:bg-surface-muted"
+            >
+              Clients
+            </Link>
           </div>
         </div>
 

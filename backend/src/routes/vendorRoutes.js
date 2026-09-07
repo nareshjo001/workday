@@ -8,6 +8,7 @@ const vendorProjectController = require("../controllers/vendorProjectController"
 const vendorInvoiceController = require("../controllers/vendorInvoiceController");
 const vendorDashboardController = require("../controllers/vendorDashboardController");
 const contractorDocumentController = require("../controllers/contractorDocumentController");
+const vendorClientController = require("../controllers/vendorClientController");
 
 /**
  * Every route in this router requires a valid JWT AND role = VENDOR.
@@ -23,6 +24,8 @@ router.post("/contractors", vendorContractorController.create);
 router.get("/contractors", vendorContractorController.list);
 router.patch("/contractors/:id", vendorContractorController.update);
 router.post("/contractors/:id/resend-invitation", vendorContractorController.resendInvitation);
+router.get("/clients", vendorClientController.list);
+router.get("/clients/:companyId", vendorClientController.detail);
 router.post("/contractor-documents", contractorDocumentController.upload);
 router.get("/contractors/:contractorId/documents", contractorDocumentController.list);
 router.patch("/contractor-documents/:id/review", contractorDocumentController.review);

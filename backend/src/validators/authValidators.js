@@ -16,7 +16,7 @@ function normalizeEmail(email) {
  */
 function validateSignup(body = {}) {
   const errors = [];
-  const allowed = ["name", "email", "password", "role", "companyName"];
+  const allowed = ["name", "email", "password", "role", "companyName", "companyInvitationToken"];
   if (Object.keys(body).some((key) => !allowed.includes(key))) errors.push("Unexpected field in request.");
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
@@ -67,7 +67,8 @@ function validateSignup(body = {}) {
     throw ApiError.badRequest("Validation failed", errors);
   }
 
-  return { name, email, password, role, companyName: role === ROLES.PM ? companyName : undefined };
+  const companyInvitationToken = typeof body.companyInvitationToken === "string" ? body.companyInvitationToken.trim() : undefined;
+  return { name, email, password, role, companyName: role === ROLES.PM ? companyName : undefined, companyInvitationToken };
 }
 
 /**

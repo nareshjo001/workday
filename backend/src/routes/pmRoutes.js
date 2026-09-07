@@ -8,6 +8,8 @@ const pmMilestoneController = require("../controllers/pmMilestoneController");
 const pmInvoiceController = require("../controllers/pmInvoiceController");
 const pmDashboardController = require("../controllers/pmDashboardController");
 const pmContractorDocumentController = require("../controllers/pmContractorDocumentController");
+const pmVendorAccessController = require("../controllers/pmVendorAccessController");
+const authController = require("../controllers/authController");
 
 /**
  * Every route here requires a valid JWT AND role = PM — same gate
@@ -58,5 +60,12 @@ router.get("/invoices", pmInvoiceController.list);
 // was changed.
 router.get("/dashboard", pmDashboardController.getDashboard);
 router.get("/contractors/:contractorId/compliance", pmContractorDocumentController.summary);
+router.post("/vendor-access", pmVendorAccessController.connect);
+router.get("/vendors", pmVendorAccessController.listVendors);
+router.get("/vendor-access", pmVendorAccessController.listConnections);
+router.delete("/vendor-access/:vendorId", pmVendorAccessController.revoke);
+router.post("/projects/:projectId/vendors", pmVendorAccessController.grant);
+router.delete("/projects/:projectId/vendors/:vendorId", pmVendorAccessController.revokeProject);
+router.post("/company/pm-invitations", authController.invitePm);
 
 module.exports = router;

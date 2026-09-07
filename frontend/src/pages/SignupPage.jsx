@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AuthLayout from "../layouts/AuthLayout";
 import FormField from "../components/FormField";
 import PasswordField from "../components/PasswordField";
@@ -23,6 +23,7 @@ const initialForm = {
 export default function SignupPage() {
   const { signup } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [form, setForm] = useState(initialForm);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -63,7 +64,7 @@ export default function SignupPage() {
       // Only the fields the API contract expects — confirmPassword is a
       // client-side-only check and is never sent to the backend.
       const { name, email, password, role, companyName } = form;
-      await signup({ name, email, password, role, companyName: role === ROLES.PM ? companyName.trim() : undefined });
+      await signup({ name, email, password, role, companyName: role === ROLES.PM ? companyName.trim() : undefined, companyInvitationToken: role === ROLES.PM ? searchParams.get("companyInvitationToken") || undefined : undefined });
       setSuccessMessage("Account created successfully. You can now sign in.");
       setTimeout(() => navigate("/login", { replace: true }), 1200);
     } catch (err) {
@@ -102,15 +103,17 @@ export default function SignupPage() {
           error={fieldErrors.email}
         />
         {form.role === ROLES.PM && (
-          <FormField
-            id="companyName"
-            label="Company Name"
-            autoComplete="organization"
-            value={form.companyName}
-            onChange={handleChange}
-            error={fieldErrors.companyName}
-            placeholder="e.g. Acme Technologies"
-          />
+          <><FormField
+              id="companyName"
+              label="Company Name"
+              autoComplete="organization"
+              value={form.companyName}
+              onChange={handleChange}
+              error={fieldErrors.companyName}
+              placeholder="e.g. Acme Technologies"
+            />
+            {searchParams.get("companyInvitationToken") && <p className="text-sm text-muted">Your company invitation will be verified when you create the account.</p>}
+          </>
         )}
         <PasswordField
           id="password"

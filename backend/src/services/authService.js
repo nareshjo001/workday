@@ -13,6 +13,8 @@ const env = require("../config/env");
 const sanitizeUser = require("../utils/sanitizeUser");
 const ApiError = require("../utils/ApiError");
 const { ROLES } = require("../constants/roles");
+const pmInvitations = require("../repositories/pmCompanyInvitationRepository");
+const audit = require("./auditService");
 
 /**
  * PM signup additionally finds-or-creates a client_companies row and
@@ -21,7 +23,7 @@ const { ROLES } = require("../constants/roles");
  * company link) never leaves an orphaned user record with no company.
  * Vendor signup skips all of this (role !== PM).
  */
-async function signup({ name, email, password, role, companyName }) {
+async function signup({ name, email, password, role, companyName, companyInvitationToken, auditActor }) {
   const existing = await userRepository.findByEmail(email);
   if (existing) {
     throw ApiError.conflict("An account with this email already exists.");
@@ -33,13 +35,27 @@ async function signup({ name, email, password, role, companyName }) {
   try {
     await conn.beginTransaction();
 
-    const user = await userRepository.createUser({ name, email, passwordHash, role }, conn);
-
     if (role === ROLES.PM) {
-      const companyId = await clientCompanyRepository.findOrCreate(conn, companyName);
+      const existingCompany = await pmInvitations.findActiveCompanyByName(conn, companyName);
+      let companyId;
+      let membershipAction;
+      if (existingCompany) {
+        if (!companyInvitationToken) throw ApiError.forbidden("An invitation is required to join an existing client company.");
+        const invitation = await pmInvitations.consume(conn, hashToken(companyInvitationToken), email);
+        if (!invitation || invitation.company_id !== existingCompany.id) throw ApiError.forbidden("This company invitation is invalid or expired.");
+        companyId = existingCompany.id;
+        membershipAction = "PM_COMPANY_MEMBERSHIP_ACCEPTED";
+      } else {
+        companyId = await clientCompanyRepository.createBootstrap(conn, companyName);
+        membershipAction = "PM_COMPANY_BOOTSTRAPPED";
+      }
+      const user = await userRepository.createUser({ name, email, passwordHash, role }, conn);
       await projectManagerRepository.create(conn, { userId: user.id, companyId });
+      await audit.write(conn, { userId: user.id, role, requestId: auditActor?.requestId }, membershipAction, "client_company", companyId, null, { membership_source: membershipAction === "PM_COMPANY_BOOTSTRAPPED" ? "bootstrap" : "invitation" });
+      await conn.commit();
+      return sanitizeUser(user);
     }
-
+    const user = await userRepository.createUser({ name, email, passwordHash, role }, conn);
     await conn.commit();
     return sanitizeUser(user);
   } catch (err) {
@@ -89,4 +105,11 @@ async function getCurrentUser(userId) {
   return sanitizeUser(user);
 }
 
-module.exports = { signup, login, refresh, logout, logoutAll, issueAction, issueActionForUser, consumeAction, getCurrentUser };
+async function invitePmToCompany(pmId, email, actor = {}) {
+  const conn = await pool.getConnection(); const raw = createSecureToken();
+  try { await conn.beginTransaction(); const company = await projectManagerRepository.findByUserId(pmId); if (!company) throw ApiError.notFound("Client company not found."); await pmInvitations.create(conn,{id:crypto.randomUUID(),companyId:company.company_id,email,tokenHash:raw.hash,invitedBy:pmId,expiresAt:new Date(Date.now()+env.auth.actionTokenExpiresMinutes*60000)}); await audit.write(conn,{userId:pmId,role:ROLES.PM,requestId:actor.requestId},"PM_COMPANY_INVITED","pm_company_invitation",email,null,{company_id:company.company_id}); await conn.commit(); } catch(e){await conn.rollback().catch(()=>{});throw e;} finally{conn.release();}
+  await mailService.sendAction({to:email,name:email,purpose:"PM_COMPANY_INVITATION",token:raw.raw});
+  return process.env.NODE_ENV === "test" ? raw.raw : undefined;
+}
+
+module.exports = { signup, login, refresh, logout, logoutAll, issueAction, issueActionForUser, consumeAction, getCurrentUser, invitePmToCompany };
