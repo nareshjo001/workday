@@ -54,7 +54,7 @@ async function assertOwnedProject(pmId, projectId) {
  * This call can never throw (see that function's own doc comment) and
  * never rolls back the milestone that was just created.
  */
-async function createMilestone(pmId, { projectId, name, thresholdHours }, auditActor) {
+async function createMilestone(pmId, { projectId, name, thresholdHours, description, sequenceOrder, dueDate }, auditActor) {
   const conn = await pool.getConnection();
   let milestoneId;
   try {
@@ -66,10 +66,10 @@ async function createMilestone(pmId, { projectId, name, thresholdHours }, auditA
         `threshold_hours (${thresholdHours}) cannot exceed the project's expected_hours (${Number(project.expected_hours)}).`,
       ]);
     }
-    milestoneId = await milestoneRepository.create(conn, { projectId, name, thresholdHours });
+    milestoneId = await milestoneRepository.create(conn, { projectId, name, thresholdHours, description, sequenceOrder, dueDate });
     if (auditActor) {
       await auditService.write(conn, auditActor, "MILESTONE_CREATED", "milestone", milestoneId, null, {
-        project_id: projectId, name, threshold_hours: thresholdHours, status: "PENDING",
+        project_id: projectId, name, threshold_hours: thresholdHours, description, sequence_order: sequenceOrder, due_date: dueDate, status: "PENDING",
       });
     }
     await conn.commit();
@@ -84,6 +84,8 @@ async function createMilestone(pmId, { projectId, name, thresholdHours }, auditA
 
   return findMilestoneView(projectId, milestoneId);
 }
+
+async function updateMilestone(pmId,milestoneId,fields,auditActor){const conn=await pool.getConnection();let projectId;try{await conn.beginTransaction();const before=await milestoneRepository.lockByIdForUpdate(conn,milestoneId);if(!before)throw ApiError.notFound('Milestone not found.');const project=await projectRepository.lockByIdForUpdate(conn,before.project_id);if(!project||project.pm_id!==pmId)throw ApiError.notFound('Milestone not found.');if(before.status!=='PENDING')throw ApiError.conflict('Met milestones are financially immutable.');if(project.expected_hours!==null&&fields.thresholdHours>Number(project.expected_hours))throw ApiError.badRequest('Validation failed',['threshold_hours cannot exceed project expected hours.']);await milestoneRepository.updatePending(conn,milestoneId,fields);await auditService.write(conn,auditActor,'MILESTONE_UPDATED','milestone',milestoneId,{name:before.name,description:before.description,sequence_order:before.sequence_order,due_date:before.due_date,threshold_hours:Number(before.threshold_hours)},{name:fields.name,description:fields.description,sequence_order:fields.sequenceOrder,due_date:fields.dueDate,threshold_hours:fields.thresholdHours});projectId=before.project_id;await conn.commit();}catch(e){await conn.rollback().catch(()=>{});throw e;}finally{conn.release();}await milestoneService.checkAndTriggerMilestones(projectId,auditActor);return findMilestoneView(projectId,milestoneId);}
 
 /**
  * Lists every milestone for one of the calling PM's own projects, each
@@ -107,4 +109,4 @@ async function findMilestoneView(projectId, milestoneId) {
   return milestones.find((m) => m.id === milestoneId) || null;
 }
 
-module.exports = { createMilestone, listMilestones };
+module.exports = { createMilestone, updateMilestone, listMilestones };

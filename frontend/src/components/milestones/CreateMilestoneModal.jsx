@@ -4,7 +4,7 @@ import FormField from "../FormField";
 import PrimaryButton from "../PrimaryButton";
 import AlertBanner from "../AlertBanner";
 
-const initialForm = { name: "", thresholdHours: "" };
+const initialForm = { name: "", thresholdHours: "", description: "", sequenceOrder: "", dueDate: "" };
 
 /**
  * PM creates a milestone for the currently selected PROJECT (project
@@ -49,6 +49,7 @@ export default function CreateMilestoneModal({ onClose, onCreate }) {
       await onCreate({
         name: form.name.trim(),
         thresholdHours: Number(form.thresholdHours),
+        description: form.description || null, sequenceOrder: form.sequenceOrder ? Number(form.sequenceOrder) : null, dueDate: form.dueDate || null,
       });
     } catch (err) {
       setFormError(err.message);
@@ -75,6 +76,8 @@ export default function CreateMilestoneModal({ onClose, onCreate }) {
           error={fieldErrors.name}
           placeholder="e.g. Phase 1 Completion"
         />
+        <FormField id="description" label="Description (optional)" value={form.description} onChange={handleChange} placeholder="Deliverable or checkpoint" />
+        <div className="grid grid-cols-2 gap-3"><FormField id="sequenceOrder" label="Sequence (optional)" type="number" value={form.sequenceOrder} onChange={handleChange} /><FormField id="dueDate" label="Due date (optional)" type="date" value={form.dueDate} onChange={handleChange} /></div>
 
         <FormField
           id="thresholdHours"

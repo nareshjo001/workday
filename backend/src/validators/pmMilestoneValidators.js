@@ -43,11 +43,11 @@ function validateProjectIdParam(params = {}) {
  * milestones.threshold_hours DECIMAL(7,2) — the same precision timesheets
  * uses for hours_logged.
  */
-function validateCreateMilestone(body = {}) {
+function validateMilestone(body = {}, requireProject = false) {
   const errors = [];
 
   const projectId = parsePositiveInt(body.project_id);
-  if (!projectId) errors.push("project_id must be a positive integer.");
+  if (requireProject && !projectId) errors.push("project_id must be a positive integer.");
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
   if (!name) errors.push("name is required.");
@@ -71,7 +71,12 @@ function validateCreateMilestone(body = {}) {
     throw ApiError.badRequest("Validation failed", errors);
   }
 
-  return { projectId, name, thresholdHours };
+  const description=body.description===undefined||body.description===null?null:String(body.description).trim(); if(description!==null&&description.length>1000)errors.push('description must be at most 1000 characters.');
+  const sequenceOrder=body.sequence_order===undefined||body.sequence_order===null||body.sequence_order===''?null:parsePositiveInt(body.sequence_order); if(body.sequence_order!==undefined&&body.sequence_order!==null&&body.sequence_order!==''&&!sequenceOrder)errors.push('sequence_order must be a positive integer.');
+  const dueDate=body.due_date===undefined||body.due_date===null||body.due_date===''?null:String(body.due_date); if(dueDate!==null&&!/^\d{4}-\d\d-\d\d$/.test(dueDate))errors.push('due_date must be YYYY-MM-DD.');
+  if(errors.length)throw ApiError.badRequest('Validation failed',errors); return { projectId, name, thresholdHours, description, sequenceOrder, dueDate };
 }
+function validateCreateMilestone(body={}) { return validateMilestone(body,true); }
+function validateUpdateMilestone(body={}) { return validateMilestone(body,false); }
 
-module.exports = { validateCreateMilestone, validateProjectIdParam };
+module.exports = { validateCreateMilestone, validateUpdateMilestone, validateProjectIdParam };
