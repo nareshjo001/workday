@@ -24,6 +24,8 @@ router.get("/projects", contractorProjectController.list);
 // PATCH /profile/skill (explicit about WHAT it updates, since profile
 // could grow other fields later); GET /profile is unchanged.
 router.get("/profile", contractorProfileController.getProfile);
+router.patch("/profile", contractorProfileController.updateProfile);
+// Compatibility route retained while existing clients migrate to PATCH /profile.
 router.patch("/profile/skill", contractorProfileController.updateProfile);
 
 // Module 4 (daily logging revision): a contractor logging individual

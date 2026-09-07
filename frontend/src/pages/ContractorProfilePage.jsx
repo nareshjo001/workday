@@ -7,104 +7,12 @@ import { inputClassName } from "../components/FormField";
 import { SKILLS, SKILL_LABELS } from "../constants/skills";
 import contractorProfileService from "../services/contractorProfileService";
 
-/**
- * Contractor's self-service profile: view + update their ONE primary
- * skill (Module 3 revision — multi-skill is explicitly out of scope for
- * this MVP). The backend derives the contractor from the JWT, so this
- * page never sends or reads a contractor id itself.
- */
+const newSkill = () => ({ code: "", proficiency: "INTERMEDIATE", years_experience: 0, is_primary: false });
 export default function ContractorProfilePage() {
-  const [skill, setSkill] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState(null);
-  const [formError, setFormError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
-  const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      setIsLoading(true);
-      setLoadError(null);
-      try {
-        const profile = await contractorProfileService.getProfile();
-        setSkill(profile.skill || "");
-      } catch (err) {
-        setLoadError(err.message);
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-  }, []);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setFormError(null);
-    setSuccessMessage(null);
-
-    if (!skill) {
-      setFormError("Select a skill.");
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const result = await contractorProfileService.updateSkill(skill);
-      setSkill(result.skill);
-      setSuccessMessage("Your primary skill has been updated.");
-    } catch (err) {
-      setFormError(err.message);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  return (
-    <DashboardLayout title="My Profile">
-      <div className="mx-auto flex max-w-md flex-col gap-5">
-        <h1 className="text-xl font-semibold text-text">My Profile</h1>
-
-        {isLoading ? (
-          <Spinner label="Loading your profile…" />
-        ) : loadError ? (
-          <AlertBanner message={loadError} />
-        ) : (
-          <form
-            onSubmit={handleSubmit}
-            noValidate
-            className="flex flex-col gap-4 rounded-lg bg-surface p-4 shadow-panel ring-1 ring-border sm:p-6"
-          >
-            <AlertBanner message={formError} />
-            <AlertBanner message={successMessage} variant="success" />
-
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="skill" className="text-sm font-medium text-text-secondary">
-                Primary Skill
-              </label>
-              <select
-                id="skill"
-                value={skill}
-                onChange={(e) => setSkill(e.target.value)}
-                className={inputClassName(false)}
-              >
-                <option value="">Select a skill…</option>
-                {SKILLS.map((s) => (
-                  <option key={s} value={s}>
-                    {SKILL_LABELS[s]}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-muted">
-                This is what a Vendor matches you against when staffing a project. Changing it only
-                affects future assignments — projects you're already on stay as they are.
-              </p>
-            </div>
-
-            <PrimaryButton isLoading={isSaving} loadingText="Saving…" fullWidth={false} className="mt-1">
-              Save
-            </PrimaryButton>
-          </form>
-        )}
-      </div>
-    </DashboardLayout>
-  );
+  const [profile, setProfile] = useState({ phone: "", headline: "", total_experience_years: "", skills: [] });
+  const [loading, setLoading] = useState(true); const [error, setError] = useState(null); const [saved, setSaved] = useState(null); const [saving, setSaving] = useState(false);
+  useEffect(() => { (async () => { try { const p = await contractorProfileService.getProfile(); setProfile({ phone: p.phone || "", headline: p.headline || "", total_experience_years: p.total_experience_years ?? "", skills: p.skills || [] }); } catch (e) { setError(e.message); } finally { setLoading(false); } })(); }, []);
+  const changeSkill = (index, field, value) => setProfile((p) => ({ ...p, skills: p.skills.map((s, i) => i === index ? { ...s, [field]: value } : field === "is_primary" && value ? { ...s, is_primary: false } : s) }));
+  const submit = async (e) => { e.preventDefault(); setError(null); setSaved(null); if (profile.skills.length && profile.skills.filter((s) => s.is_primary).length !== 1) return setError("Choose one primary skill."); setSaving(true); try { const result = await contractorProfileService.updateProfile({ phone: profile.phone, headline: profile.headline, total_experience_years: profile.total_experience_years === "" ? null : Number(profile.total_experience_years), skills: profile.skills }); setProfile((p) => ({ ...p, skills: result.skills })); setSaved("Your profile has been saved."); } catch (err) { setError(err.message); } finally { setSaving(false); } };
+  return <DashboardLayout title="My Profile"><div className="mx-auto flex max-w-2xl flex-col gap-5"><h1 className="text-xl font-semibold text-text">My Profile</h1>{loading ? <Spinner label="Loading your profile…" /> : <form onSubmit={submit} className="flex flex-col gap-4 rounded-lg bg-surface p-4 shadow-panel ring-1 ring-border sm:p-6"><AlertBanner message={error} /><AlertBanner message={saved} variant="success" /><label className="text-sm font-medium text-text-secondary">Professional headline<input className={inputClassName(false)} value={profile.headline} maxLength="160" onChange={(e) => setProfile({ ...profile, headline: e.target.value })} /></label><div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-medium text-text-secondary">Phone<input className={inputClassName(false)} value={profile.phone} maxLength="30" onChange={(e) => setProfile({ ...profile, phone: e.target.value })} /></label><label className="text-sm font-medium text-text-secondary">Total experience (years)<input className={inputClassName(false)} type="number" min="0" max="99.9" step="0.1" value={profile.total_experience_years} onChange={(e) => setProfile({ ...profile, total_experience_years: e.target.value })} /></label></div><div className="flex items-center justify-between"><h2 className="font-medium text-text">Skills</h2><button type="button" onClick={() => setProfile({ ...profile, skills: [...profile.skills, newSkill()] })} className="text-sm font-medium text-primary">Add skill</button></div>{profile.skills.map((skill, index) => <div key={index} className="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-4"><select className={inputClassName(false)} value={skill.code} onChange={(e) => changeSkill(index, "code", e.target.value)}><option value="">Select skill</option>{SKILLS.map((code) => <option key={code} value={code}>{SKILL_LABELS[code]}</option>)}</select><select className={inputClassName(false)} value={skill.proficiency} onChange={(e) => changeSkill(index, "proficiency", e.target.value)}>{["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"].map((v) => <option key={v}>{v}</option>)}</select><input className={inputClassName(false)} type="number" min="0" max="99.9" step="0.1" value={skill.years_experience} onChange={(e) => changeSkill(index, "years_experience", e.target.value)} aria-label="Years of experience" /><label className="flex items-center gap-2 text-sm"><input type="radio" checked={skill.is_primary} onChange={() => changeSkill(index, "is_primary", true)} />Primary</label><button type="button" className="text-left text-sm text-danger" onClick={() => setProfile({ ...profile, skills: profile.skills.filter((_, i) => i !== index) })}>Remove</button></div>)}{!profile.skills.length && <p className="text-sm text-muted">Add skills to be considered for future staffing.</p>}<p className="text-xs text-muted">Changes affect future staffing only. Existing assignments and financial history remain unchanged.</p><PrimaryButton isLoading={saving} loadingText="Saving…" fullWidth={false}>Save profile</PrimaryButton></form>}</div></DashboardLayout>;
 }

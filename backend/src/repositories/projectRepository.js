@@ -60,11 +60,10 @@ const COMPANY_PM_SELECT = `COALESCE(cc.name, p.company_name) AS company_name, pm
  */
 async function createRequirements(conn, projectId, requirements) {
   if (requirements.length === 0) return;
-  const values = requirements.map((r) => [projectId, r.skill, r.requiredCount]);
-  await conn.query(
-    `INSERT INTO project_requirements (project_id, skill, required_count) VALUES ?`,
-    [values]
-  );
+  for (const requirement of requirements) {
+    await conn.query(`INSERT INTO project_requirements (project_id, skill, skill_id, required_count)
+      SELECT ?, ?, id, ? FROM skills WHERE code = ? AND is_active = 1`, [projectId, requirement.skill, requirement.requiredCount, requirement.skill]);
+  }
 }
 
 /**
@@ -206,13 +205,14 @@ async function listAvailablePageForVendor(query) {
 async function listRequirementsWithCounts(projectIds) {
   if (projectIds.length === 0) return [];
   const [rows] = await pool.query(
-    `SELECT pr.id, pr.project_id, pr.skill, pr.required_count,
+    `SELECT pr.id, pr.project_id, COALESCE(s.code, pr.skill) AS skill, pr.skill_id, pr.required_count,
             COUNT(pa.id) AS assigned_count
      FROM project_requirements pr
+     LEFT JOIN skills s ON s.id = pr.skill_id
      LEFT JOIN project_assignments pa ON pa.requirement_id = pr.id
      WHERE pr.project_id IN (?)
-     GROUP BY pr.id, pr.project_id, pr.skill, pr.required_count
-     ORDER BY pr.skill ASC`,
+     GROUP BY pr.id, pr.project_id, s.code, pr.skill, pr.skill_id, pr.required_count
+     ORDER BY COALESCE(s.code, pr.skill) ASC`,
     [projectIds]
   );
   return rows.map((r) => ({ ...r, assigned_count: Number(r.assigned_count) }));
@@ -227,9 +227,9 @@ async function listRequirementsWithCounts(projectIds) {
  */
 async function findRequirementById(projectId, requirementId) {
   const [rows] = await pool.query(
-    `SELECT id, project_id, skill, required_count
-     FROM project_requirements
-     WHERE id = ? AND project_id = ?
+    `SELECT pr.id, pr.project_id, COALESCE(s.code, pr.skill) AS skill, pr.skill_id, pr.required_count
+     FROM project_requirements pr LEFT JOIN skills s ON s.id = pr.skill_id
+     WHERE pr.id = ? AND pr.project_id = ?
      LIMIT 1`,
     [requirementId, projectId]
   );
