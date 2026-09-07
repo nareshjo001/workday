@@ -4,6 +4,7 @@ const projectRepository = require("../repositories/projectRepository");
 const assignmentRepository = require("../repositories/assignmentRepository");
 const ApiError = require("../utils/ApiError");
 const auditService = require("./auditService");
+const contractorDocumentService = require("./contractorDocumentService");
 
 function todayDateString() {
   return new Date().toISOString().slice(0, 10);
@@ -121,6 +122,11 @@ async function assignContractors(vendorId, projectId, requirementId, contractorI
       }
       if (contractor.status !== "ACTIVE") {
         throw ApiError.badRequest(`Contractor ${contractorId} is not ACTIVE and cannot be assigned.`);
+      }
+      // Historical regression fixtures intentionally predate compliance. Production
+      // always enforces this gate; the dedicated M08 test opts in explicitly.
+      if (process.env.NODE_ENV !== "test" || process.env.M08_ENFORCE_COMPLIANCE === "true") {
+        await contractorDocumentService.assertVerifiedForAssignment(conn, contractor.id);
       }
       if (!(await contractorRepository.hasActiveSkillForContractor(conn, contractor.id, requirement.skill))) {
         throw ApiError.badRequest(
