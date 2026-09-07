@@ -9,6 +9,7 @@ const submissions = require("../repositories/candidateSubmissionRepository");
 const compliance = require("./contractorDocumentService");
 const audit = require("./auditService");
 const notifications = require("./notificationService");
+const rateCards = require("./rateCardService");
 const today = () => new Date().toISOString().slice(0, 10);
 
 async function submit(vendorId, p, actor) {
@@ -48,7 +49,9 @@ async function decide(pmId, id, status, reason, actor) {
       if (!await contractors.hasActiveSkillForContractor(c, worker.id, requirement.skill)) throw ApiError.conflict("Candidate is no longer eligible.");
       if (process.env.NODE_ENV !== "test" || process.env.M08_ENFORCE_COMPLIANCE === "true") await compliance.assertVerifiedForAssignment(c, worker.id);
       if ((await availability.lockOverlaps(c, worker.id, sub.proposed_start_date, sub.proposed_end_date || "9999-12-31")).length || (await assignments.lockOverlappingAssignments(c, worker.id, sub.proposed_start_date, sub.proposed_end_date)).length) throw ApiError.conflict("Candidate is no longer available for the proposed period.");
-      assignmentId = await assignments.createWithRequirement(c, worker.id, sub.project_id, sub.requirement_id, null, sub.proposed_start_date, sub.proposed_end_date);
+      const matchedCard = await rateCards.resolveForAssignment(c,{projectId:sub.project_id,requirementId:sub.requirement_id,vendorId:sub.vendor_id,date:sub.proposed_start_date});
+      const rateCard = matchedCard || { bill_rate: worker.hourly_rate, cost_rate: worker.hourly_rate, currency: "USD", id: null };
+      assignmentId = await assignments.createWithRequirement(c, worker.id, sub.project_id, sub.requirement_id, null, sub.proposed_start_date, sub.proposed_end_date, rateCard);
       if (actor) await audit.write(c, actor, "ASSIGNMENT_CREATED", "project_assignment", assignmentId, null, { project_id:sub.project_id, contractor_id:worker.id, requirement_id:sub.requirement_id, start_date:sub.proposed_start_date, end_date:sub.proposed_end_date });
     }
     await submissions.transition(c, id, status, pmId, reason || null);

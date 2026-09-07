@@ -248,6 +248,8 @@ async function listAssignedContractors(pmId, projectId) {
     approved_hours: r.approved_hours,
     pending_hours: r.pending_hours,
     remaining_hours: r.remaining_hours,
+    bill_rate: r.bill_rate_snapshot,
+    currency: r.currency,
   }));
 }
 

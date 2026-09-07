@@ -2,6 +2,7 @@ const { pool } = require("../config/db");
 const milestoneRepository = require("../repositories/milestoneRepository");
 const timesheetRepository = require("../repositories/timesheetRepository");
 const contractorRepository = require("../repositories/contractorRepository");
+const assignmentRepository = require("../repositories/assignmentRepository");
 const billingService = require("./billingService");
 const invoiceService = require("./invoiceService");
 const notifications = require("./notificationService");
@@ -206,7 +207,9 @@ async function checkAndTriggerMilestones(projectId, auditActor) {
           milestoneId: milestone.id,
           contractorId,
           approvedHours: hours,
-          hourlyRate: contractor.hourly_rate,
+          // M15: new billing uses the immutable assignment snapshot. The
+          // legacy contractor rate is retained only for pre-M15 assignments.
+          hourlyRate: (await assignmentRepository.billRateSnapshotForContractorProject(conn, contractorId, projectId)) ?? contractor.hourly_rate,
         });
         // billing is null only if a contribution row already existed
         // (ER_DUP_ENTRY) — unreachable under the row lock held for this
