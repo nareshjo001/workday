@@ -1,4 +1,5 @@
 const vendorInvoiceService = require("../services/vendorInvoiceService");
+const invoiceLifecycleService = require("../services/invoiceLifecycleService");
 const { validateInvoiceIdParam, validateReviewInvoice } = require("../validators/vendorInvoiceValidators");
 const asyncHandler = require("../utils/asyncHandler");
 const { parseListQuery } = require("../utils/listQuery");
@@ -15,11 +16,11 @@ const list = asyncHandler(async (req, res) => {
   const query = parseListQuery(req.query, {
     allowedSorts: { default: "i.generated_at", generated_at: "i.generated_at", status: "i.status", amount: "i.amount" },
     allowedFilters: {
-      status: (value) => { const status = String(value).trim().toUpperCase(); if (!["PENDING_REVIEW", "APPROVED", "REJECTED", "AUTO_APPROVED"].includes(status)) throw require("../utils/ApiError").badRequest("Unsupported invoice status."); return status; },
+      status: (value) => { const status = String(value).trim().toUpperCase(); if (!["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "CANCELLED", "PENDING_REVIEW", "AUTO_APPROVED"].includes(status)) throw require("../utils/ApiError").badRequest("Unsupported invoice status."); return status; },
       projectId: (value) => { const id = Number(value); if (!Number.isInteger(id) || id < 1) throw require("../utils/ApiError").badRequest("projectId must be a positive integer."); return id; },
     },
   });
-  res.status(200).json(await vendorInvoiceService.listPageForVendor(req.user.userId, query));
+  res.status(200).json(await invoiceLifecycleService.listForActor(req.user, query));
 });
 
 const review = asyncHandler(async (req, res) => {
