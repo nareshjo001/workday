@@ -81,7 +81,7 @@ async function getContractorDashboard(userId) {
   const approvedByWeek = new Map();
   for (const t of timesheets) {
     totalSubmittedHours += t.hours_logged;
-    if (t.status === "PENDING") pending += 1;
+    if (t.status === "DRAFT" || t.status === "SUBMITTED") pending += 1;
     else if (t.status === "APPROVED") {
       approved += 1;
       totalApprovedHours += t.hours_logged;

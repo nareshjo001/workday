@@ -22,6 +22,7 @@ export default function TimesheetTable({ logs, onEdit }) {
         <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
           <th className="py-2 pr-4 font-medium">Date</th>
           <th className="py-2 pr-4 font-medium">Hours</th>
+          <th className="py-2 pr-4 font-medium">Description</th>
           <th className="py-2 pr-4 font-medium">Status</th>
           <th className="py-2 pr-4 font-medium">Submitted</th>
           <th className="py-2 pr-4 font-medium">Reviewed</th>
@@ -33,6 +34,10 @@ export default function TimesheetTable({ logs, onEdit }) {
           <tr key={log.id} className="border-b border-border last:border-0">
             <td className="py-2.5 pr-4 font-medium text-text">{formatDate(log.work_date)}</td>
             <td className="py-2.5 pr-4 text-text-secondary">{formatHours(log.hours_logged)}</td>
+            <td className="max-w-48 py-2.5 pr-4 text-text-secondary">
+              {log.description || "—"}
+              {log.rejection_reason && <span className="mt-1 block text-xs text-error">Reason: {log.rejection_reason}</span>}
+            </td>
             <td className="py-2.5 pr-4">
               <TimesheetStatusBadge status={log.status} />
             </td>
@@ -50,7 +55,7 @@ export default function TimesheetTable({ logs, onEdit }) {
               )}
             </td>
             <td className="py-2.5 pr-0">
-              {log.status === "REJECTED" && (
+              {(log.status === "REJECTED") && (
                 <button
                   type="button"
                   onClick={() => onEdit(log)}

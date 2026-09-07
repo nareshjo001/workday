@@ -17,9 +17,10 @@ import TimesheetCardList from "./TimesheetCardList";
  * header alone already answers "how many hours, and how much of that is
  * approved" without expanding anything.
  */
-export default function WeeklyGroup({ week, onEdit, defaultOpen = false }) {
+export default function WeeklyGroup({ week, onEdit, onSubmitWeek, defaultOpen = false }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const { totals } = week;
+  const submittable = week.logs.filter((log) => log.status === "DRAFT" || log.status === "REJECTED");
 
   return (
     <div className="rounded-md border border-border">
@@ -47,6 +48,12 @@ export default function WeeklyGroup({ week, onEdit, defaultOpen = false }) {
 
       {isOpen && (
         <div className="border-t border-border px-4 py-3">
+          {submittable.length > 0 && (
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-md bg-warning-bg px-3 py-2 text-sm text-warning">
+              <span>{submittable.length} draft{submittable.length === 1 ? "" : "s"} ready for review.</span>
+              <button type="button" onClick={() => onSubmitWeek(submittable.map((log) => log.id))} className="rounded border border-warning px-2.5 py-1 text-xs font-medium">Submit week</button>
+            </div>
+          )}
           <TimesheetTable logs={week.logs} onEdit={onEdit} />
           <TimesheetCardList logs={week.logs} onEdit={onEdit} />
         </div>

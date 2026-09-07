@@ -36,7 +36,7 @@ paths:
   /api/contractor/timesheets:
     post:
       security: [{ bearerAuth: [] }]
-      responses: { '201': { description: Daily timesheet submitted }, '400': { description: Invalid input }, '409': { description: Duplicate or allocation conflict } }
+      responses: { '201': { description: Daily timesheet draft saved }, '400': { description: Invalid input }, '409': { description: Duplicate or allocation conflict } }
     get:
       security: [{ bearerAuth: [] }]
       parameters: [{ name: page, in: query, schema: { type: integer } }, { name: pageSize, in: query, schema: { type: integer } }, { name: projectId, in: query, schema: { type: integer } }, { name: status, in: query, schema: { type: string } }]
@@ -46,6 +46,10 @@ paths:
       security: [{ bearerAuth: [] }]
       parameters: [{ name: page, in: query, schema: { type: integer } }, { name: pageSize, in: query, schema: { type: integer } }, { name: projectId, in: query, schema: { type: integer } }, { name: status, in: query, schema: { type: string } }]
       responses: { '200': { description: Paginated, content: { application/json: { schema: { $ref: '#/components/schemas/Page' } } } } }
+  /api/contractor/timesheets/submit:
+    post:
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: Owned DRAFT or REJECTED daily rows atomically submitted for review }, '401': { description: Unauthenticated }, '403': { description: Wrong role }, '409': { description: Invalid state, released assignment, or inactive project } }
   /api/vendor/projects:
     get:
       security: [{ bearerAuth: [] }]
@@ -116,6 +120,8 @@ paths:
     patch: { security: [{ bearerAuth: [] }], responses: { '200': { description: PM allocation updated }, '404': { description: Not found in PM scope }, '409': { description: Capacity conflict } } }
   /api/pm/timesheets/{id}:
     patch: { security: [{ bearerAuth: [] }], responses: { '200': { description: Pending timesheet reviewed }, '404': { description: Not found in PM scope }, '409': { description: Already reviewed } } }
+  /api/pm/timesheets/bulk-review:
+    patch: { security: [{ bearerAuth: [] }], responses: { '200': { description: Selected submitted rows atomically approved or rejected; rejection requires rejectionReason }, '400': { description: Invalid request or missing rejection reason }, '404': { description: Timesheet not found in PM scope }, '409': { description: One or more rows already reviewed } } }
   /api/pm/milestones:
     post: { security: [{ bearerAuth: [] }], responses: { '201': { description: Milestone created } } }
   /api/pm/milestones/{projectId}:
@@ -129,6 +135,6 @@ paths:
   /api/contractor/profile/skill:
     patch: { security: [{ bearerAuth: [] }], responses: { '200': { description: Skill updated } } }
   /api/contractor/timesheets/{id}:
-    patch: { security: [{ bearerAuth: [] }], responses: { '200': { description: Rejected timesheet resubmitted }, '404': { description: Not found in contractor scope }, '409': { description: Invalid state or duplicate date } } }
+    patch: { security: [{ bearerAuth: [] }], responses: { '200': { description: Rejected timesheet corrected and returned to DRAFT }, '404': { description: Not found in contractor scope }, '409': { description: Invalid state or duplicate date } } }
   /api/contractor/dashboard:
     get: { security: [{ bearerAuth: [] }], responses: { '200': { description: Contractor dashboard } } }

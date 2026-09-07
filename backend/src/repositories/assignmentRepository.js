@@ -252,7 +252,7 @@ async function listProjectsForContractor(contractorId) {
             pa.assigned_date, pr.skill AS assigned_skill,
             pa.allocated_hours, pa.status AS assignment_status, pa.released_at,
             COALESCE(SUM(CASE WHEN t.status = 'APPROVED' THEN t.hours_logged ELSE 0 END), 0) AS approved_hours,
-            COALESCE(SUM(CASE WHEN t.status = 'PENDING' THEN t.hours_logged ELSE 0 END), 0) AS pending_hours
+            COALESCE(SUM(CASE WHEN t.status IN ('DRAFT', 'SUBMITTED') THEN t.hours_logged ELSE 0 END), 0) AS pending_hours
      FROM project_assignments pa
      INNER JOIN projects p ON p.id = pa.project_id
      LEFT JOIN project_requirements pr ON pr.id = pa.requirement_id
@@ -310,7 +310,7 @@ async function listAssignedContractorsWithHours(projectId) {
             pa.allocated_hours, pa.status AS assignment_status, pa.released_at,
             COALESCE(SUM(t.hours_logged), 0) AS logged_hours,
             COALESCE(SUM(CASE WHEN t.status = 'APPROVED' THEN t.hours_logged ELSE 0 END), 0) AS approved_hours,
-            COALESCE(SUM(CASE WHEN t.status = 'PENDING' THEN t.hours_logged ELSE 0 END), 0) AS pending_hours
+            COALESCE(SUM(CASE WHEN t.status IN ('DRAFT', 'SUBMITTED') THEN t.hours_logged ELSE 0 END), 0) AS pending_hours
      FROM project_assignments pa
      INNER JOIN contractors c ON c.id = pa.contractor_id
      INNER JOIN users u ON u.id = c.user_id

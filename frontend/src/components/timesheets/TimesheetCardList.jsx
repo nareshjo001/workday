@@ -19,6 +19,7 @@ export default function TimesheetCardList({ logs, onEdit }) {
             <TimesheetStatusBadge status={log.status} />
           </div>
           <p className="mt-2 text-xs text-muted">Submitted {formatDateTime(log.submitted_at)}</p>
+          {log.description && <p className="mt-2 text-sm text-text-secondary">{log.description}</p>}
           {log.reviewed_at && (
             <p className="mt-1 text-xs text-muted">
               Reviewed {formatDateTime(log.reviewed_at)}
@@ -26,13 +27,16 @@ export default function TimesheetCardList({ logs, onEdit }) {
             </p>
           )}
           {log.status === "REJECTED" && (
-            <button
-              type="button"
-              onClick={() => onEdit(log)}
-              className="mt-3 w-full rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary transition hover:bg-surface-muted"
-            >
-              Edit &amp; Resubmit
-            </button>
+            <>
+              <p className="mt-2 text-sm text-error">Reason: {log.rejection_reason || "No reason provided."}</p>
+              <button
+                type="button"
+                onClick={() => onEdit(log)}
+                className="mt-3 w-full rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary transition hover:bg-surface-muted"
+              >
+                Correct draft
+              </button>
+            </>
           )}
         </div>
       ))}

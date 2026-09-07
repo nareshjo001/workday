@@ -11,9 +11,14 @@ async function listPending(params = {}) {
   return data;
 }
 
-async function reviewTimesheet(timesheetId, status) {
-  const { data } = await apiClient.patch(`/pm/timesheets/${timesheetId}`, { status });
+async function reviewTimesheet(timesheetId, status, rejectionReason = null) {
+  const { data } = await apiClient.patch(`/pm/timesheets/${timesheetId}`, { status, ...(rejectionReason ? { rejectionReason } : {}) });
   return data;
 }
 
-export default { listPending, reviewTimesheet };
+async function bulkReviewTimesheets(timesheetIds, status, rejectionReason = null) {
+  const { data } = await apiClient.patch("/pm/timesheets/bulk-review", { timesheetIds, status, ...(rejectionReason ? { rejectionReason } : {}) });
+  return data;
+}
+
+export default { listPending, reviewTimesheet, bulkReviewTimesheets };

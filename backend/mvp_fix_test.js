@@ -303,6 +303,8 @@ async function main() {
   const subA6 = await req("POST", "/contractor/timesheets", { projectId: project1Id, workDate: todayPlus(0), hoursLogged: 6 }, contractorAToken);
   assert(subA6.status === 201, `A submits 6h: expected 201, got ${subA6.status} ${JSON.stringify(subA6.data)}`);
   const subB8 = await req("POST", "/contractor/timesheets", { projectId: project1Id, workDate: todayPlus(0), hoursLogged: 8 }, contractorBToken);
+  await req("POST", "/contractor/timesheets/submit", { timesheetIds: [subA6.data.id] }, contractorAToken);
+  await req("POST", "/contractor/timesheets/submit", { timesheetIds: [subB8.data.id] }, contractorBToken);
   assert(subB8.status === 201, `B submits 8h: expected 201, got ${subB8.status}`);
 
   // PM approves both.
@@ -421,6 +423,7 @@ async function main() {
   // 6 + 8 + 6 = 20h -> M2 (20h) reached, in a call that touches ONLY E's
   // timesheet — a genuinely separate, later event from M1's.
   const subE6 = await req("POST", "/contractor/timesheets", { projectId: project1Id, workDate: todayPlus(0), hoursLogged: 6 }, contractorEToken);
+  await req("POST", "/contractor/timesheets/submit", { timesheetIds: [subE6.data.id] }, contractorEToken);
   assert(subE6.status === 201, `E submits 6h: expected 201, got ${subE6.status} ${JSON.stringify(subE6.data)}`);
   const approveE6 = await req("PATCH", `/pm/timesheets/${subE6.data.id}`, { status: "APPROVED" }, pm.token);
   assert(approveE6.status === 200, `approve E's 6h: expected 200, got ${approveE6.status}`);
@@ -489,6 +492,8 @@ async function main() {
   const subF3 = await req("POST", "/contractor/timesheets", { projectId: p3.data.id, workDate: todayPlus(0), hoursLogged: 6 }, contractorFToken);
   assert(subF3.status === 201, `F submits 6h on project 3: expected 201, got ${subF3.status} ${JSON.stringify(subF3.data)}`);
   const subG3 = await req("POST", "/contractor/timesheets", { projectId: p3.data.id, workDate: todayPlus(0), hoursLogged: 8 }, contractorGToken);
+  await req("POST", "/contractor/timesheets/submit", { timesheetIds: [subF3.data.id] }, contractorFToken);
+  await req("POST", "/contractor/timesheets/submit", { timesheetIds: [subG3.data.id] }, contractorGToken);
   assert(subG3.status === 201, `G submits 8h on project 3: expected 201, got ${subG3.status} ${JSON.stringify(subG3.data)}`);
 
   // Approve both nearly simultaneously — each approval independently

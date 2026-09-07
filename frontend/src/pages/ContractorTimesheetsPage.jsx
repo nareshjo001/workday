@@ -118,14 +118,26 @@ export default function ContractorTimesheetsPage() {
     setSuccessMessage(`Resubmitted ${updated.hours_logged} hours for "${updated.project_name}".`);
   };
 
+  const handleSubmitDrafts = async () => {
+    const ids = timesheets.filter((row) => row.status === "DRAFT" || row.status === "REJECTED").map((row) => row.id);
+    if (!ids.length) return;
+    await contractorTimesheetService.submitTimesheets(ids);
+    await loadAll();
+    setSuccessMessage(`${ids.length} daily entr${ids.length === 1 ? "y" : "ies"} submitted for review.`);
+  };
+
+  const handleSubmitWeek = async (ids) => {
+    await contractorTimesheetService.submitTimesheets(ids);
+    await loadAll();
+    setSuccessMessage(`${ids.length} daily entr${ids.length === 1 ? "y" : "ies"} submitted for review.`);
+  };
+
   return (
     <DashboardLayout title="Timesheets">
       <div className="mx-auto flex max-w-4xl flex-col gap-5">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-xl font-semibold text-text">Timesheets</h1>
-          <PrimaryButton type="button" fullWidth={false} onClick={() => setIsLogOpen(true)}>
-            + Log Hours
-          </PrimaryButton>
+          <div className="flex gap-2"><button type="button" onClick={handleSubmitDrafts} className="rounded-md border border-border px-3 py-2 text-sm">Submit visible drafts</button><PrimaryButton type="button" fullWidth={false} onClick={() => setIsLogOpen(true)}>+ Log Hours</PrimaryButton></div>
         </div>
 
         <AlertBanner message={successMessage} variant="success" />
@@ -148,6 +160,7 @@ export default function ContractorTimesheetsPage() {
                 project={project}
                 allocation={allocationByProjectId.get(project.project_id)}
                 onEdit={setEditingLog}
+                onSubmitWeek={handleSubmitWeek}
               />
             ))}
             <ListControls page={page} totalPages={pageInfo.total_pages} total={pageInfo.total} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />

@@ -50,7 +50,7 @@ function addToTotals(totals, log) {
   const hours = Number(log.hours_logged) || 0;
   totals.total += hours;
   if (log.status === "APPROVED") totals.approved += hours;
-  else if (log.status === "PENDING") totals.pending += hours;
+  else if (log.status === "DRAFT" || log.status === "SUBMITTED") totals.pending += hours;
   else if (log.status === "REJECTED") totals.rejected += hours;
 }
 

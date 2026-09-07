@@ -9,7 +9,8 @@ export { formatDate };
  * overloading that one with an unrelated status vocabulary.
  */
 const STATUS_STYLES = {
-  PENDING: "bg-warning-bg text-warning",
+  DRAFT: "bg-surface-muted text-muted",
+  SUBMITTED: "bg-warning-bg text-warning",
   APPROVED: "bg-success-bg text-success",
   REJECTED: "bg-error-bg text-error",
 };

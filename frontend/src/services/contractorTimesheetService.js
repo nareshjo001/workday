@@ -21,12 +21,18 @@ async function listMyTimesheets(params = {}) {
  * status/reviewedBy/contractorId because the backend never reads those
  * from this request; they are always server-controlled.
  */
-async function submitTimesheet({ projectId, workDate, hoursLogged }) {
+async function submitTimesheet({ projectId, workDate, hoursLogged, description }) {
   const { data } = await apiClient.post("/contractor/timesheets", {
     projectId,
     workDate,
     hoursLogged,
+    description,
   });
+  return data;
+}
+
+async function submitTimesheets(timesheetIds) {
+  const { data } = await apiClient.post("/contractor/timesheets/submit", { timesheetIds });
   return data;
 }
 
@@ -36,12 +42,13 @@ async function submitTimesheet({ projectId, workDate, hoursLogged }) {
  * here: it cannot change on an edit, see
  * contractorTimesheetValidators.validateEditTimesheet on the backend.
  */
-async function updateTimesheet(timesheetId, { workDate, hoursLogged }) {
+async function updateTimesheet(timesheetId, { workDate, hoursLogged, description }) {
   const { data } = await apiClient.patch(`/contractor/timesheets/${timesheetId}`, {
     workDate,
     hoursLogged,
+    description,
   });
   return data;
 }
 
-export default { listMyTimesheets, submitTimesheet, updateTimesheet };
+export default { listMyTimesheets, submitTimesheets, submitTimesheet, updateTimesheet };

@@ -24,11 +24,11 @@ const { pool } = require("../config/db");
  * clean 409, same pattern as vendorAssignmentService/ER_DUP_ENTRY
  * handling.
  */
-async function create(conn, { contractorId, projectId, workDate, hoursLogged }) {
+async function create(conn, { contractorId, projectId, workDate, hoursLogged, description = null }) {
   const [result] = await conn.query(
-    `INSERT INTO timesheets (contractor_id, project_id, work_date, hours_logged, status, submitted_at)
-     VALUES (?, ?, ?, ?, 'PENDING', NOW())`,
-    [contractorId, projectId, workDate, hoursLogged]
+    `INSERT INTO timesheets (contractor_id, project_id, work_date, hours_logged, description, status)
+     VALUES (?, ?, ?, ?, ?, 'DRAFT')`,
+    [contractorId, projectId, workDate, hoursLogged, description]
   );
   return result.insertId;
 }
@@ -43,7 +43,7 @@ async function create(conn, { contractorId, projectId, workDate, hoursLogged }) 
 async function findById(id) {
   const [rows] = await pool.query(
     `SELECT t.id, t.contractor_id, t.project_id, p.name AS project_name,
-            t.work_date, t.hours_logged, t.status,
+            t.work_date, t.hours_logged, t.description, t.status, t.rejection_reason,
             t.submitted_at, t.reviewed_at, reviewer.name AS reviewer_name
      FROM timesheets t
      INNER JOIN projects p ON p.id = t.project_id
@@ -66,7 +66,7 @@ async function findById(id) {
 async function listByContractor(contractorId) {
   const [rows] = await pool.query(
     `SELECT t.id, t.contractor_id, t.project_id, p.name AS project_name,
-            t.work_date, t.hours_logged, t.status,
+            t.work_date, t.hours_logged, t.description, t.status, t.rejection_reason,
             t.submitted_at, t.reviewed_at, reviewer.name AS reviewer_name
      FROM timesheets t
      INNER JOIN projects p ON p.id = t.project_id
@@ -85,7 +85,7 @@ async function listPageByContractor(contractorId, query) {
   if (query.filters.startDate) { where.push("t.work_date >= ?"); params.push(query.filters.startDate); }
   const clause = where.join(" AND ");
   const [[count]] = await pool.query(`SELECT COUNT(*) AS total FROM timesheets t WHERE ${clause}`, params);
-  const [rows] = await pool.query(`SELECT t.id, t.contractor_id, t.project_id, p.name AS project_name, t.work_date, t.hours_logged, t.status, t.submitted_at, t.reviewed_at, reviewer.name AS reviewer_name FROM timesheets t INNER JOIN projects p ON p.id=t.project_id LEFT JOIN users reviewer ON reviewer.id=t.reviewed_by WHERE ${clause} ORDER BY ${query.sortColumn} ${query.order}, t.id ${query.order} LIMIT ? OFFSET ?`, [...params, query.pageSize, query.offset]);
+  const [rows] = await pool.query(`SELECT t.id, t.contractor_id, t.project_id, p.name AS project_name, t.work_date, t.hours_logged, t.description, t.status, t.rejection_reason, t.submitted_at, t.reviewed_at, reviewer.name AS reviewer_name FROM timesheets t INNER JOIN projects p ON p.id=t.project_id LEFT JOIN users reviewer ON reviewer.id=t.reviewed_by WHERE ${clause} ORDER BY ${query.sortColumn} ${query.order}, t.id ${query.order} LIMIT ? OFFSET ?`, [...params, query.pageSize, query.offset]);
   return { rows: rows.map(toView), total: Number(count.total) };
 }
 
@@ -100,12 +100,12 @@ async function listPendingForPm(pmId) {
   const [rows] = await pool.query(
     `SELECT t.id, t.project_id, p.name AS project_name,
             c.id AS contractor_id, u.name AS contractor_name, c.skill AS contractor_skill,
-            t.work_date, t.hours_logged, t.submitted_at
+            t.work_date, t.hours_logged, t.description, t.submitted_at
      FROM timesheets t
      INNER JOIN projects p ON p.id = t.project_id
      INNER JOIN contractors c ON c.id = t.contractor_id
      INNER JOIN users u ON u.id = c.user_id
-     WHERE p.pm_id = ? AND t.status = 'PENDING'
+     WHERE p.pm_id = ? AND t.status = 'SUBMITTED'
      ORDER BY t.submitted_at ASC`,
     [pmId]
   );
@@ -118,21 +118,22 @@ async function listPendingForPm(pmId) {
     contractor_skill: r.contractor_skill,
     work_date: r.work_date,
     hours_logged: Number(r.hours_logged),
+    description: r.description || null,
     submitted_at: r.submitted_at,
   }));
 }
 
 async function listPendingPageForPm(pmId, query) {
-  const where = ["p.pm_id = ?", "t.status = 'PENDING'"];
+  const where = ["p.pm_id = ?", "t.status = 'SUBMITTED'"];
   const params = [pmId];
   if (query.filters.projectId) { where.push("t.project_id = ?"); params.push(query.filters.projectId); }
   if (query.filters.startDate) { where.push("t.work_date >= ?"); params.push(query.filters.startDate); }
   if (query.filters.search) { where.push("(p.name LIKE ? OR u.name LIKE ?)"); const pattern = `%${query.filters.search}%`; params.push(pattern, pattern); }
   const clause = where.join(" AND ");
   const [[count]] = await pool.query(`SELECT COUNT(*) AS total FROM timesheets t INNER JOIN projects p ON p.id = t.project_id INNER JOIN contractors c ON c.id = t.contractor_id INNER JOIN users u ON u.id = c.user_id WHERE ${clause}`, params);
-  const [rows] = await pool.query(`SELECT t.id, t.project_id, p.name AS project_name, c.id AS contractor_id, u.name AS contractor_name, c.skill AS contractor_skill, t.work_date, t.hours_logged, t.submitted_at FROM timesheets t INNER JOIN projects p ON p.id = t.project_id INNER JOIN contractors c ON c.id = t.contractor_id INNER JOIN users u ON u.id = c.user_id WHERE ${clause} ORDER BY ${query.sortColumn} ${query.order}, t.id ${query.order} LIMIT ? OFFSET ?`, [...params, query.pageSize, query.offset]);
+  const [rows] = await pool.query(`SELECT t.id, t.project_id, p.name AS project_name, c.id AS contractor_id, u.name AS contractor_name, c.skill AS contractor_skill, t.work_date, t.hours_logged, t.description, t.submitted_at FROM timesheets t INNER JOIN projects p ON p.id = t.project_id INNER JOIN contractors c ON c.id = t.contractor_id INNER JOIN users u ON u.id = c.user_id WHERE ${clause} ORDER BY ${query.sortColumn} ${query.order}, t.id ${query.order} LIMIT ? OFFSET ?`, [...params, query.pageSize, query.offset]);
   return {
-    rows: rows.map((r) => ({ id: r.id, project_id: r.project_id, project_name: r.project_name, contractor_id: r.contractor_id, contractor_name: r.contractor_name, contractor_skill: r.contractor_skill, work_date: r.work_date, hours_logged: Number(r.hours_logged), submitted_at: r.submitted_at })),
+    rows: rows.map((r) => ({ id: r.id, project_id: r.project_id, project_name: r.project_name, contractor_id: r.contractor_id, contractor_name: r.contractor_name, contractor_skill: r.contractor_skill, work_date: r.work_date, hours_logged: Number(r.hours_logged), description: r.description || null, submitted_at: r.submitted_at })),
     total: Number(count.total),
   };
 }
@@ -176,12 +177,12 @@ async function lockForReview(conn, timesheetId) {
  * the one identified by timesheetId, so there is no "approve the whole
  * week" path anywhere in this codebase.
  */
-async function markReviewed(conn, timesheetId, status, reviewedBy) {
+async function markReviewed(conn, timesheetId, status, reviewedBy, rejectionReason = null) {
   const [result] = await conn.query(
     `UPDATE timesheets
-     SET status = ?, reviewed_by = ?, reviewed_at = NOW()
-     WHERE id = ? AND status = 'PENDING'`,
-    [status, reviewedBy, timesheetId]
+     SET status = ?, reviewed_by = ?, reviewed_at = NOW(), rejection_reason = ?
+     WHERE id = ? AND status = 'SUBMITTED'`,
+    [status, reviewedBy, rejectionReason, timesheetId]
   );
   return result.affectedRows > 0;
 }
@@ -197,7 +198,7 @@ async function markReviewed(conn, timesheetId, status, reviewedBy) {
  */
 async function lockForOwnerEdit(conn, timesheetId) {
   const [rows] = await conn.query(
-    `SELECT id, contractor_id, project_id, work_date, hours_logged, status
+    `SELECT id, contractor_id, project_id, work_date, hours_logged, description, rejection_reason, status
      FROM timesheets
      WHERE id = ?
      LIMIT 1
@@ -229,15 +230,33 @@ async function lockForOwnerEdit(conn, timesheetId) {
  * (contractorTimesheetService) catches ER_DUP_ENTRY and turns it into a
  * clean 409.
  */
-async function updateRejectedLog(conn, timesheetId, { workDate, hoursLogged }) {
+async function updateRejectedLog(conn, timesheetId, { workDate, hoursLogged, description = null }) {
   const [result] = await conn.query(
     `UPDATE timesheets
-     SET work_date = ?, hours_logged = ?, status = 'PENDING',
-         reviewed_by = NULL, reviewed_at = NULL, submitted_at = NOW()
+     SET work_date = ?, hours_logged = ?, description = ?, status = 'DRAFT',
+         reviewed_by = NULL, reviewed_at = NULL, rejection_reason = NULL, submitted_at = NOW()
      WHERE id = ? AND status = 'REJECTED'`,
-    [workDate, hoursLogged, timesheetId]
+    [workDate, hoursLogged, description, timesheetId]
   );
   return result.affectedRows > 0;
+}
+
+async function lockOwnedByIds(conn, contractorId, ids) {
+  const [rows] = await conn.query(
+    `SELECT id, contractor_id, project_id, status FROM timesheets
+     WHERE contractor_id = ? AND id IN (?) ORDER BY id ASC FOR UPDATE`,
+    [contractorId, ids]
+  );
+  return rows;
+}
+
+async function markSubmitted(conn, ids) {
+  const [result] = await conn.query(
+    `UPDATE timesheets SET status = 'SUBMITTED', submitted_at = NOW(), reviewed_by = NULL, reviewed_at = NULL, rejection_reason = NULL
+     WHERE id IN (?) AND status IN ('DRAFT', 'REJECTED')`,
+    [ids]
+  );
+  return result.affectedRows;
 }
 
 /**
@@ -259,7 +278,7 @@ async function sumReservedHoursForContractorProject(conn, contractorId, projectI
   const params = [contractorId, projectId];
   let sql = `SELECT COALESCE(SUM(hours_logged), 0) AS total
      FROM timesheets
-     WHERE contractor_id = ? AND project_id = ? AND status IN ('PENDING', 'APPROVED')`;
+     WHERE contractor_id = ? AND project_id = ? AND status IN ('DRAFT', 'SUBMITTED', 'APPROVED')`;
   if (excludeTimesheetId) {
     sql += ` AND id != ?`;
     params.push(excludeTimesheetId);
@@ -357,6 +376,8 @@ function toView(row) {
     project_name: row.project_name,
     work_date: row.work_date,
     hours_logged: Number(row.hours_logged),
+    description: row.description || null,
+    rejection_reason: row.rejection_reason || null,
     status: row.status,
     submitted_at: row.submitted_at,
     reviewed_at: row.reviewed_at,
@@ -375,6 +396,8 @@ module.exports = {
   markReviewed,
   lockForOwnerEdit,
   updateRejectedLog,
+  lockOwnedByIds,
+  markSubmitted,
   sumReservedHoursForContractorProject,
   sumApprovedHoursForContractorProject,
   sumApprovedHoursForProject,

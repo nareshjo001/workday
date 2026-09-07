@@ -10,7 +10,7 @@ function todayDateString() {
   return new Date().toISOString().slice(0, 10);
 }
 
-const initialForm = { projectId: "", workDate: "", hoursLogged: "" };
+const initialForm = { projectId: "", workDate: "", hoursLogged: "", description: "" };
 
 /**
  * `projects` is the contractor's own list of currently ACTIVE assigned
@@ -90,6 +90,7 @@ export default function LogHoursModal({ projects, onClose, onSubmit }) {
         projectId: Number(form.projectId),
         workDate: form.workDate,
         hoursLogged: Number(form.hoursLogged),
+        description: form.description.trim() || undefined,
       });
     } catch (err) {
       setFormError(err.message);
@@ -155,6 +156,14 @@ export default function LogHoursModal({ projects, onClose, onSubmit }) {
           error={fieldErrors.hoursLogged}
           placeholder="e.g. 8 or 7.5"
         />
+        <FormField
+          id="description"
+          label="Work Description"
+          value={form.description}
+          onChange={handleChange}
+          required={false}
+          placeholder="What did you work on?"
+        />
 
         <div className="mt-2 flex gap-3">
           <button
@@ -166,11 +175,11 @@ export default function LogHoursModal({ projects, onClose, onSubmit }) {
           </button>
           <PrimaryButton
             isLoading={isSubmitting}
-            loadingText="Submitting…"
+            loadingText="Saving…"
             disabled={projects.length === 0}
             className="flex-1"
           >
-            Submit
+            Save Draft
           </PrimaryButton>
         </div>
       </form>

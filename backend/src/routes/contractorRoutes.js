@@ -32,6 +32,7 @@ router.patch("/profile/skill", contractorProfileController.updateProfile);
 // gate reuse rationale as /profile above — no new
 // authenticate/authorizeRoles declaration needed.
 router.post("/timesheets", contractorTimesheetController.submit);
+router.post("/timesheets/submit", contractorTimesheetController.submitSelected);
 router.get("/timesheets", contractorTimesheetController.list);
 router.patch("/timesheets/:id", contractorTimesheetController.update);
 
