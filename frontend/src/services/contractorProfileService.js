@@ -10,9 +10,9 @@ async function getProfile() {
   return data;
 }
 
-async function updateSkill(skill) {
-  const { data } = await apiClient.patch("/contractor/profile/skill", { skill });
+async function updateProfile(profile) {
+  const { data } = await apiClient.patch("/contractor/profile", profile);
   return data;
 }
 
-export default { getProfile, updateSkill };
+export default { getProfile, updateProfile };

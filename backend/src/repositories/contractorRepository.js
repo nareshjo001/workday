@@ -59,7 +59,7 @@ async function listByVendor(vendorId, opts = {}) {
 async function listPageByVendor(vendorId, query) {
   const where = ["c.vendor_id = ?"];
   const params = [vendorId];
-  if (query.filters.skill) { where.push("c.skill = ?"); params.push(query.filters.skill); }
+  if (query.filters.skill) { where.push("EXISTS (SELECT 1 FROM contractor_skills cs INNER JOIN skills s ON s.id = cs.skill_id WHERE cs.contractor_id = c.id AND s.code = ? AND s.is_active = 1)"); params.push(query.filters.skill); }
   if (query.filters.status) { where.push("c.status = ?"); params.push(query.filters.status); }
   if (query.filters.search) {
     where.push("(u.name LIKE ? OR u.email LIKE ?)");
@@ -123,18 +123,27 @@ async function findInvitationRecipientByVendorAndId(vendorId, contractorId) {
  */
 async function listEligibleForVendorAndSkill(vendorId, skill) {
   const [rows] = await pool.query(
-    `SELECT c.id, c.hourly_rate, c.status, c.skill, u.name, u.email
+    `SELECT DISTINCT c.id, c.hourly_rate, c.status, primary_skill.code AS skill, u.name, u.email
      FROM contractors c
      INNER JOIN users u ON u.id = c.user_id
+     INNER JOIN contractor_skills cs ON cs.contractor_id = c.id
+     INNER JOIN skills matched_skill ON matched_skill.id = cs.skill_id AND matched_skill.code = ? AND matched_skill.is_active = 1
+     LEFT JOIN contractor_skills primary_cs ON primary_cs.contractor_id = c.id AND primary_cs.is_primary = 1
+     LEFT JOIN skills primary_skill ON primary_skill.id = primary_cs.skill_id
      LEFT JOIN project_assignments pa ON pa.contractor_id = c.id AND pa.status = 'ACTIVE'
      WHERE c.vendor_id = ?
        AND c.status = 'ACTIVE'
-       AND c.skill = ?
        AND pa.id IS NULL
      ORDER BY u.name ASC`,
-    [vendorId, skill]
+    [skill, vendorId]
   );
   return rows;
+}
+
+async function hasActiveSkillForContractor(conn, contractorId, skillCode) {
+  const [rows] = await conn.query(`SELECT 1 FROM contractor_skills cs INNER JOIN skills s ON s.id = cs.skill_id
+    WHERE cs.contractor_id = ? AND s.code = ? AND s.is_active = 1 LIMIT 1`, [contractorId, skillCode]);
+  return Boolean(rows[0]);
 }
 
 /**
@@ -175,6 +184,10 @@ async function updateOwned(vendorId, contractorId, fields, conn) {
     setClauses.push("status = ?");
     values.push(fields.status);
   }
+  if (fields.phone !== undefined) { setClauses.push("phone = ?"); values.push(fields.phone); }
+  if (fields.headline !== undefined) { setClauses.push("headline = ?"); values.push(fields.headline); }
+  if (fields.totalExperienceYears !== undefined) { setClauses.push("total_experience_years = ?"); values.push(fields.totalExperienceYears); }
+  if (fields.notes !== undefined) { setClauses.push("notes = ?"); values.push(fields.notes); }
 
   // Should be unreachable — the validator requires at least one field —
   // but guard anyway rather than emitting `SET WHERE ...`.
@@ -202,10 +215,28 @@ async function updateOwned(vendorId, contractorId, fields, conn) {
  */
 async function findByUserId(userId) {
   const [rows] = await pool.query(
-    `SELECT id, vendor_id, hourly_rate, status, skill FROM contractors WHERE user_id = ? LIMIT 1`,
+    `SELECT id, vendor_id, hourly_rate, status, skill, phone, headline, total_experience_years, notes FROM contractors WHERE user_id = ? LIMIT 1`,
     [userId]
   );
   return rows[0] || null;
+}
+
+async function findByUserIdForUpdate(conn, userId) {
+  const [rows] = await conn.query(
+    `SELECT id, vendor_id, hourly_rate, status, skill, phone, headline, total_experience_years, notes FROM contractors WHERE user_id = ? LIMIT 1 FOR UPDATE`,
+    [userId]
+  );
+  return rows[0] || null;
+}
+
+async function updateProfileById(conn, contractorId, fields) {
+  const clauses = []; const values = [];
+  if (fields.phone !== undefined) { clauses.push("phone = ?"); values.push(fields.phone); }
+  if (fields.headline !== undefined) { clauses.push("headline = ?"); values.push(fields.headline); }
+  if (fields.totalExperienceYears !== undefined) { clauses.push("total_experience_years = ?"); values.push(fields.totalExperienceYears); }
+  if (!clauses.length) return;
+  values.push(contractorId);
+  await conn.query(`UPDATE contractors SET ${clauses.join(", ")} WHERE id = ?`, values);
 }
 
 /**
@@ -270,9 +301,12 @@ module.exports = {
   findByVendorAndId,
   findInvitationRecipientByVendorAndId,
   listEligibleForVendorAndSkill,
+  hasActiveSkillForContractor,
   findByVendorAndIdForUpdate,
   updateOwned,
   findByUserId,
+  findByUserIdForUpdate,
+  updateProfileById,
   updateSkillByUserId,
   findById,
   findByIdForUpdate,

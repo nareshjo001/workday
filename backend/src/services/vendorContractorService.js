@@ -1,6 +1,7 @@
 const { pool } = require("../config/db");
 const userRepository = require("../repositories/userRepository");
 const contractorRepository = require("../repositories/contractorRepository");
+const skillRepository = require("../repositories/skillRepository");
 const { hashPassword } = require("../utils/password");
 const ApiError = require("../utils/ApiError");
 const crypto = require("crypto");
@@ -113,6 +114,11 @@ async function updateContractor(vendorId, contractorId, fields, auditActor) {
     await conn.beginTransaction();
     const before = await contractorRepository.findByVendorAndIdForUpdate(conn, vendorId, contractorId);
     if (!before) throw ApiError.notFound("Contractor not found.");
+    if (fields.skills) {
+      const resolved = await Promise.all(fields.skills.map(async (skill) => ({ ...skill, skillId: (await skillRepository.findActiveByCode(skill.code, conn))?.id })));
+      if (resolved.some((skill) => !skill.skillId)) throw ApiError.badRequest("One or more skills are unknown or inactive.");
+      await skillRepository.replaceForContractor(conn, contractorId, resolved);
+    }
     const updated = await contractorRepository.updateOwned(vendorId, contractorId, fields, conn);
     if (!updated) throw ApiError.notFound("Contractor not found.");
     contractor = await contractorRepository.findByVendorAndId(vendorId, contractorId, conn);

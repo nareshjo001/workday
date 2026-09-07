@@ -10,6 +10,7 @@ import EditContractorModal from "../components/contractors/EditContractorModal";
 import vendorContractorService from "../services/vendorContractorService";
 import ListControls from "../components/ListControls";
 import useDebouncedValue from "../hooks/useDebouncedValue";
+import { SKILLS, SKILL_LABELS } from "../constants/skills";
 
 /**
  * Vendor's contractor-management screen: list + add + edit (rate/status).
@@ -27,13 +28,14 @@ export default function VendorContractorsPage() {
   const [page, setPage] = useState(() => Number(new URLSearchParams(window.location.search).get("page")) || 1);
   const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("search") || "");
   const [pageInfo, setPageInfo] = useState({ total_pages: 1, total: 0 });
+  const [skill, setSkill] = useState("");
   const debouncedSearch = useDebouncedValue(search);
 
   const loadContractors = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const data = await vendorContractorService.listContractors({ page, pageSize: 25, sort: "name", order: "asc", ...(debouncedSearch ? { search: debouncedSearch } : {}) });
+      const data = await vendorContractorService.listContractors({ page, pageSize: 25, sort: "name", order: "asc", ...(debouncedSearch ? { search: debouncedSearch } : {}), ...(skill ? { skill } : {}) });
       setContractors(data.items);
       setPageInfo(data);
     } catch (err) {
@@ -41,7 +43,7 @@ export default function VendorContractorsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, debouncedSearch]);
+  }, [page, debouncedSearch, skill]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -95,7 +97,7 @@ export default function VendorContractorsPage() {
           <div className="rounded-lg bg-surface p-4 shadow-panel ring-1 ring-border sm:p-6">
             <ContractorTable contractors={contractors} onEdit={setEditingContractor} />
             <ContractorCardList contractors={contractors} onEdit={setEditingContractor} />
-            <ListControls page={page} totalPages={pageInfo.total_pages} total={pageInfo.total} search={search} onSearchChange={(value) => { setPage(1); setSearch(value); }} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
+            <div className="mb-3 flex justify-end"><select aria-label="Filter by skill" value={skill} onChange={(e) => { setPage(1); setSkill(e.target.value); }} className="rounded-md border border-border bg-surface px-3 py-2 text-sm"><option value="">All skills</option>{SKILLS.map((code) => <option key={code} value={code}>{SKILL_LABELS[code]}</option>)}</select></div><ListControls page={page} totalPages={pageInfo.total_pages} total={pageInfo.total} search={search} onSearchChange={(value) => { setPage(1); setSearch(value); }} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
           </div>
         )}
       </div>

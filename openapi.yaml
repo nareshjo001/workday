@@ -131,7 +131,8 @@ paths:
   /api/contractor/projects:
     get: { security: [{ bearerAuth: [] }], responses: { '200': { description: Contractor project history } } }
   /api/contractor/profile:
-    get: { security: [{ bearerAuth: [] }], responses: { '200': { description: Contractor profile } } }
+    get: { security: [{ bearerAuth: [] }], responses: { '200': { description: Contractor profile with normalized skills } } }
+    patch: { security: [{ bearerAuth: [] }], responses: { '200': { description: Contractor profile and skills updated }, '400': { description: Invalid profile or duplicate skill } } }
   /api/contractor/profile/skill:
     patch: { security: [{ bearerAuth: [] }], responses: { '200': { description: Skill updated } } }
   /api/contractor/timesheets/{id}:

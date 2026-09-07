@@ -122,7 +122,7 @@ async function assignContractors(vendorId, projectId, requirementId, contractorI
       if (contractor.status !== "ACTIVE") {
         throw ApiError.badRequest(`Contractor ${contractorId} is not ACTIVE and cannot be assigned.`);
       }
-      if (!contractor.skill || contractor.skill !== requirement.skill) {
+      if (!(await contractorRepository.hasActiveSkillForContractor(conn, contractor.id, requirement.skill))) {
         throw ApiError.badRequest(
           `Contractor ${contractorId} does not have the "${requirement.skill}" skill required here.`
         );

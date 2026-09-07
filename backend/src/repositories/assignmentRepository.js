@@ -30,9 +30,9 @@ async function existsFor(contractorId, projectId) {
  */
 async function lockRequirementForUpdate(conn, projectId, skill) {
   const [rows] = await conn.query(
-    `SELECT id, project_id, skill, required_count
-     FROM project_requirements
-     WHERE project_id = ? AND skill = ?
+    `SELECT pr.id, pr.project_id, COALESCE(s.code, pr.skill) AS skill, pr.required_count
+     FROM project_requirements pr LEFT JOIN skills s ON s.id = pr.skill_id
+     WHERE pr.project_id = ? AND COALESCE(s.code, pr.skill) = ?
      LIMIT 1
      FOR UPDATE`,
     [projectId, skill]
@@ -50,9 +50,9 @@ async function lockRequirementForUpdate(conn, projectId, skill) {
  */
 async function lockRequirementForUpdateById(conn, projectId, requirementId) {
   const [rows] = await conn.query(
-    `SELECT id, project_id, skill, required_count
-     FROM project_requirements
-     WHERE id = ? AND project_id = ?
+    `SELECT pr.id, pr.project_id, COALESCE(s.code, pr.skill) AS skill, pr.required_count
+     FROM project_requirements pr LEFT JOIN skills s ON s.id = pr.skill_id
+     WHERE pr.id = ? AND pr.project_id = ?
      LIMIT 1
      FOR UPDATE`,
     [requirementId, projectId]

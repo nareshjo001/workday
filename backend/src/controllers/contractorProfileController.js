@@ -13,8 +13,8 @@ const getProfile = asyncHandler(async (req, res) => {
 });
 
 const updateProfile = asyncHandler(async (req, res) => {
-  const { skill } = validateUpdateProfile(req.body);
-  const result = await contractorProfileService.updateSkill(req.user.userId, skill);
+  const payload = validateUpdateProfile(req.body);
+  const result = await contractorProfileService.updateProfile(req.user.userId, payload, { ...req.user, requestId: req.requestId });
   res.status(200).json(result);
 });
 
