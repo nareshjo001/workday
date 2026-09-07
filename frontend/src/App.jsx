@@ -27,6 +27,8 @@ import VendorCompliancePage from "./pages/VendorCompliancePage";
 import VendorClientsPage from "./pages/VendorClientsPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import PasswordActionPage from "./pages/PasswordActionPage";
+import PmStaffingPipelinePage from "./pages/PmStaffingPipelinePage";
+import VendorStaffingPipelinePage from "./pages/VendorStaffingPipelinePage";
 
 export default function App() {
   return (
@@ -47,6 +49,7 @@ export default function App() {
           <Route path="/vendor/invoices" element={<VendorInvoicesPage />} />
           <Route path="/vendor/compliance" element={<VendorCompliancePage />} />
           <Route path="/vendor/clients" element={<VendorClientsPage />} />
+          <Route path="/vendor/staffing-pipeline" element={<VendorStaffingPipelinePage />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={[ROLES.CONTRACTOR]} />}>
@@ -64,6 +67,7 @@ export default function App() {
           <Route path="/pm/milestones" element={<PmMilestonesPage />} />
           <Route path="/pm/invoices" element={<PmInvoicesPage />} />
           <Route path="/pm/vendor-access" element={<PmVendorAccessPage />} />
+          <Route path="/pm/staffing-pipeline" element={<PmStaffingPipelinePage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />

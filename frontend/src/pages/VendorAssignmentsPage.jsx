@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import DashboardLayout from "../layouts/DashboardLayout";
 import Spinner from "../components/Spinner";
 import AlertBanner from "../components/AlertBanner";
@@ -116,7 +117,7 @@ export default function VendorAssignmentsPage() {
   return (
     <DashboardLayout title="Assign Contractors to Projects">
       <div className="mx-auto flex max-w-3xl flex-col gap-5">
-        <h1 className="text-xl font-semibold text-text">Projects Open for Staffing</h1>
+        <div className="flex items-center justify-between gap-3"><h1 className="text-xl font-semibold text-text">Projects Open for Staffing</h1><Link to="/vendor/staffing-pipeline" className="rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary transition hover:bg-surface-muted">Staffing Pipeline</Link></div>
 
         <AlertBanner message={successMessage} variant="success" />
         <AlertBanner message={loadError} />

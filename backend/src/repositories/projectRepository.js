@@ -76,7 +76,7 @@ async function createRequirements(conn, projectId, requirements) {
 async function listByPm(pmId) {
   const [rows] = await pool.query(
     `SELECT p.id, p.name, p.description, ${COMPANY_PM_SELECT},
-            p.start_date, p.end_date, p.expected_hours, p.budget, p.currency, p.max_hours_per_day, p.max_hours_per_week, p.allow_weekend, p.backdate_limit_days, p.status
+            p.start_date, p.end_date, p.expected_hours, p.budget, p.currency, p.max_hours_per_day, p.max_hours_per_week, p.allow_weekend, p.backdate_limit_days, p.candidate_response_sla_hours, p.status
      FROM projects p
      ${COMPANY_PM_JOIN}
      WHERE p.pm_id = ?
@@ -93,7 +93,7 @@ async function listPageByPm(pmId, query) {
   if (query.filters.startDate) { where.push("p.start_date >= ?"); params.push(query.filters.startDate); }
   const clause = where.join(" AND ");
   const [[count]] = await pool.query(`SELECT COUNT(*) AS total FROM projects p ${COMPANY_PM_JOIN} WHERE ${clause}`, params);
-  const [rows] = await pool.query(`SELECT p.id, p.name, p.description, ${COMPANY_PM_SELECT}, p.start_date, p.end_date, p.expected_hours, p.budget, p.currency, p.max_hours_per_day, p.max_hours_per_week, p.allow_weekend, p.backdate_limit_days, p.status FROM projects p ${COMPANY_PM_JOIN} WHERE ${clause} ORDER BY ${query.sortColumn} ${query.order}, p.id ${query.order} LIMIT ? OFFSET ?`, [...params, query.pageSize, query.offset]);
+  const [rows] = await pool.query(`SELECT p.id, p.name, p.description, ${COMPANY_PM_SELECT}, p.start_date, p.end_date, p.expected_hours, p.budget, p.currency, p.max_hours_per_day, p.max_hours_per_week, p.allow_weekend, p.backdate_limit_days, p.candidate_response_sla_hours, p.status FROM projects p ${COMPANY_PM_JOIN} WHERE ${clause} ORDER BY ${query.sortColumn} ${query.order}, p.id ${query.order} LIMIT ? OFFSET ?`, [...params, query.pageSize, query.offset]);
   return { rows, total: Number(count.total) };
 }
 
@@ -108,7 +108,7 @@ async function listPageByPm(pmId, query) {
 async function findById(projectId) {
   const [rows] = await pool.query(
     `SELECT p.id, p.name, p.description, ${COMPANY_PM_SELECT},
-            p.pm_id, p.start_date, p.end_date, p.expected_hours, p.budget, p.currency, p.max_hours_per_day, p.max_hours_per_week, p.allow_weekend, p.backdate_limit_days, p.status
+            p.pm_id, p.start_date, p.end_date, p.expected_hours, p.budget, p.currency, p.max_hours_per_day, p.max_hours_per_week, p.allow_weekend, p.backdate_limit_days, p.candidate_response_sla_hours, p.status
      FROM projects p
      ${COMPANY_PM_JOIN}
      WHERE p.id = ?
@@ -134,7 +134,7 @@ async function findById(projectId) {
  */
 async function lockByIdForUpdate(conn, projectId) {
   const [rows] = await conn.query(
-    `SELECT id, pm_id, name, description, start_date, end_date, expected_hours, budget, currency, max_hours_per_day, max_hours_per_week, allow_weekend, backdate_limit_days, status
+    `SELECT id, pm_id, name, description, start_date, end_date, expected_hours, budget, currency, max_hours_per_day, max_hours_per_week, allow_weekend, backdate_limit_days, candidate_response_sla_hours, status
      FROM projects WHERE id = ? LIMIT 1 FOR UPDATE`,
     [projectId]
   );
@@ -159,7 +159,7 @@ async function markCompleted(conn, projectId) {
 }
 
 async function updateLifecycle(conn, projectId, fields) {
-  const columns = { name: "name", description: "description", startDate: "start_date", endDate: "end_date", expectedHours: "expected_hours", budget: "budget", currency: "currency", maxHoursPerDay: "max_hours_per_day", maxHoursPerWeek: "max_hours_per_week", allowWeekend: "allow_weekend", backdateLimitDays: "backdate_limit_days", status: "status" };
+  const columns = { name: "name", description: "description", startDate: "start_date", endDate: "end_date", expectedHours: "expected_hours", budget: "budget", currency: "currency", maxHoursPerDay: "max_hours_per_day", maxHoursPerWeek: "max_hours_per_week", allowWeekend: "allow_weekend", backdateLimitDays: "backdate_limit_days", candidateResponseSlaHours: "candidate_response_sla_hours", status: "status" };
   const entries = Object.entries(fields).filter(([key]) => Object.hasOwn(columns, key));
   if (!entries.length) return;
   await conn.query(`UPDATE projects SET ${entries.map(([key]) => `${columns[key]}=?`).join(", ")} WHERE id=?`, [...entries.map(([, value]) => value), projectId]);
