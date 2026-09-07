@@ -81,7 +81,7 @@ async function listPageByVendor(vendorId, query) {
 async function findByVendorAndId(vendorId, contractorId, conn) {
   const runner = conn || pool;
   const [rows] = await runner.query(
-    `SELECT c.id, c.hourly_rate, c.status, c.skill, u.name, u.email
+    `SELECT c.id, c.hourly_rate, c.status, c.skill, u.id AS user_id, u.name, u.email
      FROM contractors c
      INNER JOIN users u ON u.id = c.user_id
      WHERE c.id = ? AND c.vendor_id = ?

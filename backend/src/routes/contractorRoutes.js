@@ -7,6 +7,7 @@ const contractorProfileController = require("../controllers/contractorProfileCon
 const contractorTimesheetController = require("../controllers/contractorTimesheetController");
 const contractorDashboardController = require("../controllers/contractorDashboardController");
 const contractorAvailabilityController = require("../controllers/contractorAvailabilityController");
+const notificationController = require("../controllers/notificationController");
 
 /**
  * Every route here requires a valid JWT AND role = CONTRACTOR — same
@@ -47,5 +48,10 @@ router.patch("/timesheets/:id", contractorTimesheetController.update);
 // contractorDashboardService.js. Same gate reuse rationale as /profile
 // above; no existing route above this line was changed.
 router.get("/dashboard", contractorDashboardController.getDashboard);
+router.get("/notifications", notificationController.list);
+router.patch("/notifications/read-all", notificationController.readAll);
+router.patch("/notifications/:id/read", notificationController.read);
+router.get("/notification-preferences", notificationController.preferences);
+router.put("/notification-preferences/:eventType", notificationController.preference);
 
 module.exports = router;

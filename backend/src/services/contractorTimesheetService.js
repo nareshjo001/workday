@@ -5,6 +5,7 @@ const assignmentRepository = require("../repositories/assignmentRepository");
 const timesheetRepository = require("../repositories/timesheetRepository");
 const ApiError = require("../utils/ApiError");
 const auditService = require("./auditService");
+const notifications = require("./notificationService");
 const { pageResult } = require("../utils/listQuery");
 
 function todayDateString() {
@@ -268,7 +269,9 @@ async function submitTimesheets(userId, timesheetIds, auditActor) {
     if (auditActor) for (const row of rows) await auditService.write(conn, auditActor, "TIMESHEET_SUBMITTED", "timesheet", row.id, { status: row.status }, { status: "SUBMITTED" });
     await conn.commit();
   } catch (err) { await conn.rollback().catch(() => {}); throw err; } finally { conn.release(); }
-  return Promise.all(ids.map((id) => timesheetRepository.findById(id)));
+  const result = await Promise.all(ids.map((id) => timesheetRepository.findById(id)));
+  for (const row of result) { const recipientId = await notifications.pmForProject(row.project_id); if (recipientId) await notifications.notify({ recipientId, eventType: "TIMESHEET_SUBMITTED", entityType: "timesheet", entityId: row.id, message: "A timesheet is ready for review.", deepLink: "/pm/timesheets" }); }
+  return result;
 }
 
 /**

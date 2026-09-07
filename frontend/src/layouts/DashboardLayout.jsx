@@ -1,4 +1,5 @@
 import { useAuth } from "../context/AuthContext";
+import { Link } from "react-router-dom";
 
 /**
  * Minimal placeholder shell for the three role areas, using the same
@@ -17,6 +18,7 @@ export default function DashboardLayout({ title, children }) {
           <p className="text-xs text-muted">{title}</p>
         </div>
         <div className="flex items-center gap-3">
+          {user?.role && <Link to={`/${user.role.toLowerCase()}/notifications`} className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-text-secondary transition hover:bg-surface-muted" aria-label="Notifications">🔔 Notifications</Link>}
           <div className="text-right">
             <p className="text-sm font-medium text-text">{user?.name}</p>
             <p className="text-xs text-muted">{user?.role}</p>
