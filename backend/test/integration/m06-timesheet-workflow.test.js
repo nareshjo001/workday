@@ -36,7 +36,8 @@ test("M06 preserves daily drafts, requires reasons, supports correction/resubmis
   assert.equal((await request("PATCH", "/contractor/profile/skill", { skill: "FRONTEND" }, contractor)).response.status, 200);
   const project = await request("POST", "/pm/projects", { name: "M06 Daily Workflow", start_date: new Date().toISOString().slice(0, 10), expected_hours: 16, requirements: [{ skill: "FRONTEND", required_count: 1 }] }, pm.token);
   assert.equal(project.response.status, 201); const projectId = project.data.id; const requirementId = project.data.requirements[0].id;
-  assert.equal((await request("POST", `/vendor/projects/${projectId}/requirements/${requirementId}/assign`, { contractorIds: [contractorId] }, vendor.token)).response.status, 201);
+  const submitted = await request("POST", `/vendor/projects/${projectId}/requirements/${requirementId}/candidates`, { contractor_id: contractorId }, vendor.token); assert.equal(submitted.response.status, 201);
+  assert.equal((await request("PATCH", `/pm/candidate-submissions/${submitted.data.id}`, { status: "ACCEPTED" }, pm.token)).response.status, 200);
   assert.equal((await request("PATCH", `/pm/projects/${projectId}/contractors/${contractorId}/allocation`, { allocated_hours: 16 }, pm.token)).response.status, 200);
 
   const draft = await request("POST", "/contractor/timesheets", { projectId, workDate: new Date().toISOString().slice(0, 10), hoursLogged: 8, description: "Build daily workflow" }, contractor);
