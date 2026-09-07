@@ -529,6 +529,12 @@ async function main() {
   assert(submitted.status === 200 && submitted.data.status === "SUBMITTED", `draft submitted: got ${submitted.status}`);
   const reviewed = await req("PATCH", `/pm/invoices/${draft.data.id}/review`, { status: "APPROVED" }, pm.token);
   assert(reviewed.status === 200 && reviewed.data.status === "APPROVED", `PM approval: got ${reviewed.status}`);
+  const secondDraft = await req("POST", "/vendor/invoices/drafts", { milestone_billing_id: billingQueue.data.items[1].milestone_billing_id }, vendor.token);
+  assert(secondDraft.status === 201, `second draft created: got ${secondDraft.status}`);
+  const secondSubmitted = await req("POST", `/vendor/invoices/${secondDraft.data.id}/submit`, undefined, vendor.token);
+  assert(secondSubmitted.status === 200, `second draft submitted: got ${secondSubmitted.status}`);
+  const rejected = await req("PATCH", `/pm/invoices/${secondDraft.data.id}/review`, { status: "REJECTED", rejection_reason: "Correction required" }, pm.token);
+  assert(rejected.status === 200 && rejected.data.status === "REJECTED", `PM rejection: got ${rejected.status}`);
 
   // ===================== Module 4 regression: date rules unchanged =====================
   console.log("\n--- Module 4 regression: date-window rules still enforced ---");

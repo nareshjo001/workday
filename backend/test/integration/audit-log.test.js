@@ -85,7 +85,7 @@ test("M04 audit rows cover critical mutations, retain correlation, redact secret
   for (const action of [
     "CONTRACTOR_CREATED", "PROJECT_CREATED", "ASSIGNMENT_CREATED", "ASSIGNMENT_ALLOCATION_CHANGED",
     "MILESTONE_CREATED", "TIMESHEET_SUBMITTED", "TIMESHEET_REVIEWED", "MILESTONE_MET",
-    "INVOICE_REVIEWED", "PROJECT_COMPLETED",
+    "INVOICE_APPROVED", "INVOICE_REJECTED", "PROJECT_COMPLETED",
   ]) assert.ok(actions.has(action), `missing audit action ${action}`);
   assert.ok(rows.every((row) => row.actor_user_id && row.actor_role && row.entity_type && row.entity_id && row.request_id && row.created_at));
   const serialized = JSON.stringify(rows).toLowerCase();
