@@ -4,3 +4,7 @@ node_modules/
 !.env.example
 dist/
 build/
+
+# Runtime/test uploaded documents
+backend/uploads/documents/*
+!backend/uploads/documents/.gitkeep
