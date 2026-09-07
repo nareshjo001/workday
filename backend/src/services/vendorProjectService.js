@@ -96,45 +96,8 @@ function toProjectView(row, requirements, contractorsByRequirement, hoursMetrics
   };
 }
 
-/**
- * Projects a Vendor can currently browse to staff. Per Module 3 revision
- * spec sections 9-10: NO vendor_projects relationship exists, so this
- * intentionally returns the same list to every vendor — the ownership
- * boundary is enforced later, at assignment time, by scoping which
- * CONTRACTORS a vendor may put on a project, not which projects they may
- * see. Excludes COMPLETED/ON_HOLD/expired projects (projectRepository
- * already filters those out in SQL); fully-staffed ACTIVE projects are
- * still included so a vendor can see "0 open slots" rather than the
- * project silently disappearing.
- */
-async function listAvailableProjects() {
-  const projects = await projectRepository.listAvailableForVendor();
-  if (projects.length === 0) return [];
-
-  const projectIds = projects.map((p) => p.id);
-  const [requirementRows, allocatedRows, approvedRows] = await Promise.all([
-    projectRepository.listRequirementsWithCounts(projectIds),
-    assignmentRepository.sumAllocatedHoursForProjects(projectIds),
-    timesheetRepository.sumApprovedHoursForProjects(projectIds),
-  ]);
-
-  const requirementsByProject = new Map();
-  for (const row of requirementRows) {
-    if (!requirementsByProject.has(row.project_id)) requirementsByProject.set(row.project_id, []);
-    requirementsByProject.get(row.project_id).push(row);
-  }
-  const allocatedByProject = new Map(allocatedRows.map((r) => [r.project_id, r.allocated_hours]));
-  const approvedByProject = new Map(approvedRows.map((r) => [r.project_id, r.approved_hours]));
-
-  return projects.map((p) =>
-    toProjectView(p, requirementsByProject.get(p.id) || [], null, {
-      allocatedHours: allocatedByProject.get(p.id) || 0,
-      approvedHours: approvedByProject.get(p.id) || 0,
-    })
-  );
-}
-async function listAvailableProjectsPage(query) {
-  const { rows, total } = await projectRepository.listAvailablePageForVendor(query);
+async function listAvailableProjectsPage(query, vendorId) {
+  const { rows, total } = await projectRepository.listAvailablePageForVendor(query, vendorId);
   if (!rows.length) return pageResult([], total, query);
   const ids = rows.map((row) => row.id); const [requirements, allocated, approved] = await Promise.all([projectRepository.listRequirementsWithCounts(ids), assignmentRepository.sumAllocatedHoursForProjects(ids), timesheetRepository.sumApprovedHoursForProjects(ids)]);
   const byProject = new Map(); for (const row of requirements) { if (!byProject.has(row.project_id)) byProject.set(row.project_id, []); byProject.get(row.project_id).push(row); }
@@ -163,7 +126,8 @@ async function listAvailableProjectsPage(query) {
  * the same "is this project visible to vendors" check above; this way
  * there is exactly one.
  */
-async function getProjectDetail(projectId) {
+async function getProjectDetail(projectId, vendorId) {
+  if (!(await require('../repositories/vendorAccessRepository').hasProjectAccess(projectId, vendorId))) throw ApiError.notFound("Project not found.");
   const project = await projectRepository.findById(projectId);
   if (!project) {
     throw ApiError.notFound("Project not found.");
@@ -202,6 +166,7 @@ async function getProjectDetail(projectId) {
  * function's comment).
  */
 async function getEligibleContractorsForRequirement(vendorId, projectId, requirementId) {
+  if (!(await require('../repositories/vendorAccessRepository').hasProjectAccess(projectId, vendorId))) throw ApiError.notFound("Project not found.");
   const project = await projectRepository.findById(projectId);
   if (!project) {
     throw ApiError.notFound("Project not found.");
@@ -228,4 +193,4 @@ async function getEligibleContractorsForRequirement(vendorId, projectId, require
   };
 }
 
-module.exports = { listAvailableProjects, listAvailableProjectsPage, getProjectDetail, getEligibleContractorsForRequirement };
+module.exports = { listAvailableProjectsPage, getProjectDetail, getEligibleContractorsForRequirement };

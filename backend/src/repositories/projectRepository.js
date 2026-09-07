@@ -158,35 +158,13 @@ async function markCompleted(conn, projectId) {
   return result.affectedRows > 0;
 }
 
-/**
- * Projects a Vendor can currently browse for staffing: ACTIVE lifecycle
- * status and not past their end_date. Per Module 3 revision spec
- * sections 9-10, this deliberately has NO vendor_projects ownership
- * scoping — any Vendor may see any project open for staffing; only
- * assignment (which contractors they may put on it) is ownership-scoped.
- * COMPLETED/ON_HOLD/expired projects are excluded here even though a PM
- * can still see them via listByPm.
- */
-async function listAvailableForVendor() {
-  const [rows] = await pool.query(
-    `SELECT p.id, p.name, p.description, ${COMPANY_PM_SELECT},
-            p.start_date, p.end_date, p.expected_hours, p.status
-     FROM projects p
-     ${COMPANY_PM_JOIN}
-     WHERE p.status = 'ACTIVE'
-       AND (p.end_date IS NULL OR p.end_date >= CURDATE())
-     ORDER BY p.created_at DESC`
-  );
-  return rows;
-}
-
-async function listAvailablePageForVendor(query) {
-  const where = ["p.status = 'ACTIVE'", "(p.end_date IS NULL OR p.end_date >= CURDATE())"]; const params = [];
+async function listAvailablePageForVendor(query, vendorId) {
+  const where = ["p.status = 'ACTIVE'", "(p.end_date IS NULL OR p.end_date >= CURDATE())", "pv.vendor_id = ?", "pv.status = 'ACTIVE'"]; const params = [vendorId];
   if (query.filters.search) { where.push("(p.name LIKE ? OR COALESCE(cc.name, p.company_name) LIKE ?)"); const term = `%${query.filters.search}%`; params.push(term, term); }
   if (query.filters.startDate) { where.push("p.start_date >= ?"); params.push(query.filters.startDate); }
   const clause = where.join(" AND ");
-  const [[count]] = await pool.query(`SELECT COUNT(*) AS total FROM projects p ${COMPANY_PM_JOIN} WHERE ${clause}`, params);
-  const [rows] = await pool.query(`SELECT p.id, p.name, p.description, ${COMPANY_PM_SELECT}, p.start_date, p.end_date, p.expected_hours, p.status FROM projects p ${COMPANY_PM_JOIN} WHERE ${clause} ORDER BY ${query.sortColumn} ${query.order}, p.id ${query.order} LIMIT ? OFFSET ?`, [...params, query.pageSize, query.offset]);
+  const [[count]] = await pool.query(`SELECT COUNT(*) AS total FROM projects p INNER JOIN project_vendors pv ON pv.project_id=p.id ${COMPANY_PM_JOIN} WHERE ${clause}`, params);
+  const [rows] = await pool.query(`SELECT p.id, p.name, p.description, ${COMPANY_PM_SELECT}, p.start_date, p.end_date, p.expected_hours, p.status FROM projects p INNER JOIN project_vendors pv ON pv.project_id=p.id ${COMPANY_PM_JOIN} WHERE ${clause} ORDER BY ${query.sortColumn} ${query.order}, p.id ${query.order} LIMIT ? OFFSET ?`, [...params, query.pageSize, query.offset]);
   return { rows, total: Number(count.total) };
 }
 
@@ -244,7 +222,6 @@ module.exports = {
   findById,
   lockByIdForUpdate,
   markCompleted,
-  listAvailableForVendor,
   listAvailablePageForVendor,
   listRequirementsWithCounts,
   findRequirementById,

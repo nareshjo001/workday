@@ -47,8 +47,20 @@ async function recordLoginFailure(conn, userId, maxFailures, lockoutMinutes) {
   await conn.query("UPDATE users SET failed_login_count=failed_login_count+1, locked_until=IF(failed_login_count+1 >= ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), locked_until) WHERE id=?", [maxFailures, lockoutMinutes, userId]);
 }
 
+async function listVendors() {
+  const [rows] = await pool.query(
+    "SELECT id, name, email FROM users WHERE role = 'VENDOR' ORDER BY name ASC, id ASC"
+  );
+  return rows;
+}
+
+async function isVendor(userId, conn = pool) {
+  const [rows] = await conn.query("SELECT 1 FROM users WHERE id = ? AND role = 'VENDOR' LIMIT 1", [userId]);
+  return Boolean(rows[0]);
+}
+
 async function clearLoginFailures(conn, userId) {
   await conn.query("UPDATE users SET failed_login_count=0, locked_until=NULL WHERE id=?", [userId]);
 }
 
-module.exports = { findByEmail, findById, createUser, setPassword, recordLoginFailure, clearLoginFailures };
+module.exports = { findByEmail, findById, createUser, setPassword, recordLoginFailure, clearLoginFailures, listVendors, isVendor };

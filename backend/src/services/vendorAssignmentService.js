@@ -5,6 +5,7 @@ const assignmentRepository = require("../repositories/assignmentRepository");
 const ApiError = require("../utils/ApiError");
 const auditService = require("./auditService");
 const contractorDocumentService = require("./contractorDocumentService");
+const vendorAccessRepository = require("../repositories/vendorAccessRepository");
 
 function todayDateString() {
   return new Date().toISOString().slice(0, 10);
@@ -65,6 +66,8 @@ async function assignContractors(vendorId, projectId, requirementId, contractorI
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
+
+    if (!(await vendorAccessRepository.hasProjectAccess(projectId, vendorId, conn))) throw ApiError.notFound("Project not found.");
 
     // Locks the project row for the rest of this transaction — the real
     // guarantee behind the hours-capacity check below.

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import DashboardLayout from "../layouts/DashboardLayout";
 import Spinner from "../components/Spinner";
 import AlertBanner from "../components/AlertBanner";
@@ -90,9 +91,7 @@ export default function PMProjectsPage() {
       <div className="mx-auto flex max-w-4xl flex-col gap-5">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-xl font-semibold text-text">Projects</h1>
-          <PrimaryButton type="button" fullWidth={false} onClick={() => setIsCreateOpen(true)}>
-            + Create Project
-          </PrimaryButton>
+          <div className="flex gap-2"><Link to="/pm/vendor-access" className="rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary transition hover:bg-surface-muted">Manage Vendor Access</Link><PrimaryButton type="button" fullWidth={false} onClick={() => setIsCreateOpen(true)}>+ Create Project</PrimaryButton></div>
         </div>
 
         <AlertBanner message={successMessage} variant="success" />

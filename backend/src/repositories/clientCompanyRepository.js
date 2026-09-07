@@ -30,6 +30,26 @@ async function findOrCreate(conn, name) {
   return result.insertId;
 }
 
+/**
+ * Creates the initial PM's company.  Unlike findOrCreate this deliberately
+ * refuses a duplicate: joining an established tenant must go through an
+ * invitation, never through a second self-signup carrying the same name.
+ */
+async function createBootstrap(conn, name) {
+  try {
+    const [result] = await conn.query(
+      "INSERT INTO client_companies (name, normalized_name) VALUES (?, ?)",
+      [name.trim(), normalize(name)]
+    );
+    return result.insertId;
+  } catch (error) {
+    if (error.code === "ER_DUP_ENTRY") {
+      throw require("../utils/ApiError").forbidden("An invitation is required to join an existing client company.");
+    }
+    throw error;
+  }
+}
+
 async function findById(companyId) {
   const [rows] = await pool.query(
     "SELECT id, name, created_at FROM client_companies WHERE id = ? LIMIT 1",
@@ -38,4 +58,4 @@ async function findById(companyId) {
   return rows[0] || null;
 }
 
-module.exports = { findOrCreate, findById };
+module.exports = { findOrCreate, createBootstrap, findById };
