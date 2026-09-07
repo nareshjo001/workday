@@ -4,6 +4,7 @@ const audit = require('./auditService');
 const notifications = require('./notificationService');
 const storage = require('./documentStorageService');
 const { buildPdf } = require('./invoicePdfService');
+const payments = require('./paymentService');
 
 const id = (value) => { const parsed = Number(value); if (!Number.isInteger(parsed) || parsed < 1) throw ApiError.badRequest('Validation failed', ['A positive id is required.']); return parsed; };
 const decimal = (value, field, { min = 0, max = 9999999999 } = {}) => { const parsed = Number(value); if (!Number.isFinite(parsed) || parsed < min || parsed > max || Math.round(parsed * 100) !== parsed * 100) throw ApiError.badRequest('Validation failed', [`${field} must be a valid amount with at most two decimal places.`]); return parsed.toFixed(2); };
@@ -53,7 +54,7 @@ async function detail(invoiceId, conn = pool) {
   if (!invoice) return null;
   const [items] = await conn.query('SELECT * FROM invoice_items WHERE invoice_id=? ORDER BY id', [invoiceId]);
   const [adjustments] = await conn.query('SELECT id,description,amount FROM invoice_adjustments WHERE invoice_id=? ORDER BY id', [invoiceId]);
-  return normalize({ ...invoice, items, adjustments: adjustments.map((adjustment) => ({ ...adjustment, amount: Number(adjustment.amount) })) });
+  return normalize({ ...invoice, items, adjustments: adjustments.map((adjustment) => ({ ...adjustment, amount: Number(adjustment.amount) })), ...(await payments.summary(invoice.id, conn)) });
 }
 async function listForActor(actor, query = {}) {
   const pmScope = actor.role === 'PM';

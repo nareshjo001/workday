@@ -15,6 +15,7 @@ const staffingPipelineController = require("../controllers/staffingPipelineContr
 const notificationController = require("../controllers/notificationController");
 const rateCardController = require("../controllers/rateCardController");
 const invoiceLifecycleController = require("../controllers/invoiceLifecycleController");
+const paymentController = require("../controllers/paymentController");
 
 /**
  * Every route in this router requires a valid JWT AND role = VENDOR.
@@ -76,6 +77,7 @@ router.post("/invoices/:id/revise", invoiceLifecycleController.revise);
 router.post("/invoices/:id/cancel", invoiceLifecycleController.cancel);
 router.get("/invoices/:id/detail", invoiceLifecycleController.detail);
 router.get("/invoices/:id/pdf", invoiceLifecycleController.pdf);
+router.post("/invoices/:id/payments", paymentController.record);
 
 // UI + analytics redesign: a single read-only aggregated dashboard
 // payload for the Vendor home screen (KPIs, earnings, project progress,
