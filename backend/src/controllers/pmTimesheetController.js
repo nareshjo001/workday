@@ -2,6 +2,7 @@ const pmTimesheetService = require("../services/pmTimesheetService");
 const {
   validateTimesheetIdParam,
   validateReviewTimesheet,
+  validateBulkReviewTimesheets,
 } = require("../validators/pmTimesheetValidators");
 const asyncHandler = require("../utils/asyncHandler");
 const { parseListQuery, positiveIntegerFilter, isoDateFilter } = require("../utils/listQuery");
@@ -22,9 +23,15 @@ const listPending = asyncHandler(async (req, res) => {
 
 const review = asyncHandler(async (req, res) => {
   const timesheetId = validateTimesheetIdParam(req.params);
-  const { status } = validateReviewTimesheet(req.body);
-  const timesheet = await pmTimesheetService.reviewTimesheet(req.user.userId, timesheetId, status, { ...req.user, requestId: req.requestId });
+  const { status, rejectionReason } = validateReviewTimesheet(req.body);
+  const timesheet = await pmTimesheetService.reviewTimesheet(req.user.userId, timesheetId, status, { ...req.user, requestId: req.requestId }, rejectionReason);
   res.status(200).json(timesheet);
 });
 
-module.exports = { listPending, review };
+const bulkReview = asyncHandler(async (req, res) => {
+  const { timesheetIds, status, rejectionReason } = validateBulkReviewTimesheets(req.body);
+  const timesheets = await pmTimesheetService.reviewTimesheets(req.user.userId, timesheetIds, status, { ...req.user, requestId: req.requestId }, rejectionReason);
+  res.status(200).json(timesheets);
+});
+
+module.exports = { listPending, review, bulkReview };

@@ -7,7 +7,7 @@ import { formatSkill } from "../../constants/skills";
  * as components/projects/ProjectCardList. Each card is one contractor's
  * one day (daily-logging revision) — see PendingTimesheetTable's comment.
  */
-export default function PendingTimesheetCardList({ timesheets, reviewingId, onApprove, onReject }) {
+export default function PendingTimesheetCardList({ timesheets, reviewingId, onApprove, onReject, selectedIds = [], onToggle }) {
   return (
     <div className="flex flex-col gap-3 md:hidden">
       {timesheets.map((t) => {
@@ -19,11 +19,12 @@ export default function PendingTimesheetCardList({ timesheets, reviewingId, onAp
                 <p className="font-medium text-text">{t.contractor_name}</p>
                 <p className="text-xs text-muted">{formatSkill(t.contractor_skill)}</p>
               </div>
-              <span className="text-xs text-muted">{formatHours(t.hours_logged)} hrs</span>
+              <div className="flex items-center gap-2"><input aria-label={`Select ${t.contractor_name} timesheet`} type="checkbox" checked={selectedIds.includes(t.id)} onChange={() => onToggle(t.id)} /><span className="text-xs text-muted">{formatHours(t.hours_logged)} hrs</span></div>
             </div>
             <p className="mt-2 text-sm text-text-secondary">{t.project_name}</p>
             <p className="mt-1 text-xs text-muted">{formatDate(t.work_date)}</p>
             <p className="mt-1 text-xs text-muted">Submitted {formatDateTime(t.submitted_at)}</p>
+            {t.description && <p className="mt-2 text-sm text-text-secondary">{t.description}</p>}
             <div className="mt-3 flex gap-2 border-t border-border pt-3">
               <button
                 type="button"

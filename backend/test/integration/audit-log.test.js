@@ -94,6 +94,6 @@ test("M04 audit rows cover critical mutations, retain correlation, redact secret
   }
   const review = rows.find((row) => row.action === "TIMESHEET_REVIEWED");
   const asObject = (value) => typeof value === "string" ? JSON.parse(value) : value;
-  assert.equal(asObject(review.before_json).status, "PENDING");
+  assert.equal(asObject(review.before_json).status, "SUBMITTED");
   assert.ok(["APPROVED", "REJECTED"].includes(asObject(review.after_json).status));
 });

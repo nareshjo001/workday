@@ -17,7 +17,7 @@ import { formatHours } from "../projects/format";
  * for legacy assignments with no allocated_hours set, or if the lookup
  * ever misses (e.g. a stale group with no matching assignment row).
  */
-export default function ProjectTimesheetGroup({ project, allocation, onEdit }) {
+export default function ProjectTimesheetGroup({ project, allocation, onEdit, onSubmitWeek }) {
   const hasAllocation =
     allocation && allocation.allocated_hours !== null && allocation.allocated_hours !== undefined;
 
@@ -40,7 +40,7 @@ export default function ProjectTimesheetGroup({ project, allocation, onEdit }) {
       </div>
       <div className="flex flex-col gap-2">
         {project.weeks.map((week, index) => (
-          <WeeklyGroup key={week.weekStart} week={week} onEdit={onEdit} defaultOpen={index === 0} />
+          <WeeklyGroup key={week.weekStart} week={week} onEdit={onEdit} onSubmitWeek={onSubmitWeek} defaultOpen={index === 0} />
         ))}
       </div>
     </div>

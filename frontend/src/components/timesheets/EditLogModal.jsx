@@ -29,6 +29,7 @@ function todayDateString() {
 export default function EditLogModal({ log, project, onClose, onSubmit }) {
   const [workDate, setWorkDate] = useState(log.work_date);
   const [hoursLogged, setHoursLogged] = useState(String(log.hours_logged));
+  const [description, setDescription] = useState(log.description || "");
   const [fieldErrors, setFieldErrors] = useState({});
   const [formError, setFormError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -70,7 +71,7 @@ export default function EditLogModal({ log, project, onClose, onSubmit }) {
 
     setIsSubmitting(true);
     try {
-      await onSubmit({ workDate, hoursLogged: Number(hoursLogged) });
+      await onSubmit({ workDate, hoursLogged: Number(hoursLogged), description });
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -123,6 +124,7 @@ export default function EditLogModal({ log, project, onClose, onSubmit }) {
           error={fieldErrors.hoursLogged}
           placeholder="e.g. 8 or 7.5"
         />
+        <FormField id="editDescription" label="Work Description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What did you work on?" />
 
         <div className="mt-2 flex gap-3">
           <button

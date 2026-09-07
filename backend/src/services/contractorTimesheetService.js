@@ -134,7 +134,7 @@ function assertWithinRemainingAllocation(project, assignment, reservedHours, hou
  *      migration 013 (the actual guarantee under concurrency, not just
  *      this check).
  */
-async function submitTimesheet(userId, { projectId, workDate, hoursLogged }, auditActor) {
+async function submitTimesheet(userId, { projectId, workDate, hoursLogged, description }, auditActor) {
   const contractor = await contractorRepository.findByUserId(userId);
   if (!contractor) {
     throw ApiError.notFound("Contractor record not found for this account.");
@@ -176,7 +176,7 @@ async function submitTimesheet(userId, { projectId, workDate, hoursLogged }, aud
         contractorId: contractor.id,
         projectId,
         workDate,
-        hoursLogged,
+        hoursLogged, description,
       });
     } catch (err) {
       // Race-safety net: the pre-check above is a friendly read, the
@@ -190,8 +190,8 @@ async function submitTimesheet(userId, { projectId, workDate, hoursLogged }, aud
     }
 
     if (auditActor) {
-      await auditService.write(conn, auditActor, "TIMESHEET_SUBMITTED", "timesheet", timesheetId, null, {
-        project_id: projectId, work_date: workDate, hours_logged: hoursLogged, status: "PENDING",
+      await auditService.write(conn, auditActor, "TIMESHEET_DRAFT_SAVED", "timesheet", timesheetId, null, {
+        project_id: projectId, work_date: workDate, hours_logged: hoursLogged, description, status: "DRAFT",
       });
     }
 
@@ -227,6 +227,36 @@ async function listMyTimesheetsPage(userId, query) {
   if (!contractor) return pageResult([], 0, query);
   const { rows, total } = await timesheetRepository.listPageByContractor(contractor.id, query);
   return pageResult(rows, total, query);
+}
+
+async function submitTimesheets(userId, timesheetIds, auditActor) {
+  const contractor = await contractorRepository.findByUserId(userId);
+  if (!contractor) throw ApiError.notFound("Contractor record not found for this account.");
+  if (contractor.status !== "ACTIVE") throw ApiError.forbidden("Inactive contractors cannot submit timesheets.");
+  const ids = [...new Set(timesheetIds)].sort((a, b) => a - b);
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const rows = await timesheetRepository.lockOwnedByIds(conn, contractor.id, ids);
+    if (rows.length !== ids.length || rows.some((row) => !["DRAFT", "REJECTED"].includes(row.status))) {
+      throw ApiError.conflict("Only your draft or rejected timesheets can be submitted.");
+    }
+    // Preserve the existing release/completion rule for draft rows too: a
+    // contractor cannot turn an old draft into new pending work after the
+    // assignment or project has ceased to be active. Project IDs are ordered
+    // deterministically before acquiring assignment locks.
+    for (const projectId of [...new Set(rows.map((row) => row.project_id))].sort((a, b) => a - b)) {
+      const assignment = await assignmentRepository.lockActiveForContractorProject(conn, contractor.id, projectId);
+      if (!assignment) throw ApiError.conflict("You are no longer assigned to this project and cannot submit this timesheet.");
+      const project = await projectRepository.findById(projectId);
+      if (!project || project.status !== "ACTIVE") throw ApiError.conflict("Timesheets can only be submitted for active projects.");
+    }
+    const updated = await timesheetRepository.markSubmitted(conn, ids);
+    if (updated !== ids.length) throw ApiError.conflict("One or more timesheets changed before submission.");
+    if (auditActor) for (const row of rows) await auditService.write(conn, auditActor, "TIMESHEET_SUBMITTED", "timesheet", row.id, { status: row.status }, { status: "SUBMITTED" });
+    await conn.commit();
+  } catch (err) { await conn.rollback().catch(() => {}); throw err; } finally { conn.release(); }
+  return Promise.all(ids.map((id) => timesheetRepository.findById(id)));
 }
 
 /**
@@ -266,7 +296,7 @@ async function listMyTimesheetsPage(userId, query) {
  * concurrent new submission against the same allocation — can't
  * interleave with this one.
  */
-async function updateTimesheet(userId, timesheetId, { workDate, hoursLogged }, auditActor) {
+async function updateTimesheet(userId, timesheetId, { workDate, hoursLogged, description }, auditActor) {
   const contractor = await contractorRepository.findByUserId(userId);
   if (!contractor) {
     throw ApiError.notFound("Contractor record not found for this account.");
@@ -316,7 +346,7 @@ async function updateTimesheet(userId, timesheetId, { workDate, hoursLogged }, a
 
     let updated;
     try {
-      updated = await timesheetRepository.updateRejectedLog(conn, timesheetId, { workDate, hoursLogged });
+      updated = await timesheetRepository.updateRejectedLog(conn, timesheetId, { workDate, hoursLogged, description });
     } catch (err) {
       if (err?.code === "ER_DUP_ENTRY") {
         throw ApiError.conflict("A timesheet for this project and date already exists.");
@@ -333,9 +363,10 @@ async function updateTimesheet(userId, timesheetId, { workDate, hoursLogged }, a
 
     if (auditActor) {
       await auditService.write(conn, auditActor, "TIMESHEET_RESUBMITTED", "timesheet", timesheetId, {
-        work_date: existing.work_date, hours_logged: Number(existing.hours_logged), status: existing.status,
+        work_date: existing.work_date, hours_logged: Number(existing.hours_logged), description: existing.description || null,
+        rejection_reason: existing.rejection_reason || null, status: existing.status,
       }, {
-        work_date: workDate, hours_logged: hoursLogged, status: "PENDING",
+        work_date: workDate, hours_logged: hoursLogged, description, status: "DRAFT",
       });
     }
 
@@ -352,4 +383,4 @@ async function updateTimesheet(userId, timesheetId, { workDate, hoursLogged }, a
   return timesheetRepository.findById(timesheetId);
 }
 
-module.exports = { submitTimesheet, listMyTimesheets, listMyTimesheetsPage, updateTimesheet };
+module.exports = { submitTimesheet, submitTimesheets, listMyTimesheets, listMyTimesheetsPage, updateTimesheet };

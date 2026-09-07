@@ -106,11 +106,10 @@ function validateSubmitTimesheet(body = {}) {
 
   const hoursLogged = parseAndValidateHours(body.hoursLogged, errors);
 
-  if (errors.length > 0) {
-    throw ApiError.badRequest("Validation failed", errors);
-  }
-
-  return { projectId, workDate: workDateRaw, hoursLogged };
+  const description = body.description === undefined ? null : String(body.description).trim();
+  if (description && description.length > 1000) errors.push("description must be at most 1000 characters.");
+  if (errors.length > 0) throw ApiError.badRequest("Validation failed", errors);
+  return { projectId, workDate: workDateRaw, hoursLogged, description: description || null };
 }
 
 /**
@@ -155,11 +154,10 @@ function validateEditTimesheet(body = {}) {
 
   const hoursLogged = parseAndValidateHours(body.hoursLogged, errors);
 
-  if (errors.length > 0) {
-    throw ApiError.badRequest("Validation failed", errors);
-  }
-
-  return { workDate: workDateRaw, hoursLogged };
+  const description = body.description === undefined ? null : String(body.description).trim();
+  if (description && description.length > 1000) errors.push("description must be at most 1000 characters.");
+  if (errors.length > 0) throw ApiError.badRequest("Validation failed", errors);
+  return { workDate: workDateRaw, hoursLogged, description: description || null };
 }
 
 module.exports = {

@@ -6,6 +6,7 @@ import PendingTimesheetTable from "../components/timesheets/PendingTimesheetTabl
 import PendingTimesheetCardList from "../components/timesheets/PendingTimesheetCardList";
 import pmTimesheetService from "../services/pmTimesheetService";
 import ListControls from "../components/ListControls";
+import RejectTimesheetModal from "../components/timesheets/RejectTimesheetModal";
 
 /**
  * PM's timesheet-approval queue: pending timesheets for the PM's own
@@ -22,6 +23,8 @@ export default function PmTimesheetsPage() {
   const [successMessage, setSuccessMessage] = useState(null);
   const [page, setPage] = useState(1);
   const [pageInfo, setPageInfo] = useState({ total_pages: 1, total: 0 });
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [rejectingIds, setRejectingIds] = useState(null);
 
   const loadPending = useCallback(async () => {
     setIsLoading(true);
@@ -30,6 +33,7 @@ export default function PmTimesheetsPage() {
       const data = await pmTimesheetService.listPending({ page, pageSize: 25, sort: "submitted_at", order: "asc" });
       setTimesheets(data.items);
       setPageInfo(data);
+      setSelectedIds([]);
     } catch (err) {
       setLoadError(err.message);
     } finally {
@@ -47,11 +51,11 @@ export default function PmTimesheetsPage() {
     return () => clearTimeout(timer);
   }, [successMessage]);
 
-  const handleReview = async (timesheetId, status) => {
+  const handleReview = async (timesheetId, status, rejectionReason = null) => {
     setActionError(null);
     setReviewingId(timesheetId);
     try {
-      await pmTimesheetService.reviewTimesheet(timesheetId, status);
+      await pmTimesheetService.reviewTimesheet(timesheetId, status, rejectionReason);
       // Reviewed timesheets drop out of the PENDING queue immediately —
       // re-fetching the full list isn't necessary since the only thing
       // that changed is this one row leaving PENDING.
@@ -63,6 +67,21 @@ export default function PmTimesheetsPage() {
       setReviewingId(null);
     }
   };
+
+  const handleBulkReview = async (status, rejectionReason = null) => {
+    const ids = selectedIds;
+    if (!ids.length) return;
+    setActionError(null); setReviewingId("bulk");
+    try {
+      await pmTimesheetService.bulkReviewTimesheets(ids, status, rejectionReason);
+      setTimesheets((prev) => prev.filter((timesheet) => !ids.includes(timesheet.id)));
+      setSelectedIds([]);
+      setSuccessMessage(`${ids.length} timesheet${ids.length === 1 ? "" : "s"} ${status === "APPROVED" ? "approved" : "rejected"}.`);
+    } catch (err) { setActionError(err.message); throw err; } finally { setReviewingId(null); }
+  };
+
+  const toggleSelected = (id) => setSelectedIds((prev) => prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id]);
+  const toggleAll = (checked) => setSelectedIds(checked ? timesheets.map((timesheet) => timesheet.id) : []);
 
   return (
     <DashboardLayout title="Timesheet Approvals">
@@ -83,22 +102,29 @@ export default function PmTimesheetsPage() {
           </div>
         ) : (
           <div className="rounded-lg bg-surface p-4 shadow-panel ring-1 ring-border sm:p-6">
+            {selectedIds.length > 0 && <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md bg-surface-muted px-3 py-2"><span className="mr-auto text-sm text-text-secondary">{selectedIds.length} selected</span><button type="button" disabled={reviewingId === "bulk"} onClick={() => handleBulkReview("APPROVED")} className="rounded-md bg-success-bg px-3 py-1.5 text-xs font-medium text-success disabled:opacity-50">Approve selected</button><button type="button" disabled={reviewingId === "bulk"} onClick={() => setRejectingIds(selectedIds)} className="rounded-md bg-error-bg px-3 py-1.5 text-xs font-medium text-error disabled:opacity-50">Reject selected</button></div>}
             <PendingTimesheetTable
               timesheets={timesheets}
               reviewingId={reviewingId}
               onApprove={(id) => handleReview(id, "APPROVED")}
-              onReject={(id) => handleReview(id, "REJECTED")}
+              onReject={(id) => setRejectingIds([id])}
+              selectedIds={selectedIds}
+              onToggle={toggleSelected}
+              onToggleAll={toggleAll}
             />
             <PendingTimesheetCardList
               timesheets={timesheets}
               reviewingId={reviewingId}
               onApprove={(id) => handleReview(id, "APPROVED")}
-              onReject={(id) => handleReview(id, "REJECTED")}
+              onReject={(id) => setRejectingIds([id])}
+              selectedIds={selectedIds}
+              onToggle={toggleSelected}
             />
             <ListControls page={page} totalPages={pageInfo.total_pages} total={pageInfo.total} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
           </div>
         )}
       </div>
+      {rejectingIds && <RejectTimesheetModal count={rejectingIds.length} onClose={() => setRejectingIds(null)} onConfirm={async (reason) => { if (rejectingIds.length === 1) await handleReview(rejectingIds[0], "REJECTED", reason); else await handleBulkReview("REJECTED", reason); setRejectingIds(null); }} />}
     </DashboardLayout>
   );
 }

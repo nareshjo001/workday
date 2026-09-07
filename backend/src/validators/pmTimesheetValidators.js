@@ -38,11 +38,21 @@ function validateReviewTimesheet(body = {}) {
     errors.push(`status must be one of: ${ALLOWED_STATUSES.join(", ")}.`);
   }
 
-  if (errors.length > 0) {
-    throw ApiError.badRequest("Validation failed", errors);
-  }
-
-  return { status };
+  const rejectionReason = body.rejectionReason === undefined ? null : String(body.rejectionReason).trim();
+  if (status === "REJECTED" && !rejectionReason) errors.push("rejectionReason is required when rejecting a timesheet.");
+  if (rejectionReason && rejectionReason.length > 1000) errors.push("rejectionReason must be at most 1000 characters.");
+  if (errors.length > 0) throw ApiError.badRequest("Validation failed", errors);
+  return { status, rejectionReason: rejectionReason || null };
 }
 
-module.exports = { validateTimesheetIdParam, validateReviewTimesheet };
+function validateBulkReviewTimesheets(body = {}) {
+  const { status, rejectionReason } = validateReviewTimesheet(body);
+  const rawIds = Array.isArray(body.timesheetIds) ? body.timesheetIds : [];
+  const ids = rawIds.map(parsePositiveInt);
+  if (!ids.length || ids.some((id) => !id)) {
+    throw ApiError.badRequest("Validation failed", ["timesheetIds must be a non-empty list of positive integers."]);
+  }
+  return { timesheetIds: [...new Set(ids)].sort((a, b) => a - b), status, rejectionReason };
+}
+
+module.exports = { validateTimesheetIdParam, validateReviewTimesheet, validateBulkReviewTimesheets };

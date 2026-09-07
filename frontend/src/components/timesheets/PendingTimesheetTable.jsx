@@ -14,11 +14,13 @@ import { formatSkill } from "../../constants/skills";
  * submitted (prevents a double Approve/Reject click from firing two
  * requests for the same row while the first is still in flight).
  */
-export default function PendingTimesheetTable({ timesheets, reviewingId, onApprove, onReject }) {
+export default function PendingTimesheetTable({ timesheets, reviewingId, onApprove, onReject, selectedIds = [], onToggle, onToggleAll }) {
+  const allSelected = timesheets.length > 0 && timesheets.every((t) => selectedIds.includes(t.id));
   return (
     <table className="hidden w-full text-left text-sm md:table">
       <thead>
         <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
+          <th className="py-3 pr-3 font-medium"><input aria-label="Select all timesheets" type="checkbox" checked={allSelected} onChange={(event) => onToggleAll(event.target.checked)} /></th>
           <th className="py-3 pr-4 font-medium">Contractor</th>
           <th className="py-3 pr-4 font-medium">Skill</th>
           <th className="py-3 pr-4 font-medium">Project</th>
@@ -33,6 +35,7 @@ export default function PendingTimesheetTable({ timesheets, reviewingId, onAppro
           const isBusy = reviewingId === t.id;
           return (
             <tr key={t.id} className="border-b border-border last:border-0">
+              <td className="py-3 pr-3"><input aria-label={`Select ${t.contractor_name} timesheet`} type="checkbox" checked={selectedIds.includes(t.id)} onChange={() => onToggle(t.id)} /></td>
               <td className="py-3 pr-4 font-medium text-text">{t.contractor_name}</td>
               <td className="py-3 pr-4 text-text-secondary">{formatSkill(t.contractor_skill)}</td>
               <td className="py-3 pr-4 text-text-secondary">{t.project_name}</td>

@@ -55,7 +55,7 @@ async function listPendingPage(pmId, query) {
  * must never roll back the approval itself). Module 4 does not know or
  * care what the hook does; see milestoneService.js.
  */
-async function reviewTimesheet(pmId, timesheetId, status, auditActor) {
+async function reviewTimesheet(pmId, timesheetId, status, auditActor, rejectionReason = null) {
   const conn = await pool.getConnection();
   let reviewed;
   try {
@@ -67,11 +67,11 @@ async function reviewTimesheet(pmId, timesheetId, status, auditActor) {
       // but belongs to another PM's project — never confirm which.
       throw ApiError.notFound("Timesheet not found.");
     }
-    if (timesheet.status !== "PENDING") {
+    if (timesheet.status !== "SUBMITTED") {
       throw ApiError.conflict("This timesheet has already been reviewed.");
     }
 
-    const updated = await timesheetRepository.markReviewed(conn, timesheetId, status, pmId);
+    const updated = await timesheetRepository.markReviewed(conn, timesheetId, status, pmId, rejectionReason);
     if (!updated) {
       // Lost the race to another request between the lock read above and
       // this UPDATE (should be unreachable given the row lock, but the
@@ -79,7 +79,7 @@ async function reviewTimesheet(pmId, timesheetId, status, auditActor) {
       // than assuming the lock alone is sufficient).
       throw ApiError.conflict("This timesheet has already been reviewed.");
     }
-    if (auditActor) await auditService.write(conn, auditActor, "TIMESHEET_REVIEWED", "timesheet", timesheetId, { status: timesheet.status }, { status, reviewed_by: pmId });
+    if (auditActor) await auditService.write(conn, auditActor, "TIMESHEET_REVIEWED", "timesheet", timesheetId, { status: timesheet.status }, { status, reviewed_by: pmId, rejection_reason: rejectionReason });
 
     await conn.commit();
     reviewed = timesheet;
@@ -106,4 +106,39 @@ async function reviewTimesheet(pmId, timesheetId, status, auditActor) {
   return timesheetRepository.findById(timesheetId);
 }
 
-module.exports = { listPending, listPendingPage, reviewTimesheet };
+/**
+ * Reviews a selected set of submitted daily rows. IDs are deduplicated and
+ * locked in ascending order, so two overlapping bulk requests acquire the
+ * same row locks in the same order. Each row is ownership-checked inside the
+ * one transaction; a single invalid, foreign, or stale row rolls back the
+ * complete operation rather than creating a partial review.
+ */
+async function reviewTimesheets(pmId, timesheetIds, status, auditActor, rejectionReason = null) {
+  const ids = [...new Set(timesheetIds)].sort((a, b) => a - b);
+  const conn = await pool.getConnection();
+  const projects = new Set();
+  try {
+    await conn.beginTransaction();
+    for (const timesheetId of ids) {
+      const timesheet = await timesheetRepository.lockForReview(conn, timesheetId);
+      if (!timesheet || timesheet.pm_id !== pmId) throw ApiError.notFound("Timesheet not found.");
+      if (timesheet.status !== "SUBMITTED") throw ApiError.conflict("One or more timesheets have already been reviewed.");
+      const updated = await timesheetRepository.markReviewed(conn, timesheetId, status, pmId, rejectionReason);
+      if (!updated) throw ApiError.conflict("One or more timesheets have already been reviewed.");
+      if (auditActor) await auditService.write(conn, auditActor, "TIMESHEET_REVIEWED", "timesheet", timesheetId, { status: timesheet.status }, { status, reviewed_by: pmId, rejection_reason: rejectionReason });
+      projects.add(timesheet.project_id);
+    }
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback().catch(() => {});
+    throw err;
+  } finally {
+    conn.release();
+  }
+  if (status === "APPROVED") {
+    for (const projectId of projects) await milestoneService.checkAndTriggerMilestones(projectId, auditActor);
+  }
+  return Promise.all(ids.map((id) => timesheetRepository.findById(id)));
+}
+
+module.exports = { listPending, listPendingPage, reviewTimesheet, reviewTimesheets };

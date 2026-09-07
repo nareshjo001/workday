@@ -35,6 +35,7 @@ router.patch(
 // projects. Same gate reuse rationale as /projects above — no new
 // authenticate/authorizeRoles declaration needed.
 router.get("/timesheets/pending", pmTimesheetController.listPending);
+router.patch("/timesheets/bulk-review", pmTimesheetController.bulkReview);
 router.patch("/timesheets/:id", pmTimesheetController.review);
 
 // Module 5: milestone & billing engine. Same gate reuse rationale as
