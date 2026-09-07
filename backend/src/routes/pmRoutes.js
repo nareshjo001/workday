@@ -13,6 +13,7 @@ const authController = require("../controllers/authController");
 const candidateSubmissionController = require("../controllers/candidateSubmissionController");
 const staffingPipelineController = require("../controllers/staffingPipelineController");
 const notificationController = require("../controllers/notificationController");
+const invoiceLifecycleController = require("../controllers/invoiceLifecycleController");
 
 /**
  * Every route here requires a valid JWT AND role = PM — same gate
@@ -60,6 +61,8 @@ router.get("/milestones/:projectId", pmMilestoneController.listForProject);
 // mutation route anymore. Same gate reuse rationale as /projects above —
 // no new authenticate/authorizeRoles declaration needed.
 router.get("/invoices", pmInvoiceController.list);
+router.patch("/invoices/:id/review", invoiceLifecycleController.review);
+router.get("/invoices/:id/detail", invoiceLifecycleController.detail);
 
 // UI + analytics redesign: a single read-only aggregated dashboard
 // payload for the PM home screen — see pmDashboardService.js. Same gate

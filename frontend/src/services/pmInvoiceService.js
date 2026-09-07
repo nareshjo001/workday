@@ -12,5 +12,6 @@ async function listInvoices(params = {}) {
   const { data } = await apiClient.get("/pm/invoices", { params });
   return data;
 }
+async function reviewInvoice(id,status,rejectionReason){const {data}=await apiClient.patch(`/pm/invoices/${id}/review`,{status,rejection_reason:rejectionReason});return data;}
 
-export default { listInvoices };
+export default { listInvoices, reviewInvoice };

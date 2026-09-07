@@ -29,4 +29,8 @@ async function rejectInvoice(invoiceId, rejectionReason) {
   return data;
 }
 
-export default { listInvoices, approveInvoice, rejectInvoice };
+async function billingQueue(){const {data}=await apiClient.get('/vendor/billing-queue');return data.items;}
+async function createDraft(milestoneBillingId){const {data}=await apiClient.post('/vendor/invoices/drafts',{milestone_billing_id:milestoneBillingId});return data;}
+async function submitDraft(invoiceId){const {data}=await apiClient.post(`/vendor/invoices/${invoiceId}/submit`);return data;}
+
+export default { listInvoices, approveInvoice, rejectInvoice, billingQueue, createDraft, submitDraft };

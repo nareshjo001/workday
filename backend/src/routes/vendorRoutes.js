@@ -14,6 +14,7 @@ const candidateSubmissionController = require("../controllers/candidateSubmissio
 const staffingPipelineController = require("../controllers/staffingPipelineController");
 const notificationController = require("../controllers/notificationController");
 const rateCardController = require("../controllers/rateCardController");
+const invoiceLifecycleController = require("../controllers/invoiceLifecycleController");
 
 /**
  * Every route in this router requires a valid JWT AND role = VENDOR.
@@ -65,6 +66,14 @@ router.patch("/candidate-submissions/:id/withdraw", candidateSubmissionControlle
 // authenticate/authorizeRoles declaration needed.
 router.get("/invoices", vendorInvoiceController.list);
 router.patch("/invoices/:id", vendorInvoiceController.review);
+router.get("/billing-queue", invoiceLifecycleController.queue);
+router.post("/invoices/drafts", invoiceLifecycleController.draft);
+router.post("/invoices/:id/items", invoiceLifecycleController.add);
+router.delete("/invoices/:id/items", invoiceLifecycleController.remove);
+router.post("/invoices/:id/submit", invoiceLifecycleController.submit);
+router.post("/invoices/:id/revise", invoiceLifecycleController.revise);
+router.post("/invoices/:id/cancel", invoiceLifecycleController.cancel);
+router.get("/invoices/:id/detail", invoiceLifecycleController.detail);
 
 // UI + analytics redesign: a single read-only aggregated dashboard
 // payload for the Vendor home screen (KPIs, earnings, project progress,

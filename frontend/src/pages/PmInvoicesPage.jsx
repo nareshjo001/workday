@@ -27,6 +27,7 @@ export default function PmInvoicesPage() {
   const [loadError, setLoadError] = useState(null);
   const [page, setPage] = useState(1);
   const [pageInfo, setPageInfo] = useState({ total_pages: 1, total: 0 });
+  const [reviewError,setReviewError]=useState(null);
 
   const loadInvoices = useCallback(async () => {
     setIsLoading(true);
@@ -45,6 +46,7 @@ export default function PmInvoicesPage() {
   useEffect(() => {
     loadInvoices();
   }, [loadInvoices]);
+  const review=async(id,status)=>{const rejection_reason=status==='REJECTED'?window.prompt('Rejection reason (required):'):null;if(status==='REJECTED'&&!rejection_reason)return;try{await pmInvoiceService.reviewInvoice(id,status,rejection_reason);loadInvoices();}catch(e){setReviewError(e.message);}};
 
   return (
     <DashboardLayout title="Invoices">
@@ -56,6 +58,7 @@ export default function PmInvoicesPage() {
         </p>
 
         <AlertBanner message={loadError} />
+        <AlertBanner message={reviewError} />
 
         {isLoading ? (
           <Spinner label="Loading invoices…" />
@@ -71,6 +74,7 @@ export default function PmInvoicesPage() {
           <div className="rounded-lg bg-surface p-4 shadow-panel ring-1 ring-border sm:p-6">
             <InvoiceTable invoices={invoices} />
             <InvoiceCardList invoices={invoices} />
+            <div className="mt-4 flex flex-wrap gap-2">{invoices.filter(i=>i.status==='SUBMITTED').map(i=><div key={i.id} className="flex items-center gap-2 text-sm"><span>Invoice #{i.id}</span><button className="rounded bg-primary px-2 py-1 text-white" onClick={()=>review(i.id,'APPROVED')}>Approve</button><button className="rounded border border-danger px-2 py-1 text-danger" onClick={()=>review(i.id,'REJECTED')}>Reject</button></div>)}</div>
             <ListControls page={page} totalPages={pageInfo.total_pages} total={pageInfo.total} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
           </div>
         )}

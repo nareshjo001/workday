@@ -4,7 +4,6 @@ const timesheetRepository = require("../repositories/timesheetRepository");
 const contractorRepository = require("../repositories/contractorRepository");
 const assignmentRepository = require("../repositories/assignmentRepository");
 const billingService = require("./billingService");
-const invoiceService = require("./invoiceService");
 const notifications = require("./notificationService");
 const auditService = require("./auditService");
 
@@ -238,26 +237,8 @@ async function checkAndTriggerMilestones(projectId, auditActor) {
     conn.release();
   }
 
-  // Module 6 boundary — called only after every newly-MET milestone's
-  // contribution rows are safely committed. A failure here must never
-  // undo either. `billingId` (the milestone_billings row's own id) is
-  // what invoiceService actually anchors the invoice to.
-  for (const contribution of newlyCreatedContributions) {
-    try {
-      await invoiceService.generateInvoiceForMilestone({
-        milestoneBillingId: contribution.billingId,
-        milestoneId: contribution.milestoneId,
-        projectId,
-        contractorId: contribution.contractorId,
-        billingAmount: contribution.billingAmount,
-      });
-    } catch (err) {
-      console.error(
-        `[milestoneService] invoiceService.generateInvoiceForMilestone failed for milestone ${contribution.milestoneId}, contractor ${contribution.contractorId}:`,
-        err
-      );
-    }
-  }
+  // M17: committed milestone billings form the Vendor billing queue.
+  // Invoice creation is intentionally no longer an automatic side effect.
   const recipientId = await notifications.pmForProject(projectId);
   for (const milestoneId of [...new Set(newlyCreatedContributions.map((item) => item.milestoneId))]) {
     if (recipientId) await notifications.notify({ recipientId, eventType: "MILESTONE_MET", entityType: "milestone", entityId: milestoneId, message: "A project milestone is ready for billing.", deepLink: "/pm/milestones" });

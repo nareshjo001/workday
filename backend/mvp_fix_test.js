@@ -519,20 +519,22 @@ async function main() {
   assert(p3ContribF.approved_hours === 6, `concurrent: F's billed hours expected 6, got ${p3ContribF?.approved_hours}`);
   assert(p3ContribG.approved_hours === 8, `concurrent: G's billed hours expected 8, got ${p3ContribG?.approved_hours}`);
 
-  // ===================== Module 6 regression (unaffected) =====================
-  console.log("\n--- Module 6 regression: invoice generation / Vendor approval / PM read-only ---");
-  const invoicesForVendor = await req("GET", "/vendor/invoices", undefined, vendor.token);
-  assert(invoicesForVendor.status === 200, `vendor list invoices: expected 200, got ${invoicesForVendor.status}`);
-  const pendingInvoice = invoicesForVendor.data.items.find((inv) => inv.status === "PENDING_REVIEW");
-  assert(!!pendingInvoice, "at least one PENDING_REVIEW invoice should exist from the billing above");
-  if (pendingInvoice) {
-    const approveInvoice = await req("PATCH", `/vendor/invoices/${pendingInvoice.id}`, { status: "APPROVED" }, vendor.token);
-    assert(approveInvoice.status === 200, `vendor approves invoice: expected 200, got ${approveInvoice.status}`);
-  }
-  const pmOldRoute = await req("PATCH", "/pm/invoices/1", { status: "APPROVED" }, pm.token);
-  assert(pmOldRoute.status === 404, `PM hitting the old invoice-mutation route: expected 404, got ${pmOldRoute.status}`);
-  const pmInvoiceList = await req("GET", "/pm/invoices", undefined, pm.token);
-  assert(pmInvoiceList.status === 200, `PM read-only invoice list: expected 200, got ${pmInvoiceList.status}`);
+  // ===================== M17 regression =====================
+  console.log("\n--- M17 billing queue / Vendor draft / PM review ---");
+  const billingQueue = await req("GET", "/vendor/billing-queue", undefined, vendor.token);
+  assert(billingQueue.status === 200 && billingQueue.data.items.length > 0, "eligible billings exist without auto-created invoices");
+  const draft = await req("POST", "/vendor/invoices/drafts", { milestone_billing_id: billingQueue.data.items[0].milestone_billing_id }, vendor.token);
+  assert(draft.status === 201 && draft.data.status === "DRAFT", `draft created: got ${draft.status}`);
+  const submitted = await req("POST", `/vendor/invoices/${draft.data.id}/submit`, undefined, vendor.token);
+  assert(submitted.status === 200 && submitted.data.status === "SUBMITTED", `draft submitted: got ${submitted.status}`);
+  const reviewed = await req("PATCH", `/pm/invoices/${draft.data.id}/review`, { status: "APPROVED" }, pm.token);
+  assert(reviewed.status === 200 && reviewed.data.status === "APPROVED", `PM approval: got ${reviewed.status}`);
+  const secondDraft = await req("POST", "/vendor/invoices/drafts", { milestone_billing_id: billingQueue.data.items[1].milestone_billing_id }, vendor.token);
+  assert(secondDraft.status === 201, `second draft created: got ${secondDraft.status}`);
+  const secondSubmitted = await req("POST", `/vendor/invoices/${secondDraft.data.id}/submit`, undefined, vendor.token);
+  assert(secondSubmitted.status === 200, `second draft submitted: got ${secondSubmitted.status}`);
+  const rejected = await req("PATCH", `/pm/invoices/${secondDraft.data.id}/review`, { status: "REJECTED", rejection_reason: "Correction required" }, pm.token);
+  assert(rejected.status === 200 && rejected.data.status === "REJECTED", `PM rejection: got ${rejected.status}`);
 
   // ===================== Module 4 regression: date rules unchanged =====================
   console.log("\n--- Module 4 regression: date-window rules still enforced ---");
@@ -541,25 +543,6 @@ async function main() {
 
   // ===================== Module 3 regression: completion + release =====================
   console.log("\n--- Module 3/5 regression: project completion releases assignments ---");
-  // M10 completion deliberately refuses to release contractors while this
-  // project's generated invoices are still awaiting the Vendor's real
-  // review decision. This fixture used to complete immediately; assert the
-  // domain guard first, then resolve every PROJECT-1 invoice through the
-  // public Vendor API before retrying the original release regression.
-  const blockedComplete = await req("PATCH", `/pm/projects/${project1Id}/complete`, undefined, pm.token);
-  assert(blockedComplete.status === 409, `completion with pending invoice review: expected 409, got ${blockedComplete.status} ${JSON.stringify(blockedComplete.data)}`);
-  assert(blockedComplete.data?.code === "CONFLICT", `completion blocker code: expected CONFLICT, got ${blockedComplete.data?.code}`);
-  assert(blockedComplete.data?.message === "Resolve pending vendor invoice reviews before completing this project.", `completion blocker message: got ${blockedComplete.data?.message}`);
-
-  const invoicesBeforeCompletion = await req("GET", "/vendor/invoices", undefined, vendor.token);
-  assert(invoicesBeforeCompletion.status === 200, `list invoices before completion: expected 200, got ${invoicesBeforeCompletion.status}`);
-  const projectOnePendingInvoices = invoicesBeforeCompletion.data.items.filter((invoice) => invoice.project_id === project1Id && invoice.status === "PENDING_REVIEW");
-  assert(projectOnePendingInvoices.length > 0, "project 1 has unresolved invoice reviews to resolve before completion");
-  for (const invoice of projectOnePendingInvoices) {
-    const resolution = await req("PATCH", `/vendor/invoices/${invoice.id}`, { status: "APPROVED" }, vendor.token);
-    assert(resolution.status === 200, `approve project 1 invoice ${invoice.id}: expected 200, got ${resolution.status}`);
-  }
-
   const completeRes = await req("PATCH", `/pm/projects/${project1Id}/complete`, undefined, pm.token);
   assert(completeRes.status === 200, `complete project 1: expected 200, got ${completeRes.status}`);
   assert(completeRes.data.released_assignment_count === 3, `expected 3 assignments released (A, B, E), got ${completeRes.data.released_assignment_count}`);
