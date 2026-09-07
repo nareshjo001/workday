@@ -21,6 +21,7 @@ import PmTimesheetsPage from "./pages/PmTimesheetsPage";
 import PmMilestonesPage from "./pages/PmMilestonesPage";
 import PmInvoicesPage from "./pages/PmInvoicesPage";
 import VendorInvoicesPage from "./pages/VendorInvoicesPage";
+import VendorCompliancePage from "./pages/VendorCompliancePage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import PasswordActionPage from "./pages/PasswordActionPage";
 
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="/vendor/contractors" element={<VendorContractorsPage />} />
           <Route path="/vendor/assignments" element={<VendorAssignmentsPage />} />
           <Route path="/vendor/invoices" element={<VendorInvoicesPage />} />
+          <Route path="/vendor/compliance" element={<VendorCompliancePage />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={[ROLES.CONTRACTOR]} />}>

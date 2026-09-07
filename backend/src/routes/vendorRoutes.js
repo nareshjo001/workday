@@ -7,6 +7,7 @@ const vendorAssignmentController = require("../controllers/vendorAssignmentContr
 const vendorProjectController = require("../controllers/vendorProjectController");
 const vendorInvoiceController = require("../controllers/vendorInvoiceController");
 const vendorDashboardController = require("../controllers/vendorDashboardController");
+const contractorDocumentController = require("../controllers/contractorDocumentController");
 
 /**
  * Every route in this router requires a valid JWT AND role = VENDOR.
@@ -22,6 +23,9 @@ router.post("/contractors", vendorContractorController.create);
 router.get("/contractors", vendorContractorController.list);
 router.patch("/contractors/:id", vendorContractorController.update);
 router.post("/contractors/:id/resend-invitation", vendorContractorController.resendInvitation);
+router.post("/contractor-documents", contractorDocumentController.upload);
+router.get("/contractors/:contractorId/documents", contractorDocumentController.list);
+router.patch("/contractor-documents/:id/review", contractorDocumentController.review);
 
 // Module 3 revision: browsing projects open for staffing. Vendor-centric
 // workflow revision replaced the old "type in a project ID" flow (and the

@@ -1,0 +1,5 @@
+const service = require("../services/contractorDocumentService"); const validator = require("../validators/contractorDocumentValidators"); const asyncHandler = require("../utils/asyncHandler"); const ApiError = require("../utils/ApiError");
+const upload = asyncHandler(async (req, res) => { const payload = validator.upload(req.body); res.status(201).json(await service.upload(req.user.userId, payload, { ...req.user, requestId: req.requestId })); });
+const list = asyncHandler(async (req, res) => { const contractorId = validator.positive(req.params.contractorId); if (!contractorId) throw ApiError.badRequest("Invalid contractor id."); res.status(200).json(await service.list(req.user.userId, contractorId)); });
+const review = asyncHandler(async (req, res) => { const id = validator.positive(req.params.id); if (!id) throw ApiError.badRequest("Invalid document id."); res.status(200).json(await service.review(req.user.userId, id, validator.review(req.body), { ...req.user, requestId: req.requestId })); });
+module.exports = { upload, list, review };
