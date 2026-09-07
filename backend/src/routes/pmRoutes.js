@@ -21,6 +21,8 @@ router.use(authenticate, authorizeRoles(ROLES.PM));
 
 router.post("/projects", pmProjectController.create);
 router.get("/projects", pmProjectController.list);
+router.patch("/projects/:id", pmProjectController.update);
+router.patch("/projects/:projectId/requirements/:requirementId", pmProjectController.updateRequirement);
 // Module 5 addition: contractors assigned to one of this PM's own
 // projects, powering the milestone-creation contractor picker.
 router.get("/projects/:id/contractors", pmProjectController.listContractors);

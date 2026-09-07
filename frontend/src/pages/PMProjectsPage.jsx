@@ -10,6 +10,8 @@ import CreateProjectModal from "../components/projects/CreateProjectModal";
 import pmProjectService from "../services/pmProjectService";
 import ListControls from "../components/ListControls";
 import useDebouncedValue from "../hooks/useDebouncedValue";
+import ProjectSettingsModal from "../components/projects/ProjectSettingsModal";
+import RequirementManagerModal from "../components/projects/RequirementManagerModal";
 
 /**
  * PM's project-management screen: list + create. All data comes from
@@ -24,6 +26,8 @@ export default function PMProjectsPage() {
   const [successMessage, setSuccessMessage] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [completingId, setCompletingId] = useState(null);
+  const [settingsProject, setSettingsProject] = useState(null);
+  const [requirementsProject, setRequirementsProject] = useState(null);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [pageInfo, setPageInfo] = useState({ total_pages: 1, total: 0 });
@@ -85,6 +89,8 @@ export default function PMProjectsPage() {
       setCompletingId(null);
     }
   };
+  const handleSettings = async (id, payload) => { await pmProjectService.updateProject(id,payload); await loadProjects(); setSuccessMessage("Project settings updated."); };
+  const handleRequirement = async (projectId, requirementId, payload) => { const updated = await pmProjectService.updateRequirement(projectId, requirementId, payload); await loadProjects(); setSuccessMessage("Staffing requirement updated."); return updated; };
 
   return (
     <DashboardLayout title="Projects">
@@ -103,8 +109,8 @@ export default function PMProjectsPage() {
           <EmptyState onAdd={() => setIsCreateOpen(true)} />
         ) : (
           <div className="rounded-lg bg-surface p-4 shadow-panel ring-1 ring-border sm:p-6">
-            <ProjectTable projects={projects} onComplete={handleComplete} completingId={completingId} />
-            <ProjectCardList projects={projects} onComplete={handleComplete} completingId={completingId} />
+            <ProjectTable projects={projects} onComplete={handleComplete} completingId={completingId} onSettings={setSettingsProject} onRequirements={setRequirementsProject} />
+            <ProjectCardList projects={projects} onComplete={handleComplete} completingId={completingId} onSettings={setSettingsProject} onRequirements={setRequirementsProject} />
             <ListControls page={page} totalPages={pageInfo.total_pages} total={pageInfo.total} search={search} onSearchChange={(value) => { setPage(1); setSearch(value); }} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
           </div>
         )}
@@ -112,6 +118,12 @@ export default function PMProjectsPage() {
 
       {isCreateOpen && (
         <CreateProjectModal onClose={() => setIsCreateOpen(false)} onCreate={handleCreate} />
+      )}
+      {settingsProject && (
+        <ProjectSettingsModal project={settingsProject} onClose={() => setSettingsProject(null)} onSave={handleSettings} />
+      )}
+      {requirementsProject && (
+        <RequirementManagerModal project={requirementsProject} onClose={() => setRequirementsProject(null)} onSave={handleRequirement} />
       )}
     </DashboardLayout>
   );

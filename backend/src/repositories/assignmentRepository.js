@@ -30,7 +30,7 @@ async function existsFor(contractorId, projectId) {
  */
 async function lockRequirementForUpdate(conn, projectId, skill) {
   const [rows] = await conn.query(
-    `SELECT pr.id, pr.project_id, COALESCE(s.code, pr.skill) AS skill, pr.required_count
+    `SELECT pr.id, pr.project_id, COALESCE(s.code, pr.skill) AS skill, pr.required_count, pr.status
      FROM project_requirements pr LEFT JOIN skills s ON s.id = pr.skill_id
      WHERE pr.project_id = ? AND COALESCE(s.code, pr.skill) = ?
      LIMIT 1
@@ -50,7 +50,7 @@ async function lockRequirementForUpdate(conn, projectId, skill) {
  */
 async function lockRequirementForUpdateById(conn, projectId, requirementId) {
   const [rows] = await conn.query(
-    `SELECT pr.id, pr.project_id, COALESCE(s.code, pr.skill) AS skill, pr.required_count
+    `SELECT pr.id, pr.project_id, COALESCE(s.code, pr.skill) AS skill, pr.required_count, pr.status
      FROM project_requirements pr LEFT JOIN skills s ON s.id = pr.skill_id
      WHERE pr.id = ? AND pr.project_id = ?
      LIMIT 1
@@ -155,6 +155,15 @@ async function sumAllocatedHoursForProject(conn, projectId) {
     [projectId]
   );
   return Number(rows[0].total);
+}
+
+async function assignmentDateBoundsForProject(conn, projectId) {
+  const [[row]] = await conn.query(
+    `SELECT MIN(assigned_date) AS first_assigned_date, MAX(assigned_date) AS last_assigned_date
+     FROM project_assignments WHERE project_id = ?`,
+    [projectId]
+  );
+  return row;
 }
 
 /**
@@ -352,6 +361,7 @@ module.exports = {
   createWithRequirement,
   updateAllocatedHours,
   sumAllocatedHoursForProject,
+  assignmentDateBoundsForProject,
   sumAllocatedHoursForProjects,
   lockActiveForContractorProject,
   releaseAllActiveForProject,

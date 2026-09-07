@@ -49,6 +49,8 @@ async function completeProject(projectId) {
   const { data } = await apiClient.patch(`/pm/projects/${projectId}/complete`);
   return data;
 }
+async function updateProject(projectId, payload) { const { data } = await apiClient.patch(`/pm/projects/${projectId}`, payload); return data; }
+async function updateRequirement(projectId, requirementId, payload) { const { data } = await apiClient.patch(`/pm/projects/${projectId}/requirements/${requirementId}`, payload); return data; }
 
 /**
  * Contractors currently assigned to one of this PM's own projects —
@@ -81,5 +83,7 @@ export default {
   createProject,
   listAssignedContractors,
   completeProject,
+  updateProject,
+  updateRequirement,
   updateContractorAllocation,
 };

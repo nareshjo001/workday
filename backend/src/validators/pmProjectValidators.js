@@ -206,6 +206,27 @@ function validateUpdateAllocation(params = {}, body = {}) {
   return { projectId, contractorId, allocatedHours };
 }
 
+function validateUpdateProject(body = {}) {
+  const allowed = ["name", "description", "start_date", "end_date", "expected_hours", "budget", "currency", "max_hours_per_day", "max_hours_per_week", "allow_weekend", "backdate_limit_days", "status"];
+  if (!Object.keys(body).length || Object.keys(body).some((key) => !allowed.includes(key))) throw ApiError.badRequest("Validation failed", ["Provide supported project fields."]);
+  const result = {};
+  if ("name" in body) { if (typeof body.name !== "string" || !body.name.trim() || body.name.trim().length > NAME_MAX_LENGTH) throw ApiError.badRequest("Validation failed", ["name is invalid."]); result.name = body.name.trim(); }
+  if ("description" in body) { if (body.description !== null && typeof body.description !== "string") throw ApiError.badRequest("Validation failed", ["description is invalid."]); result.description = body.description?.trim() || null; }
+  if ("start_date" in body) { if (!isValidDateString(body.start_date)) throw ApiError.badRequest("Validation failed", ["start_date is invalid."]); result.startDate = body.start_date; }
+  if ("end_date" in body) { if (body.end_date !== null && body.end_date !== "" && !isValidDateString(body.end_date)) throw ApiError.badRequest("Validation failed", ["end_date is invalid."]); result.endDate = body.end_date || null; }
+  for (const [input, key, nullable, integer] of [["expected_hours", "expectedHours", false, false], ["budget", "budget", true, false], ["max_hours_per_day", "maxHoursPerDay", true, false], ["max_hours_per_week", "maxHoursPerWeek", true, false], ["backdate_limit_days", "backdateLimitDays", true, true]]) {
+    if (!(input in body)) continue;
+    const value = body[input] === null || body[input] === "" ? null : Number(body[input]);
+    if ((!nullable && value === null) || (value !== null && (!Number.isFinite(value) || value <= 0 || (integer && !Number.isInteger(value)) || (!integer && Math.round(value * 100) !== value * 100)))) throw ApiError.badRequest("Validation failed", [`${input} is invalid.`]);
+    result[key] = value;
+  }
+  if ("currency" in body) { const value = String(body.currency || "").trim().toUpperCase(); if (value && !/^[A-Z]{3}$/.test(value)) throw ApiError.badRequest("Validation failed", ["currency must be a 3-letter code."]); result.currency = value || null; }
+  if ("allow_weekend" in body) { if (typeof body.allow_weekend !== "boolean") throw ApiError.badRequest("Validation failed", ["allow_weekend must be boolean."]); result.allowWeekend = body.allow_weekend ? 1 : 0; }
+  if ("status" in body) { const value = String(body.status || "").toUpperCase(); if (!["ACTIVE", "ON_HOLD", "COMPLETED", "CANCELLED"].includes(value)) throw ApiError.badRequest("Validation failed", ["status is invalid."]); result.status = value; }
+  return result;
+}
+function validateUpdateRequirement(body={}) { const result={}; if("required_count" in body){const n=Number(body.required_count);if(!Number.isInteger(n)||n<1)throw ApiError.badRequest("Validation failed",["required_count must be a positive integer."]);result.requiredCount=n;} if("description" in body){if(body.description!==null&&typeof body.description!=="string")throw ApiError.badRequest("Validation failed",["description is invalid."]);result.description=body.description?.trim().slice(0,500)||null;} if("status" in body){const value=String(body.status||"").toUpperCase();if(!["OPEN","CLOSED"].includes(value))throw ApiError.badRequest("Validation failed",["status is invalid."]);result.status=value;} if(!Object.keys(result).length)throw ApiError.badRequest("Validation failed",["Provide supported requirement fields."]);return result; }
+
 // Shared with validateProjectIdParam's inline check above — small,
 // deliberate duplication of the parsePositiveInt pattern every validator
 // file in this codebase already keeps its own copy of.
@@ -214,4 +235,4 @@ function parsePositiveInt(value) {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-module.exports = { validateCreateProject, validateProjectIdParam, validateUpdateAllocation };
+module.exports = { validateCreateProject, validateProjectIdParam, validateUpdateAllocation, validateUpdateProject, validateUpdateRequirement };

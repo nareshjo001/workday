@@ -95,6 +95,9 @@ async function assignContractors(vendorId, projectId, requirementId, contractorI
     if (!requirement) {
       throw ApiError.notFound("Requirement not found on this project.");
     }
+    if (requirement.status !== "OPEN") {
+      throw ApiError.conflict("This requirement is closed and cannot receive new assignments.");
+    }
 
     const assignedCount = await assignmentRepository.countAssignmentsForRequirement(
       conn,
