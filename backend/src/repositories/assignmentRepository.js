@@ -121,13 +121,23 @@ async function countAssignmentsForRequirement(conn, requirementId) {
  * defaults to 'ACTIVE' (migration 016's column default) — every new
  * assignment starts active, never pre-released.
  */
-async function createWithRequirement(conn, contractorId, projectId, requirementId, allocatedHours, startDate = null, endDate = null) {
+async function createWithRequirement(conn, contractorId, projectId, requirementId, allocatedHours, startDate = null, endDate = null, rateCard = null) {
   const [result] = await conn.query(
-    `INSERT INTO project_assignments (contractor_id, project_id, requirement_id, allocated_hours, assigned_date, start_date, end_date)
-     VALUES (?, ?, ?, ?, CURDATE(), COALESCE(?, CURDATE()), ?)`,
-    [contractorId, projectId, requirementId, allocatedHours, startDate, endDate]
+    `INSERT INTO project_assignments (contractor_id, project_id, requirement_id, allocated_hours, bill_rate_snapshot, cost_rate_snapshot, currency, rate_card_id, assigned_date, start_date, end_date)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), COALESCE(?, CURDATE()), ?)`,
+    [contractorId, projectId, requirementId, allocatedHours, rateCard?.bill_rate||null, rateCard?.cost_rate||null, rateCard?.currency||null, rateCard?.id||null, startDate, endDate]
   );
   return result.insertId;
+}
+
+async function billRateSnapshotForContractorProject(conn, contractorId, projectId) {
+  const [rows] = await conn.query(
+    `SELECT bill_rate_snapshot FROM project_assignments
+     WHERE contractor_id = ? AND project_id = ? AND bill_rate_snapshot IS NOT NULL
+     ORDER BY id DESC LIMIT 1 FOR UPDATE`,
+    [contractorId, projectId]
+  );
+  return rows[0] ? Number(rows[0].bill_rate_snapshot) : null;
 }
 
 /**
@@ -337,7 +347,7 @@ async function listAssignedContractorsWithHours(projectId) {
   const [rows] = await pool.query(
     `SELECT pa.id AS assignment_id, pa.requirement_id, c.id AS contractor_id, u.name AS contractor_name,
             c.skill AS contractor_skill, c.status AS contractor_status,
-            pa.allocated_hours, pa.status AS assignment_status, pa.released_at,
+            pa.allocated_hours, pa.bill_rate_snapshot, pa.currency, pa.status AS assignment_status, pa.released_at,
             pa.start_date, pa.end_date, pa.actual_end_date, pa.release_reason,
             COALESCE(SUM(t.hours_logged), 0) AS logged_hours,
             COALESCE(SUM(CASE WHEN t.status = 'APPROVED' THEN t.hours_logged ELSE 0 END), 0) AS approved_hours,
@@ -348,7 +358,7 @@ async function listAssignedContractorsWithHours(projectId) {
      LEFT JOIN timesheets t ON t.contractor_id = pa.contractor_id AND t.project_id = pa.project_id
      WHERE pa.project_id = ?
      GROUP BY pa.id, pa.requirement_id, c.id, u.name, c.skill, c.status,
-              pa.allocated_hours, pa.status, pa.released_at,
+              pa.allocated_hours, pa.bill_rate_snapshot, pa.currency, pa.status, pa.released_at,
               pa.start_date, pa.end_date, pa.actual_end_date, pa.release_reason
      ORDER BY u.name ASC`,
     [projectId]
@@ -365,6 +375,8 @@ async function listAssignedContractorsWithHours(projectId) {
       contractor_skill: r.contractor_skill,
       contractor_status: r.contractor_status,
       allocated_hours: allocatedHours,
+      bill_rate_snapshot: r.bill_rate_snapshot === null ? null : Number(r.bill_rate_snapshot),
+      currency: r.currency,
       assignment_status: r.assignment_status,
       released_at: r.released_at,
       start_date: r.start_date,
@@ -387,6 +399,7 @@ module.exports = {
   lockOverlappingAssignments,
   countAssignmentsForRequirement,
   createWithRequirement,
+  billRateSnapshotForContractorProject,
   updateAllocatedHours,
   sumAllocatedHoursForProject,
   assignmentDateBoundsForProject,

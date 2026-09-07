@@ -13,6 +13,7 @@ const vendorAvailabilityController = require("../controllers/vendorAvailabilityC
 const candidateSubmissionController = require("../controllers/candidateSubmissionController");
 const staffingPipelineController = require("../controllers/staffingPipelineController");
 const notificationController = require("../controllers/notificationController");
+const rateCardController = require("../controllers/rateCardController");
 
 /**
  * Every route in this router requires a valid JWT AND role = VENDOR.
@@ -33,6 +34,10 @@ router.patch("/contractors/:id", vendorContractorController.update);
 router.post("/contractors/:id/resend-invitation", vendorContractorController.resendInvitation);
 router.get("/clients", vendorClientController.list);
 router.get("/clients/:companyId", vendorClientController.detail);
+router.get("/clients/:companyId/rate-cards", rateCardController.list);
+router.get("/rate-card-skills", rateCardController.listSkills);
+router.post("/rate-cards", rateCardController.create);
+router.patch("/rate-cards/:id", rateCardController.update);
 router.post("/contractor-documents", contractorDocumentController.upload);
 router.get("/contractors/:contractorId/documents", contractorDocumentController.list);
 router.patch("/contractor-documents/:id/review", contractorDocumentController.review);
