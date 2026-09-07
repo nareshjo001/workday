@@ -12,6 +12,7 @@ const vendorClientController = require("../controllers/vendorClientController");
 const vendorAvailabilityController = require("../controllers/vendorAvailabilityController");
 const candidateSubmissionController = require("../controllers/candidateSubmissionController");
 const staffingPipelineController = require("../controllers/staffingPipelineController");
+const notificationController = require("../controllers/notificationController");
 
 /**
  * Every route in this router requires a valid JWT AND role = VENDOR.
@@ -67,5 +68,10 @@ router.patch("/invoices/:id", vendorInvoiceController.review);
 // authenticate/authorizeRoles declaration needed, and no existing route
 // above this line was changed.
 router.get("/dashboard", vendorDashboardController.getDashboard);
+router.get("/notifications", notificationController.list);
+router.patch("/notifications/read-all", notificationController.readAll);
+router.patch("/notifications/:id/read", notificationController.read);
+router.get("/notification-preferences", notificationController.preferences);
+router.put("/notification-preferences/:eventType", notificationController.preference);
 
 module.exports = router;

@@ -4,6 +4,7 @@ const milestoneService = require("./milestoneService");
 const ApiError = require("../utils/ApiError");
 const auditService = require("./auditService");
 const { pageResult } = require("../utils/listQuery");
+const notifications = require("./notificationService");
 
 /**
  * PENDING daily timesheets for projects owned by the authenticated PM.
@@ -99,6 +100,8 @@ async function reviewTimesheet(pmId, timesheetId, status, auditActor, rejectionR
     // that function's own doc comment on why it never throws).
     await milestoneService.checkAndTriggerMilestones(reviewed.project_id, auditActor);
   }
+  const recipientId = await notifications.contractorUserId(reviewed.contractor_id);
+  if (recipientId) await notifications.notify({recipientId,eventType:`TIMESHEET_${status}`,entityType:"timesheet",entityId:timesheetId,message:`A timesheet was ${status.toLowerCase()}.`,deepLink:"/contractor/timesheets"});
 
   // Re-fetch fresh, post-commit state for the response, same convention
   // as vendorAssignmentService — the client should see the true

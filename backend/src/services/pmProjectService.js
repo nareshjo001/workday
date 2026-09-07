@@ -5,6 +5,7 @@ const timesheetRepository = require("../repositories/timesheetRepository");
 const invoiceRepository = require("../repositories/invoiceRepository");
 const ApiError = require("../utils/ApiError");
 const auditService = require("./auditService");
+const notifications = require("./notificationService");
 const { pageResult } = require("../utils/listQuery");
 
 /**
@@ -490,6 +491,7 @@ async function releaseContractor(pmId, projectId, contractorId, { actualEndDate,
     if (auditActor) await auditService.write(conn, auditActor, "ASSIGNMENT_RELEASED", "project_assignment", assignment.id, { status: "ACTIVE" }, { status: "RELEASED", actual_end_date: actualEndDate, release_reason: reason });
     await conn.commit();
   } catch (error) { await conn.rollback().catch(() => {}); throw error; } finally { conn.release(); }
+  const recipientId=await notifications.contractorUserId(contractorId); if(recipientId) await notifications.notify({recipientId,eventType:"ASSIGNMENT_RELEASED",entityType:"project_assignment",entityId:contractorId,message:"Your project assignment was released.",deepLink:"/contractor/projects"});
   return { contractor_id: contractorId, project_id: projectId, assignment_status: "RELEASED", actual_end_date: actualEndDate, release_reason: reason };
 }
 

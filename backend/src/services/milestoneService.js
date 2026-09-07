@@ -4,6 +4,7 @@ const timesheetRepository = require("../repositories/timesheetRepository");
 const contractorRepository = require("../repositories/contractorRepository");
 const billingService = require("./billingService");
 const invoiceService = require("./invoiceService");
+const notifications = require("./notificationService");
 const auditService = require("./auditService");
 
 /**
@@ -253,6 +254,10 @@ async function checkAndTriggerMilestones(projectId, auditActor) {
         err
       );
     }
+  }
+  const recipientId = await notifications.pmForProject(projectId);
+  for (const milestoneId of [...new Set(newlyCreatedContributions.map((item) => item.milestoneId))]) {
+    if (recipientId) await notifications.notify({ recipientId, eventType: "MILESTONE_MET", entityType: "milestone", entityId: milestoneId, message: "A project milestone is ready for billing.", deepLink: "/pm/milestones" });
   }
 }
 
