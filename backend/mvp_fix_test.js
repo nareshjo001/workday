@@ -542,6 +542,25 @@ async function main() {
 
   // ===================== Module 3 regression: completion + release =====================
   console.log("\n--- Module 3/5 regression: project completion releases assignments ---");
+  // M10 completion deliberately refuses to release contractors while this
+  // project's generated invoices are still awaiting the Vendor's real
+  // review decision. This fixture used to complete immediately; assert the
+  // domain guard first, then resolve every PROJECT-1 invoice through the
+  // public Vendor API before retrying the original release regression.
+  const blockedComplete = await req("PATCH", `/pm/projects/${project1Id}/complete`, undefined, pm.token);
+  assert(blockedComplete.status === 409, `completion with pending invoice review: expected 409, got ${blockedComplete.status} ${JSON.stringify(blockedComplete.data)}`);
+  assert(blockedComplete.data?.code === "CONFLICT", `completion blocker code: expected CONFLICT, got ${blockedComplete.data?.code}`);
+  assert(blockedComplete.data?.message === "Resolve pending vendor invoice reviews before completing this project.", `completion blocker message: got ${blockedComplete.data?.message}`);
+
+  const invoicesBeforeCompletion = await req("GET", "/vendor/invoices", undefined, vendor.token);
+  assert(invoicesBeforeCompletion.status === 200, `list invoices before completion: expected 200, got ${invoicesBeforeCompletion.status}`);
+  const projectOnePendingInvoices = invoicesBeforeCompletion.data.items.filter((invoice) => invoice.project_id === project1Id && invoice.status === "PENDING_REVIEW");
+  assert(projectOnePendingInvoices.length > 0, "project 1 has unresolved invoice reviews to resolve before completion");
+  for (const invoice of projectOnePendingInvoices) {
+    const resolution = await req("PATCH", `/vendor/invoices/${invoice.id}`, { status: "APPROVED" }, vendor.token);
+    assert(resolution.status === 200, `approve project 1 invoice ${invoice.id}: expected 200, got ${resolution.status}`);
+  }
+
   const completeRes = await req("PATCH", `/pm/projects/${project1Id}/complete`, undefined, pm.token);
   assert(completeRes.status === 200, `complete project 1: expected 200, got ${completeRes.status}`);
   assert(completeRes.data.released_assignment_count === 3, `expected 3 assignments released (A, B, E), got ${completeRes.data.released_assignment_count}`);

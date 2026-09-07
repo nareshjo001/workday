@@ -155,6 +155,17 @@ async function applyReview(conn, invoiceId, { status, reviewedBy, rejectionReaso
   return result.affectedRows > 0;
 }
 
+// Completion is intentionally blocked while a generated invoice is still
+// awaiting its Vendor decision. The existing invoice-review endpoint is the
+// explicit resolution path; no financial status is inferred or overwritten.
+async function countPendingReviewForProject(conn, projectId) {
+  const [[row]] = await conn.query(
+    `SELECT COUNT(*) AS total FROM invoices WHERE project_id = ? AND status = 'PENDING_REVIEW'`,
+    [projectId]
+  );
+  return Number(row.total);
+}
+
 /**
  * Every invoice for contractors belonging to the given vendor, newest
  * first. Ownership is enforced via the invoice's OWN snapshotted
@@ -248,6 +259,7 @@ module.exports = {
   listPageForPm,
   lockOwnedByVendorForReview,
   applyReview,
+  countPendingReviewForProject,
   listForVendor,
   listPageForVendor,
 };

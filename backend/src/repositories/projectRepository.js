@@ -76,7 +76,7 @@ async function createRequirements(conn, projectId, requirements) {
 async function listByPm(pmId) {
   const [rows] = await pool.query(
     `SELECT p.id, p.name, p.description, ${COMPANY_PM_SELECT},
-            p.start_date, p.end_date, p.expected_hours, p.status
+            p.start_date, p.end_date, p.expected_hours, p.budget, p.currency, p.max_hours_per_day, p.max_hours_per_week, p.allow_weekend, p.backdate_limit_days, p.status
      FROM projects p
      ${COMPANY_PM_JOIN}
      WHERE p.pm_id = ?
@@ -93,7 +93,7 @@ async function listPageByPm(pmId, query) {
   if (query.filters.startDate) { where.push("p.start_date >= ?"); params.push(query.filters.startDate); }
   const clause = where.join(" AND ");
   const [[count]] = await pool.query(`SELECT COUNT(*) AS total FROM projects p ${COMPANY_PM_JOIN} WHERE ${clause}`, params);
-  const [rows] = await pool.query(`SELECT p.id, p.name, p.description, ${COMPANY_PM_SELECT}, p.start_date, p.end_date, p.expected_hours, p.status FROM projects p ${COMPANY_PM_JOIN} WHERE ${clause} ORDER BY ${query.sortColumn} ${query.order}, p.id ${query.order} LIMIT ? OFFSET ?`, [...params, query.pageSize, query.offset]);
+  const [rows] = await pool.query(`SELECT p.id, p.name, p.description, ${COMPANY_PM_SELECT}, p.start_date, p.end_date, p.expected_hours, p.budget, p.currency, p.max_hours_per_day, p.max_hours_per_week, p.allow_weekend, p.backdate_limit_days, p.status FROM projects p ${COMPANY_PM_JOIN} WHERE ${clause} ORDER BY ${query.sortColumn} ${query.order}, p.id ${query.order} LIMIT ? OFFSET ?`, [...params, query.pageSize, query.offset]);
   return { rows, total: Number(count.total) };
 }
 
@@ -108,7 +108,7 @@ async function listPageByPm(pmId, query) {
 async function findById(projectId) {
   const [rows] = await pool.query(
     `SELECT p.id, p.name, p.description, ${COMPANY_PM_SELECT},
-            p.pm_id, p.start_date, p.end_date, p.expected_hours, p.status
+            p.pm_id, p.start_date, p.end_date, p.expected_hours, p.budget, p.currency, p.max_hours_per_day, p.max_hours_per_week, p.allow_weekend, p.backdate_limit_days, p.status
      FROM projects p
      ${COMPANY_PM_JOIN}
      WHERE p.id = ?
@@ -134,7 +134,7 @@ async function findById(projectId) {
  */
 async function lockByIdForUpdate(conn, projectId) {
   const [rows] = await conn.query(
-    `SELECT id, pm_id, start_date, end_date, expected_hours, status
+    `SELECT id, pm_id, name, description, start_date, end_date, expected_hours, budget, currency, max_hours_per_day, max_hours_per_week, allow_weekend, backdate_limit_days, status
      FROM projects WHERE id = ? LIMIT 1 FOR UPDATE`,
     [projectId]
   );
@@ -157,6 +157,20 @@ async function markCompleted(conn, projectId) {
   );
   return result.affectedRows > 0;
 }
+
+async function updateLifecycle(conn, projectId, fields) {
+  const columns = { name: "name", description: "description", startDate: "start_date", endDate: "end_date", expectedHours: "expected_hours", budget: "budget", currency: "currency", maxHoursPerDay: "max_hours_per_day", maxHoursPerWeek: "max_hours_per_week", allowWeekend: "allow_weekend", backdateLimitDays: "backdate_limit_days", status: "status" };
+  const entries = Object.entries(fields).filter(([key]) => Object.hasOwn(columns, key));
+  if (!entries.length) return;
+  await conn.query(`UPDATE projects SET ${entries.map(([key]) => `${columns[key]}=?`).join(", ")} WHERE id=?`, [...entries.map(([, value]) => value), projectId]);
+}
+
+async function lockRequirement(conn, projectId, requirementId) {
+  const [rows] = await conn.query("SELECT id, project_id, required_count, description, status FROM project_requirements WHERE id=? AND project_id=? LIMIT 1 FOR UPDATE", [requirementId, projectId]);
+  return rows[0] || null;
+}
+async function assignmentCountForRequirement(conn, requirementId) { const [[row]] = await conn.query("SELECT COUNT(*) AS total FROM project_assignments WHERE requirement_id=? AND status='ACTIVE'", [requirementId]); return Number(row.total); }
+async function updateRequirement(conn, requirementId, fields) { const entries=Object.entries(fields); if(!entries.length)return; const columns={requiredCount:"required_count",description:"description",status:"status"}; await conn.query(`UPDATE project_requirements SET ${entries.map(([key])=>`${columns[key]}=?`).join(", ")} WHERE id=?`,[...entries.map(([,value])=>value),requirementId]); }
 
 async function listAvailablePageForVendor(query, vendorId) {
   const where = ["p.status = 'ACTIVE'", "(p.end_date IS NULL OR p.end_date >= CURDATE())", "pv.vendor_id = ?", "pv.status = 'ACTIVE'"]; const params = [vendorId];
@@ -184,12 +198,13 @@ async function listRequirementsWithCounts(projectIds) {
   if (projectIds.length === 0) return [];
   const [rows] = await pool.query(
     `SELECT pr.id, pr.project_id, COALESCE(s.code, pr.skill) AS skill, pr.skill_id, pr.required_count,
-            COUNT(pa.id) AS assigned_count
+            pr.description, pr.status,
+            COUNT(CASE WHEN pa.status = 'ACTIVE' THEN pa.id END) AS assigned_count
      FROM project_requirements pr
      LEFT JOIN skills s ON s.id = pr.skill_id
      LEFT JOIN project_assignments pa ON pa.requirement_id = pr.id
      WHERE pr.project_id IN (?)
-     GROUP BY pr.id, pr.project_id, s.code, pr.skill, pr.skill_id, pr.required_count
+     GROUP BY pr.id, pr.project_id, s.code, pr.skill, pr.skill_id, pr.required_count, pr.description, pr.status
      ORDER BY COALESCE(s.code, pr.skill) ASC`,
     [projectIds]
   );
@@ -205,7 +220,8 @@ async function listRequirementsWithCounts(projectIds) {
  */
 async function findRequirementById(projectId, requirementId) {
   const [rows] = await pool.query(
-    `SELECT pr.id, pr.project_id, COALESCE(s.code, pr.skill) AS skill, pr.skill_id, pr.required_count
+    `SELECT pr.id, pr.project_id, COALESCE(s.code, pr.skill) AS skill, pr.skill_id, pr.required_count,
+            pr.description, pr.status
      FROM project_requirements pr LEFT JOIN skills s ON s.id = pr.skill_id
      WHERE pr.id = ? AND pr.project_id = ?
      LIMIT 1`,
@@ -222,6 +238,10 @@ module.exports = {
   findById,
   lockByIdForUpdate,
   markCompleted,
+  updateLifecycle,
+  lockRequirement,
+  assignmentCountForRequirement,
+  updateRequirement,
   listAvailablePageForVendor,
   listRequirementsWithCounts,
   findRequirementById,

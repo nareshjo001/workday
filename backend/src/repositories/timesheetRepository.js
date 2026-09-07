@@ -343,6 +343,37 @@ async function sumApprovedHoursForProjects(projectIds) {
   return rows.map((r) => ({ project_id: r.project_id, approved_hours: Number(r.total) }));
 }
 
+// Transaction-scoped counterpart used while a PM is changing a project's
+// capacity. Keeping this read on the caller's connection prevents an update
+// from validating against a stale total while a review is being committed.
+async function sumApprovedHoursForProjectForUpdate(conn, projectId) {
+  const [[row]] = await conn.query(
+    `SELECT COALESCE(SUM(hours_logged), 0) AS total
+     FROM timesheets WHERE project_id = ? AND status = 'APPROVED'`,
+    [projectId]
+  );
+  return Number(row.total);
+}
+
+async function workDateBoundsForProject(conn, projectId) {
+  const [[row]] = await conn.query(
+    `SELECT MIN(work_date) AS first_work_date, MAX(work_date) AS last_work_date
+     FROM timesheets WHERE project_id = ?`,
+    [projectId]
+  );
+  return row;
+}
+
+async function sumReservedHoursForContractorProjectDate(conn, contractorId, projectId, workDate, excludeId) {
+  const [rows] = await conn.query(`SELECT COALESCE(SUM(hours_logged),0) AS total FROM timesheets WHERE contractor_id=? AND project_id=? AND work_date=? AND status IN ('DRAFT','SUBMITTED','APPROVED') ${excludeId ? 'AND id != ?' : ''}`, excludeId ? [contractorId,projectId,workDate,excludeId] : [contractorId,projectId,workDate]);
+  return Number(rows[0].total);
+}
+async function sumReservedHoursForContractorProjectWeek(conn, contractorId, projectId, workDate, excludeId) {
+  const [rows] = await conn.query(`SELECT COALESCE(SUM(hours_logged),0) AS total FROM timesheets WHERE contractor_id=? AND project_id=? AND YEARWEEK(work_date,1)=YEARWEEK(?,1) AND status IN ('DRAFT','SUBMITTED','APPROVED') ${excludeId ? 'AND id != ?' : ''}`, excludeId ? [contractorId,projectId,workDate,excludeId] : [contractorId,projectId,workDate]);
+  return Number(rows[0].total);
+}
+async function countSubmittedForProject(conn, projectId) { const [[row]]=await conn.query("SELECT COUNT(*) AS total FROM timesheets WHERE project_id=? AND status='SUBMITTED'",[projectId]); return Number(row.total); }
+
 /**
  * Every APPROVED timesheet row for a project, in the exact chronological
  * order their hours became part of the project's cumulative approved
@@ -401,6 +432,11 @@ module.exports = {
   sumReservedHoursForContractorProject,
   sumApprovedHoursForContractorProject,
   sumApprovedHoursForProject,
+  sumApprovedHoursForProjectForUpdate,
   sumApprovedHoursForProjects,
+  sumReservedHoursForContractorProjectDate,
+  sumReservedHoursForContractorProjectWeek,
+  countSubmittedForProject,
+  workDateBoundsForProject,
   listApprovedOrderedForProject,
 };

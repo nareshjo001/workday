@@ -2,6 +2,7 @@ const { pool } = require("../config/db");
 const projectRepository = require("../repositories/projectRepository");
 const assignmentRepository = require("../repositories/assignmentRepository");
 const timesheetRepository = require("../repositories/timesheetRepository");
+const invoiceRepository = require("../repositories/invoiceRepository");
 const ApiError = require("../utils/ApiError");
 const auditService = require("./auditService");
 const { pageResult } = require("../utils/listQuery");
@@ -51,6 +52,8 @@ function toRequirementView(row) {
     skill: row.skill,
     required_count: row.required_count,
     assigned_count: row.assigned_count,
+    description: row.description || null,
+    status: row.status || "OPEN",
   };
 }
 
@@ -95,6 +98,12 @@ function toProjectView(row, requirements, hoursMetrics) {
     // Project hours/allocation redesign fields — all server-computed,
     // never accepted from a request:
     expected_hours: expectedHours,
+    budget: row.budget === null || row.budget === undefined ? null : Number(row.budget),
+    currency: row.currency || null,
+    max_hours_per_day: row.max_hours_per_day === null || row.max_hours_per_day === undefined ? null : Number(row.max_hours_per_day),
+    max_hours_per_week: row.max_hours_per_week === null || row.max_hours_per_week === undefined ? null : Number(row.max_hours_per_week),
+    allow_weekend: Boolean(row.allow_weekend),
+    backdate_limit_days: row.backdate_limit_days === null || row.backdate_limit_days === undefined ? null : Number(row.backdate_limit_days),
     allocated_hours: allocatedHours,
     remaining_allocation_hours: remainingAllocationHours,
     hours_staffing_status: deriveHoursStaffingStatus(expectedHours, allocatedHours),
@@ -278,8 +287,14 @@ async function completeProject(pmId, projectId, auditActor) {
     if (!project || project.pm_id !== pmId) {
       throw ApiError.notFound("Project not found.");
     }
-    if (project.status === "COMPLETED") {
-      throw ApiError.conflict("This project is already completed.");
+    if (!["ACTIVE", "ON_HOLD"].includes(project.status)) {
+      throw ApiError.conflict("Only active or on-hold projects can be completed.");
+    }
+    if (await timesheetRepository.countSubmittedForProject(conn, projectId)) {
+      throw ApiError.conflict("Review submitted timesheets before completing this project.");
+    }
+    if (await invoiceRepository.countPendingReviewForProject(conn, projectId)) {
+      throw ApiError.conflict("Resolve pending vendor invoice reviews before completing this project.");
     }
 
     const updated = await projectRepository.markCompleted(conn, projectId);
@@ -313,6 +328,45 @@ async function completeProject(pmId, projectId, auditActor) {
     released_assignment_count: releasedCount,
   };
 }
+
+async function updateProject(pmId, projectId, fields, auditActor) {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const project = await projectRepository.lockByIdForUpdate(conn, projectId);
+    if (!project || project.pm_id !== pmId) throw ApiError.notFound("Project not found.");
+    const [allocated, approved, assignmentBounds, workBounds] = await Promise.all([
+      assignmentRepository.sumAllocatedHoursForProject(conn, projectId),
+      timesheetRepository.sumApprovedHoursForProjectForUpdate(conn, projectId),
+      assignmentRepository.assignmentDateBoundsForProject(conn, projectId),
+      timesheetRepository.workDateBoundsForProject(conn, projectId),
+    ]);
+    if (fields.expectedHours !== undefined && fields.expectedHours < Math.max(allocated, approved)) {
+      throw ApiError.conflict("Expected hours cannot be below allocated or approved hours.");
+    }
+    const startDate = fields.startDate ?? project.start_date;
+    const endDate = fields.endDate === undefined ? project.end_date : fields.endDate;
+    if (endDate && endDate < startDate) throw ApiError.badRequest("Validation failed", ["end_date cannot be before start_date."]);
+    const existingDates = [assignmentBounds.first_assigned_date, assignmentBounds.last_assigned_date, workBounds.first_work_date, workBounds.last_work_date].filter(Boolean).sort();
+    if (existingDates[0] && startDate > existingDates[0]) throw ApiError.conflict("Start date cannot exclude existing assignments or timesheets.");
+    if (endDate && existingDates.at(-1) && endDate < existingDates.at(-1)) throw ApiError.conflict("End date cannot exclude existing assignments or timesheets.");
+    if (fields.status === "COMPLETED") throw ApiError.conflict("Use the completion action to complete this project and release active contractors.");
+    if (fields.status && fields.status !== project.status && !(
+      (project.status === "ACTIVE" && ["ON_HOLD", "CANCELLED"].includes(fields.status)) ||
+      (project.status === "ON_HOLD" && ["ACTIVE", "CANCELLED"].includes(fields.status))
+    )) throw ApiError.conflict("Invalid project status transition.");
+    await projectRepository.updateLifecycle(conn, projectId, fields);
+    if (auditActor) await auditService.write(conn, auditActor, "PROJECT_UPDATED", "project", projectId, project, { ...fields });
+    await conn.commit();
+  } catch (error) { await conn.rollback().catch(() => {}); throw error; } finally { conn.release(); }
+  const [row, requirements, allocatedHours, approvedHours] = await Promise.all([
+    projectRepository.findById(projectId), projectRepository.listRequirementsWithCounts([projectId]),
+    assignmentRepository.sumAllocatedHoursForProject(pool, projectId), timesheetRepository.sumApprovedHoursForProject(projectId),
+  ]);
+  return toProjectView(row, requirements, { allocatedHours, approvedHours });
+}
+
+async function updateRequirement(pmId,projectId,requirementId,fields,auditActor){const conn=await pool.getConnection();try{await conn.beginTransaction();const project=await projectRepository.lockByIdForUpdate(conn,projectId);if(!project||project.pm_id!==pmId)throw ApiError.notFound("Project not found.");const requirement=await projectRepository.lockRequirement(conn,projectId,requirementId);if(!requirement)throw ApiError.notFound("Requirement not found.");const assigned=await projectRepository.assignmentCountForRequirement(conn,requirementId);if(fields.requiredCount!==undefined&&fields.requiredCount<assigned)throw ApiError.conflict("Required count cannot be below active assignments.");await projectRepository.updateRequirement(conn,requirementId,fields);if(auditActor)await auditService.write(conn,auditActor,"PROJECT_REQUIREMENT_UPDATED","project_requirement",requirementId,{required_count:requirement.required_count,status:requirement.status},{...fields,project_id:projectId});await conn.commit();}catch(e){await conn.rollback().catch(()=>{});throw e;}finally{conn.release();}return projectRepository.findRequirementById(projectId,requirementId);}
 
 /**
  * Sets (or changes) how many of the project's expected_hours a specific,
@@ -424,5 +478,7 @@ module.exports = {
   listProjectsPage,
   listAssignedContractors,
   completeProject,
+  updateProject,
+  updateRequirement,
   updateContractorAllocation,
 };

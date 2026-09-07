@@ -41,6 +41,13 @@ function assertWorkDateWithinProject(workDate, project) {
   if (project.end_date && workDate > project.end_date) {
     throw ApiError.badRequest("workDate cannot be after the project's end date.");
   }
+  if (!project.allow_weekend && [0, 6].includes(new Date(`${workDate}T00:00:00Z`).getUTCDay())) {
+    throw ApiError.badRequest("Weekend timesheets are not allowed for this project.");
+  }
+  if (project.backdate_limit_days !== null && project.backdate_limit_days !== undefined) {
+    const oldest = new Date(); oldest.setUTCDate(oldest.getUTCDate() - Number(project.backdate_limit_days));
+    if (workDate < oldest.toISOString().slice(0,10)) throw ApiError.badRequest("workDate exceeds this project's backdate limit.");
+  }
 }
 
 /**
@@ -91,6 +98,10 @@ function assertWithinRemainingAllocation(project, assignment, reservedHours, hou
       `You have only ${Math.max(0, remaining)} hour(s) remaining for this project.`
     );
   }
+}
+async function assertTimePolicy(conn, project, contractorId, workDate, hoursLogged, excludeId) {
+  if (project.max_hours_per_day !== null && project.max_hours_per_day !== undefined) { const reserved=await timesheetRepository.sumReservedHoursForContractorProjectDate(conn,contractorId,project.id,workDate,excludeId); if(reserved+hoursLogged>Number(project.max_hours_per_day))throw ApiError.conflict("This entry exceeds the project's daily hour limit."); }
+  if (project.max_hours_per_week !== null && project.max_hours_per_week !== undefined) { const reserved=await timesheetRepository.sumReservedHoursForContractorProjectWeek(conn,contractorId,project.id,workDate,excludeId); if(reserved+hoursLogged>Number(project.max_hours_per_week))throw ApiError.conflict("This entry exceeds the project's weekly hour limit."); }
 }
 
 /**
@@ -163,6 +174,7 @@ async function submitTimesheet(userId, { projectId, workDate, hoursLogged, descr
     }
 
     assertWorkDateWithinProject(workDate, project);
+    await assertTimePolicy(conn, project, contractor.id, workDate, hoursLogged);
 
     const reservedHours = await timesheetRepository.sumReservedHoursForContractorProject(
       conn,
@@ -335,6 +347,7 @@ async function updateTimesheet(userId, timesheetId, { workDate, hoursLogged, des
       throw ApiError.conflict("Timesheets can only be edited for active projects.");
     }
     assertWorkDateWithinProject(workDate, project);
+    await assertTimePolicy(conn, project, contractor.id, workDate, hoursLogged, timesheetId);
 
     const reservedHours = await timesheetRepository.sumReservedHoursForContractorProject(
       conn,
