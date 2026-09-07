@@ -5,6 +5,12 @@ function parsePositiveInt(value) {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
+function isValidDateString(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
 /**
  * Validates the URL params + body for
  * POST /api/vendor/projects/:projectId/requirements/:requirementId/assign.
@@ -59,11 +65,17 @@ function validateAssignContractors(params = {}, body = {}) {
     });
   }
 
+  const startDate = body.start_date === undefined || body.start_date === "" ? null : body.start_date;
+  const endDate = body.end_date === undefined || body.end_date === "" ? null : body.end_date;
+  if (startDate !== null && !isValidDateString(startDate)) errors.push("start_date must be a valid YYYY-MM-DD date.");
+  if (endDate !== null && !isValidDateString(endDate)) errors.push("end_date must be a valid YYYY-MM-DD date.");
+  if (startDate && endDate && endDate < startDate) errors.push("end_date cannot be before start_date.");
+
   if (errors.length > 0) {
     throw ApiError.badRequest("Validation failed", errors);
   }
 
-  return { projectId, requirementId, contractorIds };
+  return { projectId, requirementId, contractorIds, startDate, endDate };
 }
 
 module.exports = { validateAssignContractors };

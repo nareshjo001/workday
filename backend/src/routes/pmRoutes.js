@@ -35,6 +35,7 @@ router.patch(
   "/projects/:projectId/contractors/:contractorId/allocation",
   pmProjectController.allocateHours
 );
+router.patch("/projects/:projectId/contractors/:contractorId/release", pmProjectController.release);
 
 // Module 4: reviewing timesheets submitted against this PM's own
 // projects. Same gate reuse rationale as /projects above — no new

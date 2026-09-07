@@ -227,6 +227,20 @@ function validateUpdateProject(body = {}) {
 }
 function validateUpdateRequirement(body={}) { const result={}; if("required_count" in body){const n=Number(body.required_count);if(!Number.isInteger(n)||n<1)throw ApiError.badRequest("Validation failed",["required_count must be a positive integer."]);result.requiredCount=n;} if("description" in body){if(body.description!==null&&typeof body.description!=="string")throw ApiError.badRequest("Validation failed",["description is invalid."]);result.description=body.description?.trim().slice(0,500)||null;} if("status" in body){const value=String(body.status||"").toUpperCase();if(!["OPEN","CLOSED"].includes(value))throw ApiError.badRequest("Validation failed",["status is invalid."]);result.status=value;} if(!Object.keys(result).length)throw ApiError.badRequest("Validation failed",["Provide supported requirement fields."]);return result; }
 
+function validateReleaseContractor(params = {}, body = {}) {
+  const projectId = parsePositiveInt(params.projectId);
+  const contractorId = parsePositiveInt(params.contractorId);
+  const actualEndDate = body.actual_end_date;
+  const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+  const errors = [];
+  if (!projectId) errors.push("projectId must be a positive integer.");
+  if (!contractorId) errors.push("contractorId must be a positive integer.");
+  if (!isValidDateString(actualEndDate)) errors.push("actual_end_date must be a valid YYYY-MM-DD date.");
+  if (!reason || reason.length > 500) errors.push("reason is required and must be 500 characters or fewer.");
+  if (errors.length) throw ApiError.badRequest("Validation failed", errors);
+  return { projectId, contractorId, actualEndDate, reason };
+}
+
 // Shared with validateProjectIdParam's inline check above — small,
 // deliberate duplication of the parsePositiveInt pattern every validator
 // file in this codebase already keeps its own copy of.
@@ -235,4 +249,4 @@ function parsePositiveInt(value) {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-module.exports = { validateCreateProject, validateProjectIdParam, validateUpdateAllocation, validateUpdateProject, validateUpdateRequirement };
+module.exports = { validateCreateProject, validateProjectIdParam, validateUpdateAllocation, validateUpdateProject, validateUpdateRequirement, validateReleaseContractor };

@@ -3,7 +3,7 @@ const {
   validateCreateProject,
   validateProjectIdParam,
   validateUpdateAllocation,
-  validateUpdateProject, validateUpdateRequirement,
+  validateUpdateProject, validateUpdateRequirement, validateReleaseContractor,
 } = require("../validators/pmProjectValidators");
 const asyncHandler = require("../utils/asyncHandler");
 const { parseListQuery, isoDateFilter } = require("../utils/listQuery");
@@ -66,5 +66,6 @@ const allocateHours = asyncHandler(async (req, res) => {
 });
 const update = asyncHandler(async(req,res)=>{const projectId=validateProjectIdParam(req.params);res.json(await pmProjectService.updateProject(req.user.userId,projectId,validateUpdateProject(req.body),{...req.user,requestId:req.requestId}));});
 const updateRequirement = asyncHandler(async(req,res)=>{const projectId=validateProjectIdParam({id:req.params.projectId});const requirementId=Number(req.params.requirementId);if(!Number.isInteger(requirementId)||requirementId<1)throw require("../utils/ApiError").badRequest("Invalid requirement id.");res.json(await pmProjectService.updateRequirement(req.user.userId,projectId,requirementId,validateUpdateRequirement(req.body),{...req.user,requestId:req.requestId}));});
+const release = asyncHandler(async (req, res) => { const { projectId, contractorId, actualEndDate, reason } = validateReleaseContractor(req.params, req.body); res.json(await pmProjectService.releaseContractor(req.user.userId, projectId, contractorId, { actualEndDate, reason }, { ...req.user, requestId: req.requestId })); });
 
-module.exports = { create, list, listContractors, complete, allocateHours, update, updateRequirement };
+module.exports = { create, list, listContractors, complete, allocateHours, update, updateRequirement, release };

@@ -121,7 +121,7 @@ async function findInvitationRecipientByVendorAndId(vendorId, contractorId) {
  * real guarantee is the row lock + UNIQUE(active_contractor_key) constraint
  * enforced inside vendorAssignmentService's transaction at assign time.
  */
-async function listEligibleForVendorAndSkill(vendorId, skill) {
+async function listEligibleForVendorAndSkill(vendorId, skill, startDate, endDate) {
   const [rows] = await pool.query(
     `SELECT DISTINCT c.id, c.hourly_rate, c.status, primary_skill.code AS skill, u.name, u.email
      FROM contractors c
@@ -130,12 +130,20 @@ async function listEligibleForVendorAndSkill(vendorId, skill) {
      INNER JOIN skills matched_skill ON matched_skill.id = cs.skill_id AND matched_skill.code = ? AND matched_skill.is_active = 1
      LEFT JOIN contractor_skills primary_cs ON primary_cs.contractor_id = c.id AND primary_cs.is_primary = 1
      LEFT JOIN skills primary_skill ON primary_skill.id = primary_cs.skill_id
-     LEFT JOIN project_assignments pa ON pa.contractor_id = c.id AND pa.status = 'ACTIVE'
+     LEFT JOIN project_assignments pa ON pa.contractor_id = c.id
+       AND pa.status = 'ACTIVE'
+       AND pa.start_date <= COALESCE(?, '9999-12-31')
+       AND COALESCE(pa.end_date, '9999-12-31') >= ?
+     LEFT JOIN contractor_unavailability cu ON cu.contractor_id = c.id
+       AND cu.status = 'ACTIVE'
+       AND cu.start_date <= COALESCE(?, '9999-12-31')
+       AND cu.end_date >= ?
      WHERE c.vendor_id = ?
        AND c.status = 'ACTIVE'
        AND pa.id IS NULL
+       AND cu.id IS NULL
      ORDER BY u.name ASC`,
-    [skill, vendorId]
+    [skill, endDate, startDate, endDate, startDate, vendorId]
   );
   return rows;
 }

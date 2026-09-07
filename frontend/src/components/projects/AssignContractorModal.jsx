@@ -40,6 +40,8 @@ export default function AssignContractorModal({
   const [selectedIds, setSelectedIds] = useState([]);
   const [formError, setFormError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
+  const [endDate, setEndDate] = useState(project.end_date || "");
 
   const remaining = Math.max(requirement.required_count - requirement.assigned_count, 0);
   const isFull = remaining === 0;
@@ -63,7 +65,7 @@ export default function AssignContractorModal({
 
     setIsSubmitting(true);
     try {
-      await onAssign(selectedIds);
+      await onAssign(selectedIds, { startDate, endDate: endDate || null });
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -98,6 +100,17 @@ export default function AssignContractorModal({
       ) : (
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <AlertBanner message={formError} />
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-sm text-text-secondary">
+              Assignment start date
+              <input type="date" required value={startDate} min={project.start_date} max={project.end_date || undefined} onChange={(e) => setStartDate(e.target.value)} className="mt-1 block w-full rounded border border-border px-2 py-1.5 text-text" />
+            </label>
+            <label className="text-sm text-text-secondary">
+              Assignment end date <span className="text-muted">(optional)</span>
+              <input type="date" value={endDate} min={startDate || project.start_date} max={project.end_date || undefined} onChange={(e) => setEndDate(e.target.value)} className="mt-1 block w-full rounded border border-border px-2 py-1.5 text-text" />
+            </label>
+          </div>
 
           {contractors.length < remaining && (
             <p className="rounded-md bg-surface-muted px-3 py-2 text-xs text-muted">

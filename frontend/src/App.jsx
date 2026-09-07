@@ -15,6 +15,7 @@ import ContractorHomePage from "./pages/ContractorHomePage";
 import ContractorProjectsPage from "./pages/ContractorProjectsPage";
 import ContractorProfilePage from "./pages/ContractorProfilePage";
 import ContractorTimesheetsPage from "./pages/ContractorTimesheetsPage";
+import ContractorAvailabilityPage from "./pages/ContractorAvailabilityPage";
 import PmHomePage from "./pages/PmHomePage";
 import PMProjectsPage from "./pages/PMProjectsPage";
 import PmTimesheetsPage from "./pages/PmTimesheetsPage";
@@ -53,6 +54,7 @@ export default function App() {
           <Route path="/contractor/projects" element={<ContractorProjectsPage />} />
           <Route path="/contractor/profile" element={<ContractorProfilePage />} />
           <Route path="/contractor/timesheets" element={<ContractorTimesheetsPage />} />
+          <Route path="/contractor/availability" element={<ContractorAvailabilityPage />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={[ROLES.PM]} />}>

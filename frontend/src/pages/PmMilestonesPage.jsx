@@ -41,6 +41,7 @@ export default function PmMilestonesPage() {
   const [allocationInputs, setAllocationInputs] = useState({});
   const [savingAllocationId, setSavingAllocationId] = useState(null);
   const [allocationError, setAllocationError] = useState(null);
+  const [releasingContractorId, setReleasingContractorId] = useState(null);
 
   const loadProjects = useCallback(async () => {
     setIsLoadingProjects(true);
@@ -121,6 +122,24 @@ export default function PmMilestonesPage() {
       setAllocationError(err.message);
     } finally {
       setSavingAllocationId(null);
+    }
+  };
+
+  const handleRelease = async (contractorId, name) => {
+    const reason = window.prompt(`Why is ${name} being released?`);
+    if (!reason?.trim()) return;
+    const actualEndDate = window.prompt("Actual final work date (YYYY-MM-DD)", new Date().toISOString().slice(0, 10));
+    if (!actualEndDate) return;
+    setAllocationError(null);
+    setReleasingContractorId(contractorId);
+    try {
+      const updated = await pmProjectService.releaseContractor(Number(selectedProjectId), contractorId, { actualEndDate, reason: reason.trim() });
+      setContractors((prev) => prev.map((c) => (c.contractor_id === contractorId ? { ...c, ...updated } : c)));
+      setSuccessMessage(`${name} has been released from this project.`);
+    } catch (err) {
+      setAllocationError(err.message);
+    } finally {
+      setReleasingContractorId(null);
     }
   };
 
@@ -260,6 +279,14 @@ export default function PmMilestonesPage() {
                             className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-text-secondary transition hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             {savingAllocationId === c.contractor_id ? "Saving…" : "Save"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRelease(c.contractor_id, c.contractor_name)}
+                            disabled={releasingContractorId === c.contractor_id}
+                            className="rounded-md border border-danger px-3 py-1.5 text-xs font-medium text-danger transition hover:bg-danger/10 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {releasingContractorId === c.contractor_id ? "Releasing…" : "Release"}
                           </button>
                         </div>
                       )}

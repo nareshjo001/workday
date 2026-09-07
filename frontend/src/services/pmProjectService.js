@@ -78,6 +78,14 @@ async function updateContractorAllocation(projectId, contractorId, allocatedHour
   return data;
 }
 
+async function releaseContractor(projectId, contractorId, { actualEndDate, reason }) {
+  const { data } = await apiClient.patch(`/pm/projects/${projectId}/contractors/${contractorId}/release`, {
+    actual_end_date: actualEndDate,
+    reason,
+  });
+  return data;
+}
+
 export default {
   listProjects,
   createProject,
@@ -86,4 +94,5 @@ export default {
   updateProject,
   updateRequirement,
   updateContractorAllocation,
+  releaseContractor,
 };

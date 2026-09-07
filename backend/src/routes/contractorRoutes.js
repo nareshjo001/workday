@@ -6,6 +6,7 @@ const contractorProjectController = require("../controllers/contractorProjectCon
 const contractorProfileController = require("../controllers/contractorProfileController");
 const contractorTimesheetController = require("../controllers/contractorTimesheetController");
 const contractorDashboardController = require("../controllers/contractorDashboardController");
+const contractorAvailabilityController = require("../controllers/contractorAvailabilityController");
 
 /**
  * Every route here requires a valid JWT AND role = CONTRACTOR — same
@@ -27,6 +28,9 @@ router.get("/profile", contractorProfileController.getProfile);
 router.patch("/profile", contractorProfileController.updateProfile);
 // Compatibility route retained while existing clients migrate to PATCH /profile.
 router.patch("/profile/skill", contractorProfileController.updateProfile);
+router.get("/availability", contractorAvailabilityController.list);
+router.post("/availability", contractorAvailabilityController.create);
+router.delete("/availability/:id", contractorAvailabilityController.cancel);
 
 // Module 4 (daily logging revision): a contractor logging individual
 // days worked against a project they are assigned to, viewing their own
