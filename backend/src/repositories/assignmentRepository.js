@@ -80,6 +80,19 @@ async function isContractorAssigned(conn, contractorId) {
   return rows.length > 0;
 }
 
+async function lockOverlappingAssignments(conn, contractorId, startDate, endDate) {
+  const [rows] = await conn.query(
+    `SELECT id, project_id, start_date, end_date, actual_end_date
+     FROM project_assignments
+     WHERE contractor_id = ? AND status = 'ACTIVE'
+       AND start_date <= COALESCE(?, '9999-12-31')
+       AND COALESCE(end_date, '9999-12-31') >= ?
+     FOR UPDATE`,
+    [contractorId, endDate, startDate]
+  );
+  return rows;
+}
+
 /**
  * How many assignments currently point at a given requirement. Must be
  * read AFTER lockRequirementForUpdate has taken the row lock, and on the
@@ -108,11 +121,11 @@ async function countAssignmentsForRequirement(conn, requirementId) {
  * defaults to 'ACTIVE' (migration 016's column default) — every new
  * assignment starts active, never pre-released.
  */
-async function createWithRequirement(conn, contractorId, projectId, requirementId, allocatedHours) {
+async function createWithRequirement(conn, contractorId, projectId, requirementId, allocatedHours, startDate = null, endDate = null) {
   const [result] = await conn.query(
-    `INSERT INTO project_assignments (contractor_id, project_id, requirement_id, allocated_hours, assigned_date)
-     VALUES (?, ?, ?, ?, CURDATE())`,
-    [contractorId, projectId, requirementId, allocatedHours]
+    `INSERT INTO project_assignments (contractor_id, project_id, requirement_id, allocated_hours, assigned_date, start_date, end_date)
+     VALUES (?, ?, ?, ?, CURDATE(), COALESCE(?, CURDATE()), ?)`,
+    [contractorId, projectId, requirementId, allocatedHours, startDate, endDate]
   );
   return result.insertId;
 }
@@ -233,6 +246,14 @@ async function releaseAllActiveForProject(conn, projectId) {
   return result.affectedRows;
 }
 
+async function releaseActiveAssignment(conn, assignmentId, actualEndDate, reason) {
+  const [result] = await conn.query(
+    `UPDATE project_assignments SET status = 'RELEASED', released_at = NOW(), actual_end_date = ?, release_reason = ?
+     WHERE id = ? AND status = 'ACTIVE'`, [actualEndDate, reason, assignmentId]
+  );
+  return result.affectedRows > 0;
+}
+
 /**
  * Projects assigned to a given contractor, joined with the project's own
  * fields (including company_name, added in the Module 3 revision) plus
@@ -259,7 +280,7 @@ async function listProjectsForContractor(contractorId) {
             COALESCE(cc.name, p.company_name) AS company_name, pm_user.name AS pm_name,
             p.start_date, p.end_date, p.status,
             pa.assigned_date, pr.skill AS assigned_skill,
-            pa.allocated_hours, pa.status AS assignment_status, pa.released_at,
+            pa.allocated_hours, pa.status AS assignment_status, pa.released_at, pa.start_date, pa.end_date, pa.actual_end_date, pa.release_reason,
             COALESCE(SUM(CASE WHEN t.status = 'APPROVED' THEN t.hours_logged ELSE 0 END), 0) AS approved_hours,
             COALESCE(SUM(CASE WHEN t.status IN ('DRAFT', 'SUBMITTED') THEN t.hours_logged ELSE 0 END), 0) AS pending_hours
      FROM project_assignments pa
@@ -272,7 +293,7 @@ async function listProjectsForContractor(contractorId) {
      WHERE pa.contractor_id = ?
      GROUP BY pa.id, p.id, p.name, p.description, company_name, pm_user.name,
               p.start_date, p.end_date, p.status, pa.assigned_date, pr.skill,
-              pa.allocated_hours, pa.status, pa.released_at
+              pa.allocated_hours, pa.status, pa.released_at, pa.start_date, pa.end_date, pa.actual_end_date, pa.release_reason
      ORDER BY pa.created_at DESC`,
     [contractorId]
   );
@@ -317,6 +338,7 @@ async function listAssignedContractorsWithHours(projectId) {
     `SELECT pa.id AS assignment_id, pa.requirement_id, c.id AS contractor_id, u.name AS contractor_name,
             c.skill AS contractor_skill, c.status AS contractor_status,
             pa.allocated_hours, pa.status AS assignment_status, pa.released_at,
+            pa.start_date, pa.end_date, pa.actual_end_date, pa.release_reason,
             COALESCE(SUM(t.hours_logged), 0) AS logged_hours,
             COALESCE(SUM(CASE WHEN t.status = 'APPROVED' THEN t.hours_logged ELSE 0 END), 0) AS approved_hours,
             COALESCE(SUM(CASE WHEN t.status IN ('DRAFT', 'SUBMITTED') THEN t.hours_logged ELSE 0 END), 0) AS pending_hours
@@ -326,7 +348,8 @@ async function listAssignedContractorsWithHours(projectId) {
      LEFT JOIN timesheets t ON t.contractor_id = pa.contractor_id AND t.project_id = pa.project_id
      WHERE pa.project_id = ?
      GROUP BY pa.id, pa.requirement_id, c.id, u.name, c.skill, c.status,
-              pa.allocated_hours, pa.status, pa.released_at
+              pa.allocated_hours, pa.status, pa.released_at,
+              pa.start_date, pa.end_date, pa.actual_end_date, pa.release_reason
      ORDER BY u.name ASC`,
     [projectId]
   );
@@ -344,6 +367,10 @@ async function listAssignedContractorsWithHours(projectId) {
       allocated_hours: allocatedHours,
       assignment_status: r.assignment_status,
       released_at: r.released_at,
+      start_date: r.start_date,
+      end_date: r.end_date,
+      actual_end_date: r.actual_end_date,
+      release_reason: r.release_reason,
       logged_hours: Number(r.logged_hours),
       approved_hours: approvedHours,
       pending_hours: pendingHours,
@@ -357,6 +384,7 @@ module.exports = {
   lockRequirementForUpdate,
   lockRequirementForUpdateById,
   isContractorAssigned,
+  lockOverlappingAssignments,
   countAssignmentsForRequirement,
   createWithRequirement,
   updateAllocatedHours,
@@ -365,6 +393,7 @@ module.exports = {
   sumAllocatedHoursForProjects,
   lockActiveForContractorProject,
   releaseAllActiveForProject,
+  releaseActiveAssignment,
   listProjectsForContractor,
   listAssignedContractorsWithHours,
 };

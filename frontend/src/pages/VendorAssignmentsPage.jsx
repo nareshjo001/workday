@@ -90,11 +90,12 @@ export default function VendorAssignmentsPage() {
     }
   };
 
-  const handleAssign = async (contractorIds) => {
+  const handleAssign = async (contractorIds, dates) => {
     await vendorAssignmentService.assignContractors(
       selectedProject.id,
       assigningRequirement.id,
-      contractorIds
+      contractorIds,
+      dates
     );
 
     // Re-fetch so every card/requirement reflects the true server-side

@@ -239,6 +239,11 @@ async function listAssignedContractors(pmId, projectId) {
     status: r.contractor_status,
     allocated_hours: r.allocated_hours,
     assignment_status: r.assignment_status,
+    start_date: r.start_date,
+    end_date: r.end_date,
+    actual_end_date: r.actual_end_date,
+    release_reason: r.release_reason,
+    released_at: r.released_at,
     approved_hours: r.approved_hours,
     pending_hours: r.pending_hours,
     remaining_hours: r.remaining_hours,
@@ -472,6 +477,22 @@ async function updateContractorAllocation(pmId, projectId, contractorId, allocat
   };
 }
 
+async function releaseContractor(pmId, projectId, contractorId, { actualEndDate, reason }, auditActor) {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const project = await projectRepository.lockByIdForUpdate(conn, projectId);
+    if (!project || project.pm_id !== pmId) throw ApiError.notFound("Project not found.");
+    const assignment = await assignmentRepository.lockActiveForContractorProject(conn, contractorId, projectId);
+    if (!assignment) throw ApiError.notFound("Active assignment not found.");
+    if (actualEndDate < project.start_date || (project.end_date && actualEndDate > project.end_date)) throw ApiError.badRequest("Validation failed", ["actual_end_date must fall within the project date range."]);
+    await assignmentRepository.releaseActiveAssignment(conn, assignment.id, actualEndDate, reason);
+    if (auditActor) await auditService.write(conn, auditActor, "ASSIGNMENT_RELEASED", "project_assignment", assignment.id, { status: "ACTIVE" }, { status: "RELEASED", actual_end_date: actualEndDate, release_reason: reason });
+    await conn.commit();
+  } catch (error) { await conn.rollback().catch(() => {}); throw error; } finally { conn.release(); }
+  return { contractor_id: contractorId, project_id: projectId, assignment_status: "RELEASED", actual_end_date: actualEndDate, release_reason: reason };
+}
+
 module.exports = {
   createProject,
   listProjects,
@@ -481,4 +502,5 @@ module.exports = {
   updateProject,
   updateRequirement,
   updateContractorAllocation,
+  releaseContractor,
 };

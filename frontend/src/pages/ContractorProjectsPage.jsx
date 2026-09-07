@@ -36,6 +36,7 @@ export default function ContractorProjectsPage() {
     <DashboardLayout title="My Projects">
       <div className="mx-auto flex max-w-4xl flex-col gap-5">
         <h1 className="text-xl font-semibold text-text">My Projects</h1>
+        <a href="/contractor/availability" className="text-sm font-medium text-primary hover:underline">Manage availability</a>
 
         <AlertBanner message={loadError} />
 
@@ -52,6 +53,7 @@ export default function ContractorProjectsPage() {
           <div className="rounded-lg bg-surface p-4 shadow-panel ring-1 ring-border sm:p-6">
             <ProjectTable projects={projects} showId={false} />
             <ProjectCardList projects={projects} showId={false} />
+            <p className="mt-4 text-xs text-muted">Assignment dates shown by the project determine when you are available for future work.</p>
           </div>
         )}
       </div>

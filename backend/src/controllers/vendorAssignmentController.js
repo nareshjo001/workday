@@ -9,12 +9,13 @@ const asyncHandler = require("../utils/asyncHandler");
  * is verified inside the service, not here.
  */
 const assign = asyncHandler(async (req, res) => {
-  const { projectId, requirementId, contractorIds } = validateAssignContractors(req.params, req.body);
+  const { projectId, requirementId, contractorIds, startDate, endDate } = validateAssignContractors(req.params, req.body);
   const result = await vendorAssignmentService.assignContractors(
     req.user.userId,
     projectId,
     requirementId,
     contractorIds,
+    { startDate, endDate },
     { ...req.user, requestId: req.requestId }
   );
   res.status(201).json(result);

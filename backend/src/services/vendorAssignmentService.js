@@ -6,6 +6,7 @@ const ApiError = require("../utils/ApiError");
 const auditService = require("./auditService");
 const contractorDocumentService = require("./contractorDocumentService");
 const vendorAccessRepository = require("../repositories/vendorAccessRepository");
+const availabilityRepository = require("../repositories/availabilityRepository");
 
 function todayDateString() {
   return new Date().toISOString().slice(0, 10);
@@ -62,7 +63,7 @@ function todayDateString() {
  *      anywhere (a RELEASED contractor IS eligible again — see migration
  *      016's active_contractor_key generated column)
  */
-async function assignContractors(vendorId, projectId, requirementId, contractorIds, auditActor) {
+async function assignContractors(vendorId, projectId, requirementId, contractorIds, assignmentDates = {}, auditActor) {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -80,6 +81,14 @@ async function assignContractors(vendorId, projectId, requirementId, contractorI
     }
     if (project.end_date && project.end_date < todayDateString()) {
       throw ApiError.conflict("This project's end date has passed and it is no longer open for staffing.");
+    }
+    const assignmentStart = assignmentDates.startDate || todayDateString();
+    const assignmentEnd = assignmentDates.endDate || project.end_date || null;
+    if (assignmentStart < project.start_date || (project.end_date && assignmentStart > project.end_date)) {
+      throw ApiError.badRequest("Assignment start date must fall within the project date range.");
+    }
+    if (assignmentEnd && (assignmentEnd < assignmentStart || (project.end_date && assignmentEnd > project.end_date))) {
+      throw ApiError.badRequest("Assignment end date must be on or after its start date and within the project date range.");
     }
 
     // Locks the requirement row for the rest of this transaction. A
@@ -139,10 +148,12 @@ async function assignContractors(vendorId, projectId, requirementId, contractorI
           `Contractor ${contractorId} does not have the "${requirement.skill}" skill required here.`
         );
       }
-      const assignedElsewhere = await assignmentRepository.isContractorAssigned(conn, contractorId);
-      if (assignedElsewhere) {
+      const availabilityOverlaps = await availabilityRepository.lockOverlaps(conn, contractorId, assignmentStart, assignmentEnd || "9999-12-31");
+      if (availabilityOverlaps.length) throw ApiError.conflict(`Contractor ${contractorId} is unavailable during this project period.`);
+      const overlaps = await assignmentRepository.lockOverlappingAssignments(conn, contractorId, assignmentStart, assignmentEnd);
+      if (overlaps.length) {
         throw ApiError.conflict(
-          `Contractor ${contractorId} is already on an active assignment and cannot be assigned to another until released.`
+          `Contractor ${contractorId} has an overlapping active assignment and cannot be assigned for this project period.`
         );
       }
     }
@@ -152,9 +163,9 @@ async function assignContractors(vendorId, projectId, requirementId, contractorI
         // allocatedHours is always null here — MVP fix 1, see this
         // function's own doc comment. The PM sets a real value afterward
         // via pmProjectService.updateContractorAllocation.
-        await assignmentRepository.createWithRequirement(conn, contractorId, projectId, requirement.id, null);
+        await assignmentRepository.createWithRequirement(conn, contractorId, projectId, requirement.id, null, assignmentStart, assignmentEnd);
       }
-      if (auditActor) await auditService.write(conn, auditActor, "ASSIGNMENT_CREATED", "staffing_requirement", requirement.id, null, { project_id: projectId, contractor_ids: contractorIds });
+      if (auditActor) await auditService.write(conn, auditActor, "ASSIGNMENT_CREATED", "staffing_requirement", requirement.id, null, { project_id: projectId, contractor_ids: contractorIds, start_date: assignmentStart, end_date: assignmentEnd });
     } catch (err) {
       // Race-safety net: two near-simultaneous requests could still
       // collide on the UNIQUE(contractor_id, project_id) or the new

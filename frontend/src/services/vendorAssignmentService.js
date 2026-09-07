@@ -15,10 +15,10 @@ import apiClient from "./apiClient";
  * (vendorAssignmentValidators.validateAssignContractors) never even
  * looks for an hours field, so sending one here would simply be ignored.
  */
-async function assignContractors(projectId, requirementId, contractorIds) {
+async function assignContractors(projectId, requirementId, contractorIds, dates = {}) {
   const { data } = await apiClient.post(
     `/vendor/projects/${projectId}/requirements/${requirementId}/assign`,
-    { contractorIds }
+    { contractorIds, start_date: dates.startDate || undefined, end_date: dates.endDate || undefined }
   );
   return data;
 }

@@ -181,7 +181,7 @@ async function getEligibleContractorsForRequirement(vendorId, projectId, require
   }
 
   const [contractors, [requirementWithCount]] = await Promise.all([
-    contractorRepository.listEligibleForVendorAndSkill(vendorId, requirement.skill),
+    contractorRepository.listEligibleForVendorAndSkill(vendorId, requirement.skill, todayDateString(), project.end_date || null),
     projectRepository
       .listRequirementsWithCounts([projectId])
       .then((rows) => rows.filter((r) => r.id === requirement.id)),
