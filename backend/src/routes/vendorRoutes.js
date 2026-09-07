@@ -11,6 +11,7 @@ const contractorDocumentController = require("../controllers/contractorDocumentC
 const vendorClientController = require("../controllers/vendorClientController");
 const vendorAvailabilityController = require("../controllers/vendorAvailabilityController");
 const candidateSubmissionController = require("../controllers/candidateSubmissionController");
+const staffingPipelineController = require("../controllers/staffingPipelineController");
 
 /**
  * Every route in this router requires a valid JWT AND role = VENDOR.
@@ -25,6 +26,7 @@ router.use(authenticate, authorizeRoles(ROLES.VENDOR));
 router.post("/contractors", vendorContractorController.create);
 router.post("/contractors/:contractorId/availability", vendorAvailabilityController.create);
 router.get("/candidate-submissions", candidateSubmissionController.listVendor);
+router.get("/staffing-pipeline", staffingPipelineController.vendor);
 router.get("/contractors", vendorContractorController.list);
 router.patch("/contractors/:id", vendorContractorController.update);
 router.post("/contractors/:id/resend-invitation", vendorContractorController.resendInvitation);

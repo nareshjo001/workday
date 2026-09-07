@@ -207,17 +207,17 @@ function validateUpdateAllocation(params = {}, body = {}) {
 }
 
 function validateUpdateProject(body = {}) {
-  const allowed = ["name", "description", "start_date", "end_date", "expected_hours", "budget", "currency", "max_hours_per_day", "max_hours_per_week", "allow_weekend", "backdate_limit_days", "status"];
+  const allowed = ["name", "description", "start_date", "end_date", "expected_hours", "budget", "currency", "max_hours_per_day", "max_hours_per_week", "allow_weekend", "backdate_limit_days", "candidate_response_sla_hours", "status"];
   if (!Object.keys(body).length || Object.keys(body).some((key) => !allowed.includes(key))) throw ApiError.badRequest("Validation failed", ["Provide supported project fields."]);
   const result = {};
   if ("name" in body) { if (typeof body.name !== "string" || !body.name.trim() || body.name.trim().length > NAME_MAX_LENGTH) throw ApiError.badRequest("Validation failed", ["name is invalid."]); result.name = body.name.trim(); }
   if ("description" in body) { if (body.description !== null && typeof body.description !== "string") throw ApiError.badRequest("Validation failed", ["description is invalid."]); result.description = body.description?.trim() || null; }
   if ("start_date" in body) { if (!isValidDateString(body.start_date)) throw ApiError.badRequest("Validation failed", ["start_date is invalid."]); result.startDate = body.start_date; }
   if ("end_date" in body) { if (body.end_date !== null && body.end_date !== "" && !isValidDateString(body.end_date)) throw ApiError.badRequest("Validation failed", ["end_date is invalid."]); result.endDate = body.end_date || null; }
-  for (const [input, key, nullable, integer] of [["expected_hours", "expectedHours", false, false], ["budget", "budget", true, false], ["max_hours_per_day", "maxHoursPerDay", true, false], ["max_hours_per_week", "maxHoursPerWeek", true, false], ["backdate_limit_days", "backdateLimitDays", true, true]]) {
+  for (const [input, key, nullable, integer] of [["expected_hours", "expectedHours", false, false], ["budget", "budget", true, false], ["max_hours_per_day", "maxHoursPerDay", true, false], ["max_hours_per_week", "maxHoursPerWeek", true, false], ["backdate_limit_days", "backdateLimitDays", true, true], ["candidate_response_sla_hours", "candidateResponseSlaHours", false, true]]) {
     if (!(input in body)) continue;
     const value = body[input] === null || body[input] === "" ? null : Number(body[input]);
-    if ((!nullable && value === null) || (value !== null && (!Number.isFinite(value) || value <= 0 || (integer && !Number.isInteger(value)) || (!integer && Math.round(value * 100) !== value * 100)))) throw ApiError.badRequest("Validation failed", [`${input} is invalid.`]);
+    if ((!nullable && value === null) || (value !== null && (!Number.isFinite(value) || value <= 0 || (integer && !Number.isInteger(value)) || (!integer && Math.round(value * 100) !== value * 100))) || (input === "candidate_response_sla_hours" && value > 8760)) throw ApiError.badRequest("Validation failed", [`${input} is invalid.`]);
     result[key] = value;
   }
   if ("currency" in body) { const value = String(body.currency || "").trim().toUpperCase(); if (value && !/^[A-Z]{3}$/.test(value)) throw ApiError.badRequest("Validation failed", ["currency must be a 3-letter code."]); result.currency = value || null; }
