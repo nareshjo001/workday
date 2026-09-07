@@ -22,13 +22,15 @@ async function listMilestones(projectId) {
  * project-wide checkpoint every staffed contractor contributes toward
  * (see CreateMilestoneModal / pmMilestoneValidators).
  */
-async function createMilestone({ projectId, name, thresholdHours }) {
+async function createMilestone({ projectId, name, thresholdHours, description, sequenceOrder, dueDate }) {
   const { data } = await apiClient.post("/pm/milestones", {
     project_id: projectId,
     name,
     threshold_hours: thresholdHours,
+    description, sequence_order: sequenceOrder || null, due_date: dueDate || null,
   });
   return data;
 }
+async function updateMilestone(id,{name,thresholdHours,description,sequenceOrder,dueDate}){const {data}=await apiClient.patch(`/pm/milestones/${id}`,{name,threshold_hours:thresholdHours,description,sequence_order:sequenceOrder||null,due_date:dueDate||null});return data;}
 
-export default { listMilestones, createMilestone };
+export default { listMilestones, createMilestone, updateMilestone };

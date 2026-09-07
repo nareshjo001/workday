@@ -25,11 +25,11 @@ const { pool } = require("../config/db");
  * called (pmMilestoneService.createMilestone) — this function trusts its
  * caller, same convention as projectRepository.create.
  */
-async function create(conn, { projectId, name, thresholdHours }) {
+async function create(conn, { projectId, name, thresholdHours, description = null, sequenceOrder = null, dueDate = null }) {
   const [result] = await conn.query(
-    `INSERT INTO milestones (project_id, name, threshold_hours, status)
-     VALUES (?, ?, ?, 'PENDING')`,
-    [projectId, name, thresholdHours]
+    `INSERT INTO milestones (project_id, name, description, sequence_order, due_date, threshold_hours, status)
+     VALUES (?, ?, ?, ?, ?, ?, 'PENDING')`,
+    [projectId, name, description, sequenceOrder, dueDate, thresholdHours]
   );
   return result.insertId;
 }
@@ -43,7 +43,7 @@ async function create(conn, { projectId, name, thresholdHours }) {
  */
 async function findById(id) {
   const [rows] = await pool.query(
-    `SELECT id, project_id, name, threshold_hours, status, met_at, created_at
+    `SELECT id, project_id, name, description, sequence_order, due_date, threshold_hours, status, met_at, created_at
      FROM milestones WHERE id = ? LIMIT 1`,
     [id]
   );
@@ -67,8 +67,8 @@ async function findById(id) {
  */
 async function listByProject(projectId) {
   const [milestoneRows] = await pool.query(
-    `SELECT id, project_id, name, threshold_hours, status, met_at, created_at
-     FROM milestones WHERE project_id = ? ORDER BY threshold_hours ASC`,
+    `SELECT id, project_id, name, description, sequence_order, due_date, threshold_hours, status, met_at, created_at
+     FROM milestones WHERE project_id = ? ORDER BY COALESCE(sequence_order, 2147483647), threshold_hours ASC, id ASC`,
     [projectId]
   );
   if (milestoneRows.length === 0) return [];
@@ -104,6 +104,9 @@ async function listByProject(projectId) {
     id: m.id,
     project_id: m.project_id,
     name: m.name,
+    description: m.description,
+    sequence_order: m.sequence_order,
+    due_date: m.due_date,
     threshold_hours: Number(m.threshold_hours),
     status: m.status,
     met_at: m.met_at,
@@ -193,6 +196,9 @@ async function markMet(conn, milestoneId) {
   return result.affectedRows > 0;
 }
 
+async function lockByIdForUpdate(conn, id) { const [r]=await conn.query("SELECT * FROM milestones WHERE id=? LIMIT 1 FOR UPDATE",[id]); return r[0]||null; }
+async function updatePending(conn,id,{name,description,sequenceOrder,dueDate,thresholdHours}) { await conn.query("UPDATE milestones SET name=?,description=?,sequence_order=?,due_date=?,threshold_hours=? WHERE id=? AND status='PENDING'",[name,description,sequenceOrder,dueDate,thresholdHours,id]); }
+
 /**
  * Inserts one contributor's immutable contribution/billing snapshot for a
  * just-MET milestone. Must run on the same transaction-scoped `conn` as
@@ -261,6 +267,8 @@ module.exports = {
   lockPendingForProject,
   sumBilledHoursByContractorForProject,
   markMet,
+  lockByIdForUpdate,
+  updatePending,
   createBilling,
   findBillingById,
 };

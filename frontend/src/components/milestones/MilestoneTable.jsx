@@ -20,6 +20,7 @@ export default function MilestoneTable({ milestones }) {
       <thead>
         <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
           <th className="py-3 pr-4 font-medium">Milestone</th>
+          <th className="py-3 pr-4 font-medium">Plan</th>
           <th className="py-3 pr-4 font-medium">Threshold</th>
           <th className="py-3 pr-4 font-medium">Met On</th>
           <th className="py-3 pr-4 font-medium">Contributions</th>
@@ -32,7 +33,7 @@ export default function MilestoneTable({ milestones }) {
           const totalBilled = m.contributions.reduce((sum, c) => sum + c.billing_amount, 0);
           return (
             <tr key={m.id} className="border-b border-border last:border-0">
-              <td className="py-3 pr-4 font-medium text-text">{m.name}</td>
+              <td className="py-3 pr-4 font-medium text-text">{m.name}</td><td className="py-3 pr-4 text-xs text-text-secondary">#{m.sequence_order || "—"}<br/>{m.due_date ? `Due ${formatDate(m.due_date.slice(0,10))}` : "No due date"}<br/>{m.description || "—"}</td>
               <td className="py-3 pr-4 text-text-secondary">{formatHours(m.threshold_hours)} hrs</td>
               <td className="py-3 pr-4 text-text-secondary">
                 {m.status === "MET" ? formatDate(m.met_at?.slice(0, 10)) : "—"}

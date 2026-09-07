@@ -51,6 +51,7 @@ router.patch("/timesheets/:id", pmTimesheetController.review);
 // /projects above — no new authenticate/authorizeRoles declaration
 // needed.
 router.post("/milestones", pmMilestoneController.create);
+router.patch("/milestones/:id", pmMilestoneController.update);
 router.get("/milestones/:projectId", pmMilestoneController.listForProject);
 
 // Module 6, narrowed by the invoice-workflow redesign: read-only invoice
