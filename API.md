@@ -14,3 +14,11 @@ Important payloads: assignment accepts `{ contractorIds }`; PM allocation accept
 M09 endpoints: `GET /vendor/clients`, `GET /vendor/clients/:companyId`, `GET /pm/vendors`, `GET|POST /pm/vendor-access`, `DELETE /pm/vendor-access/:vendorId`, `POST|DELETE /pm/projects/:projectId/vendors/:vendorId`, and `POST /pm/company/pm-invitations`. Existing-client PM signup needs `companyInvitationToken`; only a new-company first PM may bootstrap a company.
 
 Errors: `400` invalid input, `401` invalid/missing session, `403` wrong role, `404` absent or protected foreign resource, and `409` current-state conflict. Current errors use `message` and optional validation `errors`; stable error codes are M03 work.
+# M21 contractor offboarding and project close
+
+- `GET /api/pm/projects/:id/close-readiness`
+- `GET /api/vendor/contractors/:id/history`
+- `GET /api/vendor/projects/:projectId/contractors/:contractorId/release-readiness`
+- `PATCH /api/vendor/projects/:projectId/contractors/:contractorId/release`
+
+The two readiness endpoints return explicit blocker/warning arrays. Release requires an in-range `actual_end_date` and non-empty `reason`; all resources remain tenant scoped.

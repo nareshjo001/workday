@@ -39,4 +39,22 @@ async function updateContractor(id, { hourlyRate, status }) {
   return data;
 }
 
-export default { listContractors, createContractor, updateContractor };
+async function getHistory(id) {
+  const { data } = await apiClient.get(`/vendor/contractors/${id}/history`);
+  return data.assignments;
+}
+
+async function getReleaseReadiness(projectId, contractorId) {
+  const { data } = await apiClient.get(`/vendor/projects/${projectId}/contractors/${contractorId}/release-readiness`);
+  return data;
+}
+
+async function release(projectId, contractorId, { actualEndDate, reason }) {
+  const { data } = await apiClient.patch(`/vendor/projects/${projectId}/contractors/${contractorId}/release`, {
+    actual_end_date: actualEndDate,
+    reason,
+  });
+  return data;
+}
+
+export default { listContractors, createContractor, updateContractor, getHistory, getReleaseReadiness, release };

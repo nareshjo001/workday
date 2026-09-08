@@ -5,7 +5,7 @@ import { formatSkill } from "../../constants/skills";
  * Mobile presentation — visible below md, where ContractorTable takes
  * over. Avoids forcing a wide table onto small screens.
  */
-export default function ContractorCardList({ contractors, onEdit }) {
+export default function ContractorCardList({ contractors, onEdit, onHistory }) {
   return (
     <div className="flex flex-col gap-3 md:hidden">
       {contractors.map((contractor) => (
@@ -26,13 +26,7 @@ export default function ContractorCardList({ contractors, onEdit }) {
               {formatRate(contractor.hourly_rate)} / hour
             </span>
           </p>
-          <button
-            type="button"
-            onClick={() => onEdit(contractor)}
-            className="mt-3 w-full rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary transition hover:bg-surface-muted"
-          >
-            Edit
-          </button>
+          <div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => onHistory(contractor)} className="rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary transition hover:bg-surface-muted">History</button><button type="button" onClick={() => onEdit(contractor)} className="rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary transition hover:bg-surface-muted">Edit</button></div>
         </div>
       ))}
     </div>
