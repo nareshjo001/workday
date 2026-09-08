@@ -7,6 +7,7 @@ const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/ApiError");
 const { SKILLS } = require("../constants/skills");
 const { parseListQuery } = require("../utils/listQuery");
+const historyService = require('../services/contractorHistoryService');
 
 /**
  * `req.user` is set by the `authenticate` middleware from the verified JWT
@@ -53,5 +54,6 @@ const resendInvitation = asyncHandler(async (req, res) => {
   await vendorContractorService.resendInvitation(req.user.userId, contractorId);
   res.status(202).json({ message: "Invitation email queued." });
 });
+const history = asyncHandler(async (req,res) => { const contractorId=Number(req.params.id); if(!Number.isInteger(contractorId)||contractorId<1) throw ApiError.badRequest('Invalid contractor id.'); res.json({ assignments: await historyService.history(req.user.userId, contractorId) }); });
 
-module.exports = { create, list, update, resendInvitation };
+module.exports = { create, list, update, resendInvitation, history };

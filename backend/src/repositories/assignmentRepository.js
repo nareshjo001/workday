@@ -247,19 +247,22 @@ async function lockActiveForContractorProject(conn, contractorId, projectId) {
  * 016's generated column), which is what makes the contractor eligible
  * for a brand new assignment elsewhere.
  */
-async function releaseAllActiveForProject(conn, projectId) {
+async function releaseAllActiveForProject(conn, projectId, releasedBy) {
   const [result] = await conn.query(
-    `UPDATE project_assignments SET status = 'RELEASED', released_at = NOW()
-     WHERE project_id = ? AND status = 'ACTIVE'`,
-    [projectId]
+    `UPDATE project_assignments pa JOIN projects p ON p.id = pa.project_id
+     SET pa.status = 'RELEASED', pa.released_at = NOW(),
+         pa.actual_end_date = COALESCE(pa.actual_end_date, LEAST(CURDATE(), COALESCE(p.end_date, CURDATE()))),
+         pa.released_by = ?
+     WHERE pa.project_id = ? AND pa.status = 'ACTIVE'`,
+    [releasedBy, projectId]
   );
   return result.affectedRows;
 }
 
-async function releaseActiveAssignment(conn, assignmentId, actualEndDate, reason) {
+async function releaseActiveAssignment(conn, assignmentId, actualEndDate, reason, releasedBy) {
   const [result] = await conn.query(
-    `UPDATE project_assignments SET status = 'RELEASED', released_at = NOW(), actual_end_date = ?, release_reason = ?
-     WHERE id = ? AND status = 'ACTIVE'`, [actualEndDate, reason, assignmentId]
+    `UPDATE project_assignments SET status = 'RELEASED', released_at = NOW(), actual_end_date = ?, release_reason = ?, released_by = ?
+     WHERE id = ? AND status = 'ACTIVE'`, [actualEndDate, reason, releasedBy, assignmentId]
   );
   return result.affectedRows > 0;
 }

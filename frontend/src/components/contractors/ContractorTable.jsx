@@ -8,7 +8,7 @@ import { formatSkill } from "../../constants/skills";
  * whatever the contractor has set on their own profile — a Vendor can see
  * it but never edit it here.
  */
-export default function ContractorTable({ contractors, onEdit }) {
+export default function ContractorTable({ contractors, onEdit, onHistory }) {
   return (
     <table className="hidden w-full text-left text-sm md:table">
       <thead>
@@ -34,6 +34,7 @@ export default function ContractorTable({ contractors, onEdit }) {
               <StatusBadge status={contractor.status} />
             </td>
             <td className="py-3 pr-0 text-right">
+              <button type="button" onClick={() => onHistory(contractor)} className="mr-2 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-text-secondary transition hover:bg-surface-muted">History</button>
               <button
                 type="button"
                 onClick={() => onEdit(contractor)}

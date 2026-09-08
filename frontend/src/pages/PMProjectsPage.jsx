@@ -77,6 +77,9 @@ export default function PMProjectsPage() {
     setActionError(null);
     setCompletingId(project.id);
     try {
+      const readiness = await pmProjectService.getCloseReadiness(project.id);
+      if (!readiness.can_complete) { setActionError(readiness.blockers.map((item) => item.message).join(" ")); return; }
+      if (readiness.warnings.length && !window.confirm(`Close warnings:\n${readiness.warnings.map((item) => `• ${item.message}`).join("\n")}\n\nComplete this project?`)) return;
       const { released_assignment_count } = await pmProjectService.completeProject(project.id);
       await loadProjects();
       setSuccessMessage(

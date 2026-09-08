@@ -34,6 +34,7 @@ router.get("/projects/:id/contractors", pmProjectController.listContractors);
 // Project hours/allocation redesign addition: PM marks a project
 // COMPLETED, auto-releasing every active assignment on it.
 router.patch("/projects/:id/complete", pmProjectController.complete);
+router.get("/projects/:id/close-readiness", pmProjectController.closeReadiness);
 // MVP fix 1: the PM (never the Vendor) sets/changes a specific,
 // already-assigned contractor's work-hour allocation on this project.
 router.patch(

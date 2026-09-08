@@ -298,12 +298,8 @@ async function completeProject(pmId, projectId, auditActor) {
     if (!["ACTIVE", "ON_HOLD"].includes(project.status)) {
       throw ApiError.conflict("Only active or on-hold projects can be completed.");
     }
-    if (await timesheetRepository.countSubmittedForProject(conn, projectId)) {
-      throw ApiError.conflict("Review submitted timesheets before completing this project.");
-    }
-    if (await invoiceRepository.countPendingReviewForProject(conn, projectId)) {
-      throw ApiError.conflict("Resolve pending vendor invoice reviews before completing this project.");
-    }
+    const readiness = await closeReadiness(conn, projectId);
+    if (!readiness.can_complete) throw new ApiError(409, "Resolve project close blockers before completing this project.", readiness, 'PROJECT_CLOSE_BLOCKED');
 
     const updated = await projectRepository.markCompleted(conn, projectId);
     if (!updated) {
@@ -313,7 +309,18 @@ async function completeProject(pmId, projectId, auditActor) {
       throw ApiError.conflict("This project is already completed.");
     }
 
-    releasedCount = await assignmentRepository.releaseAllActiveForProject(conn, projectId);
+    const [activeAssignments] = await conn.query(
+      "SELECT id, contractor_id FROM project_assignments WHERE project_id=? AND status='ACTIVE' FOR UPDATE",
+      [projectId]
+    );
+    releasedCount = await assignmentRepository.releaseAllActiveForProject(conn, projectId, pmId);
+    if (auditActor) {
+      for (const assignment of activeAssignments) {
+        await auditService.write(conn, auditActor, "ASSIGNMENT_RELEASED", "project_assignment", assignment.id,
+          { status: "ACTIVE" },
+          { status: "RELEASED", project_id: projectId, contractor_id: assignment.contractor_id, release_source: "PROJECT_COMPLETION" });
+      }
+    }
     if (auditActor) await auditService.write(conn,auditActor,"PROJECT_COMPLETED","project",projectId,{status:project.status},{status:"COMPLETED",released_assignment_count:releasedCount});
 
     await conn.commit();
@@ -489,13 +496,41 @@ async function releaseContractor(pmId, projectId, contractorId, { actualEndDate,
     const assignment = await assignmentRepository.lockActiveForContractorProject(conn, contractorId, projectId);
     if (!assignment) throw ApiError.notFound("Active assignment not found.");
     if (actualEndDate < project.start_date || (project.end_date && actualEndDate > project.end_date)) throw ApiError.badRequest("Validation failed", ["actual_end_date must fall within the project date range."]);
-    await assignmentRepository.releaseActiveAssignment(conn, assignment.id, actualEndDate, reason);
+    const readiness = await assignmentReadiness(conn, projectId, contractorId);
+    if (readiness.blockers.length) throw new ApiError(409, "Resolve assignment release blockers before releasing this contractor.", readiness, 'ASSIGNMENT_RELEASE_BLOCKED');
+    await assignmentRepository.releaseActiveAssignment(conn, assignment.id, actualEndDate, reason, pmId);
     if (auditActor) await auditService.write(conn, auditActor, "ASSIGNMENT_RELEASED", "project_assignment", assignment.id, { status: "ACTIVE" }, { status: "RELEASED", actual_end_date: actualEndDate, release_reason: reason });
     await conn.commit();
   } catch (error) { await conn.rollback().catch(() => {}); throw error; } finally { conn.release(); }
   const recipientId=await notifications.contractorUserId(contractorId); if(recipientId) await notifications.notify({recipientId,eventType:"ASSIGNMENT_RELEASED",entityType:"project_assignment",entityId:contractorId,message:"Your project assignment was released.",deepLink:"/contractor/projects"});
   return { contractor_id: contractorId, project_id: projectId, assignment_status: "RELEASED", actual_end_date: actualEndDate, release_reason: reason };
 }
+
+async function assignmentReadiness(conn, projectId, contractorId) {
+  const [[row]] = await conn.query(`SELECT SUM(status='SUBMITTED') submitted_timesheets,SUM(status='REJECTED') rejected_timesheets FROM timesheets WHERE project_id=? AND contractor_id=?`, [projectId, contractorId]);
+  const blockers = Number(row.submitted_timesheets) ? [{ code: 'SUBMITTED_TIMESHEETS', count: Number(row.submitted_timesheets), message: 'Submitted timesheets require PM review.' }] : [];
+  const warnings = Number(row.rejected_timesheets) ? [{ code: 'REJECTED_TIMESHEETS', count: Number(row.rejected_timesheets), message: 'Rejected timesheets remain in history and may require correction.' }] : [];
+  return { can_release: !blockers.length, blockers, warnings };
+}
+
+async function closeReadiness(conn, projectId) {
+  const [[row]] = await conn.query(`SELECT
+    (SELECT COUNT(*) FROM project_assignments WHERE project_id=? AND status='ACTIVE') active_assignments,
+    (SELECT COUNT(*) FROM timesheets WHERE project_id=? AND status='SUBMITTED') submitted_timesheets,
+    (SELECT COUNT(*) FROM timesheets WHERE project_id=? AND status='REJECTED') rejected_timesheets,
+    (SELECT COUNT(*) FROM candidate_submissions WHERE project_id=? AND status='SUBMITTED') candidate_reviews,
+    (SELECT COUNT(*) FROM milestone_billings b LEFT JOIN invoice_items ii ON ii.milestone_billing_id=b.id JOIN milestones m ON m.id=b.milestone_id WHERE m.project_id=? AND ii.id IS NULL) unbilled_contributions,
+    (SELECT COUNT(*) FROM invoices WHERE project_id=? AND status='DRAFT') draft_invoices,
+    (SELECT COUNT(*) FROM invoices WHERE project_id=? AND status='SUBMITTED') submitted_invoices,
+    (SELECT COUNT(*) FROM invoices i LEFT JOIN (SELECT invoice_id,SUM(amount) paid FROM payments GROUP BY invoice_id) p ON p.invoice_id=i.id WHERE i.project_id=? AND i.status='APPROVED' AND i.total_amount>COALESCE(p.paid,0)) outstanding_invoices,
+    (SELECT COUNT(*) FROM invoices i LEFT JOIN (SELECT invoice_id,SUM(amount) paid FROM payments GROUP BY invoice_id) p ON p.invoice_id=i.id WHERE i.project_id=? AND i.status='APPROVED' AND i.due_date<CURDATE() AND i.total_amount>COALESCE(p.paid,0)) overdue_invoices`, [projectId,projectId,projectId,projectId,projectId,projectId,projectId,projectId,projectId]);
+  const blockers=[]; const warnings=[]; const add=(target,code,key,message)=>{if(Number(row[key]))target.push({code,count:Number(row[key]),message});};
+  add(blockers,'SUBMITTED_TIMESHEETS','submitted_timesheets','Submitted timesheets require PM review.'); add(blockers,'SUBMITTED_INVOICES','submitted_invoices','Submitted invoices require PM review.'); add(blockers,'OPEN_CANDIDATE_REVIEWS','candidate_reviews','Candidate decisions are still pending.');
+  add(warnings,'ACTIVE_ASSIGNMENTS','active_assignments','Active assignments will be released as part of completion.'); add(warnings,'REJECTED_TIMESHEETS','rejected_timesheets','Rejected timesheets are preserved for correction history.'); add(warnings,'UNBILLED_CONTRIBUTIONS','unbilled_contributions','Eligible milestone contributions remain uninvoiced.'); add(warnings,'DRAFT_INVOICES','draft_invoices','Draft invoices remain editable after operational close.'); add(warnings,'OUTSTANDING_INVOICES','outstanding_invoices','Approved invoices remain outstanding.'); add(warnings,'OVERDUE_INVOICES','overdue_invoices','Approved invoices are overdue.');
+  return { can_complete: !blockers.length, blockers, warnings };
+}
+
+async function getCloseReadiness(pmId, projectId) { const conn=await pool.getConnection(); try { const project=await projectRepository.lockByIdForUpdate(conn,projectId); if(!project||project.pm_id!==pmId) throw ApiError.notFound('Project not found.'); return closeReadiness(conn,projectId); } finally { conn.release(); } }
 
 module.exports = {
   createProject,
@@ -507,4 +542,6 @@ module.exports = {
   updateRequirement,
   updateContractorAllocation,
   releaseContractor,
+  getCloseReadiness,
+  assignmentReadiness,
 };
