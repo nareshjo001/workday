@@ -3,23 +3,24 @@
 ## Runtime topology
 
 ```text
-React SPA (Vite) -> Axios with Bearer JWT -> Express API -> mysql2 connection pool -> MySQL/MariaDB
+Browser -> Nginx SPA /api proxy -> Express API -> mysql2 pool -> MySQL 8
+                                   |-> persistent document/PDF volume
 ```
 
-The backend follows `route -> controller -> validator -> service -> repository`. SQL lives in repositories; services own business rules, transactions and locks. The SPA handles navigation and UI state but is not a security boundary.
+The application is a modular monolith. Backend flow is `route -> controller -> validator -> service -> repository`; services own transactions and domain rules. React manages UI state and routing but is never an authorization boundary.
 
-## Authorization and tenancy
+## Security and tenancy
 
-Authentication verifies a signed JWT and attaches `{ userId, role }`. Role middleware rejects wrong-role requests. Services and repository SQL derive ownership from that identity. Sensitive cross-tenant probes intentionally return the same 404 as a missing resource; a wrong route role receives 403.
+JWT access tokens are paired with validated server-side sessions. Role routers gate Vendor, PM, and Contractor APIs. Services and repository SQL derive organization/project scope from the authenticated identity. Wrong-role access is rejected; tenant-sensitive missing/foreign resource probes retain the established hidden-resource behavior.
 
-## Transaction model
+Helmet, explicit CORS origins, JSON size limits, authentication rate limits, safe error contracts, request IDs, and structured redacted logs are process-level controls. Production rejects placeholder/short JWT secrets and wildcard origins.
 
-Mutating flows use transactions for contractor provisioning, project/requirement creation, batch assignment, allocation, timesheet submit/edit/review, milestone billing, project completion and invoice review. Assignment/allocation lock the project first; assignment then locks requirement and contractors. Timesheet writes lock the active assignment before reading reserved hours. Milestone evaluation locks pending milestones. Conditional updates and unique constraints are the final race backstops.
+## Data integrity
 
-## Historical compatibility
+Transactions, `SELECT ... FOR UPDATE`, conditional transitions, and unique constraints protect candidate acceptance, assignment capacity/overlap, timesheet review, milestone billing, invoice numbering/items/review, payments, and project close. M04 audit writes share each critical mutation transaction.
 
-Migrations 001–016 are forward-only records. Current code preserves legacy company names, former weekly timesheet rows, null legacy allocations, released assignments, old auto-approved invoices, and historical billing/invoice snapshots.
+Financial values move from assignment rate snapshots to immutable milestone billing, invoice items/documents, and payments. Later rate card or contractor changes do not rewrite history.
 
-## Current maturity boundaries
+## Operations
 
-Refresh-session rotation, rate limiting, structured logging, durable audit records, CI, and pagination are roadmap work rather than current features.
+Docker Compose contains MySQL, backend, and frontend. Explicit one-shot tools run migrations and demo seed. `schema_migrations` protects the forward-only SQL sequence with file checksums and an operator-only legacy baseline. MySQL and document storage persist in named volumes. See the [M22 deployment record](Expansion%20Doc/M22-Production-Deployment-Backup-Security-and-Demo-Environment/IMPLEMENTATION.md).

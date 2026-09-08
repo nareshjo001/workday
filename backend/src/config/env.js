@@ -12,8 +12,10 @@ function required(name, fallback) {
 const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT) || 5000,
+  startupDbRetries: Number(process.env.STARTUP_DB_RETRIES) || 30,
+  startupDbRetryMs: Number(process.env.STARTUP_DB_RETRY_MS) || 1000,
   clientOrigin: process.env.CLIENT_ORIGIN || "http://localhost:5173",
-  corsOrigins: (process.env.CLIENT_ORIGIN || "http://localhost:5173").split(",").map((origin) => origin.trim()).filter(Boolean),
+  corsOrigins: (process.env.CLIENT_ORIGIN || "http://localhost:5173").split(",").map((origin) => origin.trim().replace(/\/$/, "")).filter(Boolean),
 
   db: {
     host: required("DB_HOST", "localhost"),
@@ -32,6 +34,10 @@ const env = {
     actionTokenExpiresMinutes: Number(process.env.ACTION_TOKEN_EXPIRES_MINUTES) || 30,
     maxFailedLogins: Number(process.env.AUTH_MAX_FAILED_LOGINS) || 5,
     lockoutMinutes: Number(process.env.AUTH_LOCKOUT_MINUTES) || 15,
+  },
+  storage: {
+    documentRoot: process.env.DOCUMENT_STORAGE_PATH || "uploads/documents",
+    uploadMaxBytes: Number(process.env.UPLOAD_MAX_BYTES) || 5 * 1024 * 1024,
   },
   mail: {
     from: process.env.MAIL_FROM || "no-reply@vms.local",
@@ -55,6 +61,10 @@ const env = {
 
 if (env.nodeEnv === "test" && !env.db.name.endsWith("_test")) {
   throw new Error("Refusing to run tests against a database whose name does not end in _test.");
+}
+if (env.nodeEnv === "production") {
+  if (env.jwt.secret.length < 32 || /replace-with|changeme/i.test(env.jwt.secret)) throw new Error("JWT_SECRET must be a strong production secret of at least 32 characters.");
+  if (!env.corsOrigins.length || env.corsOrigins.includes("*")) throw new Error("CLIENT_ORIGIN must be an explicit production allowlist.");
 }
 
 module.exports = env;

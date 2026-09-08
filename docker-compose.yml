@@ -1,0 +1,73 @@
+x-backend-image: &backend-image
+  build: ./backend
+  image: workday-vms-backend:local
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-vms_demo}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+      TZ: UTC
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes: [mysql-data:/var/lib/mysql]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [vms]
+  migrate:
+    <<: *backend-image
+    command: ["node", "src/migrations/run.js"]
+    environment: &backend-env
+      NODE_ENV: production
+      PORT: 5000
+      STARTUP_DB_RETRIES: 30
+      STARTUP_DB_RETRY_MS: 1000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_NAME: ${DB_NAME:-vms_demo}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      CLIENT_ORIGIN: http://localhost:${FRONTEND_PORT:-8080}
+      DOCUMENT_STORAGE_PATH: /app/uploads/documents
+    depends_on:
+      mysql: { condition: service_healthy }
+    profiles: [tools]
+    networks: [vms]
+  seed:
+    <<: *backend-image
+    command: ["node", "scripts/seedDemo.js"]
+    environment: *backend-env
+    volumes: [document-data:/app/uploads/documents]
+    depends_on:
+      mysql: { condition: service_healthy }
+    profiles: [tools]
+    networks: [vms]
+  backend:
+    <<: *backend-image
+    environment: *backend-env
+    volumes: [document-data:/app/uploads/documents]
+    depends_on:
+      mysql: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:5000/api/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 4s
+      retries: 10
+    networks: [vms]
+  frontend:
+    build:
+      context: ./frontend
+      args: { VITE_API_BASE_URL: /api }
+    ports: ["${FRONTEND_PORT:-8080}:80"]
+    depends_on:
+      backend: { condition: service_healthy }
+    networks: [vms]
+volumes:
+  mysql-data:
+  document-data:
+networks:
+  vms:

@@ -1,17 +1,15 @@
 # VMS Database Model
 
-The application uses MySQL/MariaDB InnoDB tables created by migrations `001` through `016`. The migration runner applies SQL files lexically.
+MySQL 8 stores the VMS in forward-only migrations `001` through `036`. `schema_migrations` records every applied filename and SHA-256 checksum; existing databases without that ledger require verified backup and explicit baseline rather than historical replay.
 
-| Table | Purpose | Integrity highlights |
+| Area | Core tables | Integrity model |
 | --- | --- | --- |
-| `users` | Shared Vendor, Contractor and PM accounts. | Unique email; role enum. |
-| `contractors` | Contractor profile linked to user and vendor. | Unique `user_id`; rate/status/primary skill. |
-| `client_companies` / `project_managers` | Canonical PM company and association. | Unique normalized company; one row per PM. |
-| `projects` / `project_requirements` | PM projects and staffing demand. | Unique project/skill requirement. |
-| `project_assignments` | Contractor/project history. | Unique contractor/project and generated active-contractor key. |
-| `timesheets` | Daily contractor/project hours. | Unique contractor/project/work date. |
-| `milestones` | Project-level approved-hour thresholds. | Pending/MET lifecycle. |
-| `milestone_billings` | Immutable contractor contribution snapshot. | Unique milestone/contractor. |
-| `invoices` | Immutable invoice snapshot for billing contribution. | Unique billing ID. |
+| Identity and tenancy | `users`, sessions/tokens, `client_companies`, `project_managers`, vendor relationships | Role identity and company/project scope |
+| Workforce | `contractors`, skills, availability, documents, candidate submissions, assignments | Active/date overlap and tenant constraints |
+| Work | `timesheets`, `milestones`, `milestone_billings` | Approved-hours-only, immutable billing contributions |
+| Commercial | `rate_cards`, invoices, invoice items/adjustments/sequences, payments | Rate/item snapshots, invoice uniqueness, exact decimal amounts |
+| Operations | `notifications`, preferences, `audit_log`, migration ledger | User-owned notifications, transactional audit, replay protection |
 
-Key migration history: `005`–`008` introduced skills/requirements; `009`–`010` canonical companies; `013` changed weekly logs to daily rows without inventing detail; `014`–`015` added snapshots/invoices; `016` added expected hours, PM allocation, released assignments, active-only assignment uniqueness, and project-level milestones.
+`project_assignments` retain release metadata and historical bill/cost snapshots. `invoices` retain lifecycle, calculated totals, PDF storage metadata, and payment status derives from append-only `payments`; invoice approval is separate from settlement. Documents and PDFs are persisted outside MySQL under configured storage keys, so production backup requires both database dump and storage volume backup.
+
+See [M22 backup and restore](Expansion%20Doc/M22-Production-Deployment-Backup-Security-and-Demo-Environment/BACKUP_RESTORE.md) for operational recovery.

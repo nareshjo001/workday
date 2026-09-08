@@ -5,6 +5,11 @@ node_modules/
 dist/
 build/
 
+# Local operational verification artifacts
+backups/
+frontend/test-results/
+frontend/playwright-report/
+
 # Runtime/test uploaded documents
 backend/uploads/documents/*
 !backend/uploads/documents/.gitkeep
