@@ -46,3 +46,10 @@ jobs:
         working-directory: frontend
       - run: npm run build
         working-directory: frontend
+      - run: docker compose config
+        env:
+          MYSQL_ROOT_PASSWORD: ci-demo-password
+          JWT_SECRET: ci-demo-jwt-secret-with-at-least-thirty-two-characters
+          DB_NAME: vms_demo
+      - run: docker build -t vms-backend-ci ./backend
+      - run: docker build -t vms-frontend-ci ./frontend

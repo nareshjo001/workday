@@ -1,99 +1,68 @@
 # Vendor Management System
 
-VMS is a modular-monolith web application for managing a contingent workforce. It supports the working lifecycle:
+VMS is a React, Node/Express, and MySQL modular monolith for Vendor, PM/client, and Contractor workflows. It began as a two-day Workday hackathon MVP and was subsequently hardened and expanded through M22.
 
-PM creates project and staffing requirements -> Vendor provisions eligible contractors -> Vendor assigns contractors -> PM allocates hours -> Contractor logs daily time -> PM reviews time -> approved hours reach milestones -> immutable billing contributions and invoices are created -> Vendor reviews invoices -> PM completes the project and releases active assignments.
+## Current workflow
 
-The project began as a two-day Workday hackathon MVP. The current codebase is more complete than the original hackathon brief and is the source of truth for present behaviour.
+1. A PM creates a client-scoped project and staffing requirements.
+2. An authorized Vendor submits an eligible contractor candidate.
+3. The PM accepts or rejects the candidate. Acceptance creates a date-valid assignment with immutable bill/cost rate snapshots.
+4. Contractors submit daily timesheets; PMs approve or reject them.
+5. Approved project hours meet milestones and create immutable billing contributions.
+6. Vendors build invoice drafts from eligible contributions and submit them. PMs approve or reject submitted invoices.
+7. Vendors record received payments. Approval status and settlement status remain distinct.
+8. Vendors release contractors with traceable metadata; PM project completion runs a structured close-readiness check and preserves all historical financial records.
 
-## Roles
+## Run a local demo with Docker
 
-- **Vendor**: provisions and manages its contractors, browses open projects, assigns eligible contractors, views and reviews its invoices.
-- **Contractor**: manages a primary skill, sees assignment history, submits daily timesheets, and corrects rejected entries.
-- **PM**: belongs to a client company, owns projects, defines requirements, allocates work hours, reviews time, manages milestones, sees invoice history, and completes projects.
+Prerequisite: Docker Desktop with Compose.
 
-## Architecture
+```powershell
+Copy-Item .env.demo.example .env
+# Replace the two placeholder secret values in .env.
+docker compose build
+docker compose up -d mysql
+docker compose --profile tools run --rm migrate
+docker compose --profile tools run --rm -e DEMO_SEED_ENABLED=true seed
+docker compose up -d backend frontend
+```
 
-| Layer | Technology | Responsibility |
-| --- | --- | --- |
-| Frontend | React, Vite, React Router, Axios, Tailwind | Role-specific SPA screens and authenticated API calls. |
-| Backend | Node.js, Express | Routes, JWT/RBAC, validation, services, repositories and error handling. |
-| Database | MySQL/MariaDB via mysql2 | Transactional business data, locks, foreign keys and uniqueness constraints. |
+Open `http://localhost:8080`. Confirm readiness at `http://localhost:8080/api/health/ready`.
 
-The backend follows `route -> controller -> validator -> service -> repository`. SQL lives in repositories; services own business rules and transactions. See [ARCHITECTURE.md](ARCHITECTURE.md), [DATABASE.md](DATABASE.md), and [API.md](API.md).
+The demo seed is opt-in, constrained to `_demo`/`_restore` databases, and idempotent. Accounts and the workflow are documented in [M22 demo instructions](Expansion%20Doc/M22-Production-Deployment-Backup-Security-and-Demo-Environment/DEMO.md).
 
-## Implemented workflow
+## Development and tests
 
-1. Vendors and PMs self-register. Vendor-created contractors receive linked user and contractor records.
-2. PMs create active projects with one or more skill/headcount requirements and a total expected-hours capacity.
-3. Contractors set a primary skill. Vendors may choose only their own active, matching-skill contractors with no active assignment.
-4. Vendor batch assignment is atomic. It does not allocate hours.
-5. PM sets allocation per active assignment, subject to project capacity and approved-hours floors.
-6. Contractor submits one daily time entry per project/date; only pending or approved time consumes allocation.
-7. PM approves or rejects one pending daily entry. Only approved entries affect billing.
-8. Project-level milestone thresholds trigger per-contractor immutable billing contributions. Each approved hour is billed once across milestones.
-9. Each billing contribution can produce one immutable invoice. Vendor approves or rejects pending invoices; PM has read-only invoice history.
-10. A PM explicitly completes a project; completion atomically releases active assignments while retaining all history.
-
-## Setup
-
-Prerequisites: Node.js 18+ and MySQL or MariaDB.
-
-### Backend
+Backend requires a MySQL database ending in `_test` when `NODE_ENV=test`.
 
 ```powershell
 cd backend
-npm install
-Copy-Item .env.example .env
-npm run migrate
-npm run dev
+npm ci
+npm run test:coverage
+
+cd ../frontend
+npm ci
+npm test
+npm run lint
+npm run build
 ```
 
-The API starts at `http://localhost:5000`; health is available at `GET /api/health`.
+Browser smoke against a running demo is `cd frontend; npm run test:e2e`.
 
-### Frontend
+## Safety properties
 
-```powershell
-cd frontend
-npm install
-Copy-Item .env.example .env
-npm run dev
-```
+- Authenticated session/JWT identity is the only authority source.
+- Vendor, PM, and Contractor data is role- and tenant-scoped; sensitive probes use established hidden-resource behavior.
+- Critical mutations use transactions, row locks, conditional updates, database uniqueness, and transactional M04 audit records.
+- Assignment rate snapshots, milestone billings, invoice items/documents, and payments remain historically immutable.
+- Documents/PDFs use opaque UUID storage keys, MIME signature/size validation, and authorization before binary download.
+- Migrations are ledgered with checksums and run explicitly, never on ordinary backend startup.
 
-The development SPA normally runs at `http://localhost:5173`. Set `VITE_API_BASE_URL` if the API lives elsewhere.
-
-### Configuration
-
-Use the checked-in `.env.example` files as the configuration reference. Do not commit `.env` files or real database/JWT credentials. Backend configuration includes database connection values, JWT secret/lifetime, CORS origin, and a legacy invoice auto-approval threshold. New invoices currently start in `PENDING_REVIEW`; that threshold remains for compatibility and is not used by current invoice generation.
-
-## Demo and regression data
-
-`backend/seed_test_data.sql` is a legacy/sample SQL seed. The current executable regression scripts create their own test identities against a running local API/database:
-
-- `backend/mvp_fix_test.js`: current broad regression suite for allocation ownership, billing, invoice workflow, concurrency and project completion.
-- `backend/eligible_contractor_release_test.js`: focused reassignment eligibility regression.
-- `backend/e2e_test.js`: retained historical test only; it is explicitly superseded and should not be run as the current regression suite.
-
-These live-server scripts are not yet an `npm test` suite; that is roadmap module M01.
-
-## Key safety properties
-
-- The server derives actor identity from a verified JWT; request bodies do not decide vendor, PM, or contractor authority.
-- Sensitive cross-tenant resource probes use the established identical-404 pattern.
-- State-changing flows use transactions, `SELECT ... FOR UPDATE`, conditional updates, and database uniqueness constraints where races matter.
-- Assignment, timesheet, milestone, billing, and invoice history is retained rather than deleted.
-- Billing and invoice values are immutable snapshots and are not recomputed from later contractor rate changes.
-
-## Documentation and roadmap
+## Documentation
 
 - [Architecture](ARCHITECTURE.md)
-- [Database model](DATABASE.md)
-- [API reference](API.md)
-- [Changelog](CHANGELOG.md)
+- [Database](DATABASE.md)
+- [API](API.md)
 - [Expansion roadmap](ROADMAP.md)
-- [Architecture decisions](adr/README.md)
+- [M22 deployment and operations](Expansion%20Doc/M22-Production-Deployment-Backup-Security-and-Demo-Environment/README.md)
 - [Expansion module records](Expansion%20Doc/)
-
-## Repository status
-
-M00 documents the existing hackathon baseline. The repository owner manually created annotated tag `v1.0-hackathon` at verified commit `4bd5cd1`; the M00 documentation and tracker changes are ready for the owner-controlled final M00 commit. See [CHANGELOG.md](CHANGELOG.md).
