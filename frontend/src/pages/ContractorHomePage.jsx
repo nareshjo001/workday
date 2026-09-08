@@ -4,27 +4,14 @@ import DashboardLayout from "../layouts/DashboardLayout";
 import AlertBanner from "../components/AlertBanner";
 import KpiCard from "../components/dashboard/KpiCard";
 import SectionCard from "../components/dashboard/SectionCard";
-import BarList from "../components/dashboard/BarList";
 import LineChart from "../components/dashboard/LineChart";
 import ProgressBar from "../components/dashboard/ProgressBar";
 import EmptyState from "../components/dashboard/EmptyState";
 import { KpiRowSkeleton, SectionSkeleton } from "../components/dashboard/Skeleton";
-import { formatCurrency, formatHours, formatDate } from "../components/dashboard/format";
+import { formatHours } from "../components/dashboard/format";
 import contractorDashboardService from "../services/contractorDashboardService";
 
-const INVOICE_STATUS_STYLES = {
-  PENDING_REVIEW: "bg-warning-bg text-warning",
-  APPROVED: "bg-success-bg text-success",
-  AUTO_APPROVED: "bg-success-bg text-success",
-  REJECTED: "bg-error-bg text-error",
-};
-
-/**
- * Contractor dashboard (UI + analytics redesign). Single read-only GET
- * /contractor/dashboard call — contractorDashboardService.getContractorDashboard
- * derives identity from the JWT and never counts PENDING_REVIEW/REJECTED
- * invoices as "earned" (see summary.lifetime_revenue).
- */
+/** Contractor-scoped operational dashboard. */
 export default function ContractorHomePage() {
   const [dashboard, setDashboard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,6 +35,7 @@ export default function ContractorHomePage() {
   }, [loadDashboard]);
 
   const summary = dashboard?.summary;
+  const m20 = dashboard?.m20;
   const timesheets = dashboard?.timesheet_summary;
   const activeProjects = dashboard?.active_projects ?? [];
 
@@ -57,7 +45,7 @@ export default function ContractorHomePage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold text-text">Dashboard</h1>
-            <p className="text-sm text-muted">Your assignments, hours, and earnings at a glance.</p>
+            <p className="text-sm text-muted">Your assignments, hours, and compliance actions at a glance.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link
@@ -92,12 +80,6 @@ export default function ContractorHomePage() {
         ) : !dashboard ? null : (
           <>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <KpiCard
-                title="Lifetime Revenue Earned"
-                value={formatCurrency(summary.lifetime_revenue)}
-                description="Approved invoices only"
-                icon="💰"
-              />
               <KpiCard title="Active Projects" value={activeProjects.length} icon="📁" />
               <KpiCard title="Total Approved Hours" value={formatHours(summary.total_approved_hours)} icon="⏱" />
               <KpiCard
@@ -114,33 +96,7 @@ export default function ContractorHomePage() {
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-              <SectionCard title="Highest Revenue Project">
-                {!dashboard.highest_revenue_project ? (
-                  <EmptyState message="No earnings data available." compact />
-                ) : (
-                  <div className="flex flex-col gap-1">
-                    <span className="text-lg font-semibold text-text">
-                      {dashboard.highest_revenue_project.project_name}
-                    </span>
-                    <span className="text-2xl font-semibold text-primary">
-                      {formatCurrency(dashboard.highest_revenue_project.total)}
-                    </span>
-                  </div>
-                )}
-              </SectionCard>
-
-              <SectionCard title="Revenue by Project">
-                <BarList
-                  data={dashboard.revenue_by_project.map((p) => ({
-                    label: p.project_name,
-                    value: p.total,
-                    displayValue: formatCurrency(p.total),
-                  }))}
-                  emptyMessage="No earnings data available."
-                />
-              </SectionCard>
-            </div>
+            {m20 && <SectionCard title="My work" description="Your assignment, timesheet, and compliance actions."><div className="grid grid-cols-2 gap-3 sm:grid-cols-4"><KpiCard title="Active assignments" value={m20.assignments.active_assignments}/><KpiCard title="Upcoming assignments" value={m20.assignments.upcoming_assignments}/><KpiCard title="Allocated hours" value={formatHours(m20.assignments.allocated_hours)}/><KpiCard title="Submitted hours" value={formatHours(m20.timesheets.submitted_hours)}/><KpiCard title="Approved hours" value={formatHours(m20.timesheets.approved_hours)}/><KpiCard title="Needs correction" value={m20.timesheets.rejected_action_items}/><KpiCard title="Documents expiring" value={m20.compliance.expiring_documents}/></div></SectionCard>}
 
             <SectionCard title="Hours Trend" description="Approved hours per week">
               <LineChart data={dashboard.hours_trend} valueKey="hours" labelKey="period" emptyMessage="No hours data available." />
@@ -192,46 +148,6 @@ export default function ContractorHomePage() {
               </div>
             </SectionCard>
 
-            <SectionCard title="Invoice / Billing History">
-              {dashboard.invoice_history.length === 0 ? (
-                <EmptyState message="No earnings data available." compact />
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[560px] text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-border text-xs text-muted">
-                        <th className="py-2 pr-3 font-medium">Project</th>
-                        <th className="py-2 pr-3 font-medium">Hours</th>
-                        <th className="py-2 pr-3 font-medium">Amount</th>
-                        <th className="py-2 pr-3 font-medium">Status</th>
-                        <th className="py-2 pr-3 font-medium">Date</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {dashboard.invoice_history.map((inv) => (
-                        <tr key={inv.id}>
-                          <td className="py-2.5 pr-3 font-medium text-text">{inv.project_name}</td>
-                          <td className="py-2.5 pr-3 text-text-secondary">{formatHours(inv.hours)}</td>
-                          <td className="py-2.5 pr-3 text-text-secondary">{formatCurrency(inv.amount)}</td>
-                          <td className="py-2.5 pr-3">
-                            <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-                                INVOICE_STATUS_STYLES[inv.status] || "bg-surface-muted text-muted"
-                              }`}
-                            >
-                              {inv.status.replace("_", " ")}
-                            </span>
-                          </td>
-                          <td className="py-2.5 pr-3 whitespace-nowrap text-text-secondary">
-                            {formatDate(inv.generated_at?.slice(0, 10))}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </SectionCard>
           </>
         )}
       </div>

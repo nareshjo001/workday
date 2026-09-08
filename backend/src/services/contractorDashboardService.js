@@ -1,6 +1,7 @@
 const contractorRepository = require("../repositories/contractorRepository");
 const timesheetRepository = require("../repositories/timesheetRepository");
 const dashboardRepository = require("../repositories/dashboardRepository");
+const { pool } = require('../config/db');
 
 /**
  * Contractor dashboard/analytics (UI + analytics redesign). Read-only.
@@ -44,12 +45,10 @@ async function getContractorDashboard(userId) {
     return emptyDashboard();
   }
 
-  const [activeProjectsRaw, lifetimeRevenue, revenueByProject, invoiceHistory, timesheets] = await Promise.all([
+  const [activeProjectsRaw, timesheets, m20] = await Promise.all([
     dashboardRepository.listActiveProjectsForContractor(contractor.id),
-    dashboardRepository.lifetimeRevenueForContractor(contractor.id),
-    dashboardRepository.revenueByProjectForContractor(contractor.id),
-    dashboardRepository.invoiceHistoryForContractor(contractor.id, 15),
     timesheetRepository.listByContractor(contractor.id),
+    contractorM20(contractor.id),
   ]);
 
   const activeProjects = activeProjectsRaw.map((p) => {
@@ -102,12 +101,9 @@ async function getContractorDashboard(userId) {
 
   return {
     summary: {
-      lifetime_revenue: lifetimeRevenue,
       total_approved_hours: Math.round(totalApprovedHours * 100) / 100,
     },
     active_projects: activeProjects,
-    highest_revenue_project: revenueByProject[0] || null,
-    revenue_by_project: revenueByProject,
     hours_trend: hoursTrend,
     timesheet_summary: {
       pending,
@@ -115,19 +111,28 @@ async function getContractorDashboard(userId) {
       rejected,
       total_submitted_hours: Math.round(totalSubmittedHours * 100) / 100,
     },
-    invoice_history: invoiceHistory,
+    m20,
   };
+}
+
+async function contractorM20(contractorId) {
+  const [[assignments]] = await pool.query(`SELECT
+    COALESCE(SUM(pa.status='ACTIVE' AND (pa.start_date IS NULL OR pa.start_date<=CURDATE()) AND (pa.end_date IS NULL OR pa.end_date>=CURDATE())),0) active_assignments,
+    COALESCE(SUM(pa.start_date>CURDATE()),0) upcoming_assignments,
+    COALESCE(SUM(pa.allocated_hours),0) allocated_hours
+    FROM project_assignments pa WHERE pa.contractor_id=?`, [contractorId]);
+  const [[timesheets]] = await pool.query(`SELECT COALESCE(SUM(status IN ('SUBMITTED','APPROVED')),0) submitted_count,COALESCE(SUM(CASE WHEN status='SUBMITTED' THEN hours_logged ELSE 0 END),0) submitted_hours,COALESCE(SUM(CASE WHEN status='APPROVED' THEN hours_logged ELSE 0 END),0) approved_hours,COALESCE(SUM(status='REJECTED'),0) rejected_action_items FROM timesheets WHERE contractor_id=?`, [contractorId]);
+  const [[compliance]] = await pool.query(`SELECT COALESCE(SUM(status='VERIFIED' AND expiry_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(),INTERVAL 30 DAY)),0) expiring_documents FROM contractor_documents WHERE contractor_id=?`, [contractorId]);
+  return { assignments:Object.fromEntries(Object.entries(assignments).map(([k,v])=>[k,Number(v)])), timesheets:Object.fromEntries(Object.entries(timesheets).map(([k,v])=>[k,Number(v)])), compliance:{ expiring_documents:Number(compliance.expiring_documents) } };
 }
 
 function emptyDashboard() {
   return {
-    summary: { lifetime_revenue: 0, total_approved_hours: 0 },
+    summary: { total_approved_hours: 0 },
     active_projects: [],
-    highest_revenue_project: null,
-    revenue_by_project: [],
     hours_trend: [],
     timesheet_summary: { pending: 0, approved: 0, rejected: 0, total_submitted_hours: 0 },
-    invoice_history: [],
+    m20: { assignments: { active_assignments: 0, upcoming_assignments: 0, allocated_hours: 0 }, timesheets: { submitted_count: 0, submitted_hours: 0, approved_hours: 0, rejected_action_items: 0 }, compliance: { expiring_documents: 0 } },
   };
 }
 
