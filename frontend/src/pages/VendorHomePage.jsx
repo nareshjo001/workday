@@ -11,6 +11,8 @@ import EmptyState from "../components/dashboard/EmptyState";
 import { KpiRowSkeleton, SectionSkeleton } from "../components/dashboard/Skeleton";
 import { formatCurrency, formatHours } from "../components/dashboard/format";
 import vendorDashboardService from "../services/vendorDashboardService";
+import DashboardExports from "../components/dashboard/DashboardExports";
+import DashboardFilters from "../components/dashboard/DashboardFilters";
 
 /**
  * Vendor dashboard (UI + analytics redesign). Single read-only
@@ -24,19 +26,20 @@ export default function VendorHomePage() {
   const [dashboard, setDashboard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
+  const [filters, setFilters] = useState({});
 
-  const loadDashboard = useCallback(async () => {
+  const loadDashboard = useCallback(async (activeFilters = filters) => {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const data = await vendorDashboardService.getDashboard();
+      const data = await vendorDashboardService.getDashboard(activeFilters);
       setDashboard(data);
     } catch (err) {
       setLoadError(err.message);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [filters]);
 
   useEffect(() => {
     loadDashboard();
@@ -44,6 +47,7 @@ export default function VendorHomePage() {
 
   const summary = dashboard?.summary;
   const invoices = dashboard?.invoices;
+  const commercial = dashboard?.m20;
 
   return (
     <DashboardLayout title="Vendor dashboard">
@@ -80,6 +84,9 @@ export default function VendorHomePage() {
             </Link>
           </div>
         </div>
+
+        <SectionCard title="Filters" description="Metrics and exports use the same server-side scope."><DashboardFilters onApply={(next) => { setFilters(next); loadDashboard(next); }} /></SectionCard>
+        <SectionCard title="Exports" description="Download exactly the filtered data available to your organization."><DashboardExports role="vendor" filters={filters} /></SectionCard>
 
         <AlertBanner message={loadError} />
 
@@ -175,6 +182,8 @@ export default function VendorHomePage() {
                 </div>
               </div>
             </SectionCard>
+
+            {commercial && <SectionCard title="Commercial lifecycle" description="Approved work, invoice state, settlement, and snapshot-based margin are distinct measures."><div className="grid grid-cols-2 gap-3 sm:grid-cols-4"><KpiCard title="Approved work" value={formatHours(commercial.time.approved_hours)} /><KpiCard title="Billable, uninvoiced" value={formatCurrency(commercial.financial.billable_uninvoiced_amount)} /><KpiCard title="Paid" value={formatCurrency(commercial.financial.paid_amount)} /><KpiCard title="Outstanding" value={formatCurrency(commercial.financial.outstanding_amount)} /><KpiCard title="Overdue" value={formatCurrency(commercial.financial.overdue_amount)} /><KpiCard title="Open requirements" value={commercial.workforce.open_requirements} /><KpiCard title="Pending reviews" value={commercial.candidates.pending_reviews} /><KpiCard title="Snapshot margin" value={commercial.financial.margin ? formatCurrency(commercial.financial.margin.amount) : "—"} description={commercial.financial.margin?.percentage == null ? "No snapshot margin" : `${commercial.financial.margin.percentage}%`} /></div></SectionCard>}
 
             <SectionCard title="Recent Activity">
               <ActivityFeed activity={dashboard.recent_activity} />

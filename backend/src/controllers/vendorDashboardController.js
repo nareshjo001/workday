@@ -1,4 +1,5 @@
 const vendorDashboardService = require("../services/vendorDashboardService");
+const analytics = require('../services/dashboardAnalyticsService');
 const asyncHandler = require("../utils/asyncHandler");
 
 /**
@@ -10,6 +11,7 @@ const asyncHandler = require("../utils/asyncHandler");
  */
 const getDashboard = asyncHandler(async (req, res) => {
   const dashboard = await vendorDashboardService.getVendorDashboard(req.user.userId);
+  dashboard.m20 = await analytics.dashboard('VENDOR', req.user.userId, req.query);
   res.status(200).json(dashboard);
 });
 

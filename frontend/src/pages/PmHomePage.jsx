@@ -11,6 +11,8 @@ import EmptyState from "../components/dashboard/EmptyState";
 import { KpiRowSkeleton, SectionSkeleton } from "../components/dashboard/Skeleton";
 import { formatCurrency, formatHours, formatDate } from "../components/dashboard/format";
 import pmDashboardService from "../services/pmDashboardService";
+import DashboardExports from "../components/dashboard/DashboardExports";
+import DashboardFilters from "../components/dashboard/DashboardFilters";
 
 /**
  * PM dashboard (UI + analytics redesign). Single read-only GET
@@ -24,19 +26,20 @@ export default function PmHomePage() {
   const [dashboard, setDashboard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
+  const [filters, setFilters] = useState({});
 
-  const loadDashboard = useCallback(async () => {
+  const loadDashboard = useCallback(async (activeFilters = filters) => {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const data = await pmDashboardService.getDashboard();
+      const data = await pmDashboardService.getDashboard(activeFilters);
       setDashboard(data);
     } catch (err) {
       setLoadError(err.message);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [filters]);
 
   useEffect(() => {
     loadDashboard();
@@ -46,6 +49,7 @@ export default function PmHomePage() {
   const invoices = dashboard?.invoices;
   const milestones = dashboard?.milestones;
   const completion = dashboard?.completion_analytics;
+  const commercial = dashboard?.m20;
   const activeProjects = dashboard?.projects?.filter((p) => p.status === "ACTIVE") ?? [];
   const hoursProgressProjects = activeProjects.filter((p) => p.expected_hours !== null);
 
@@ -90,6 +94,9 @@ export default function PmHomePage() {
             </Link>
           </div>
         </div>
+
+        <SectionCard title="Filters" description="Metrics and exports use the same server-side scope."><DashboardFilters onApply={(next) => { setFilters(next); loadDashboard(next); }} /></SectionCard>
+        <SectionCard title="Exports" description="Download exactly the filtered data available to your authorized projects."><DashboardExports role="pm" filters={filters} /></SectionCard>
 
         <AlertBanner message={loadError} />
 
@@ -206,7 +213,7 @@ export default function PmHomePage() {
                 </div>
               </SectionCard>
 
-              <SectionCard title="Invoice Overview" description="Across all projects you manage">
+            <SectionCard title="Invoice Overview" description="Across all projects you manage">
                 <div className="grid grid-cols-3 gap-3">
                   <div className="flex flex-col gap-1 rounded-md bg-surface-muted p-3">
                     <span className="text-xs text-muted">Pending Review</span>
@@ -249,6 +256,8 @@ export default function PmHomePage() {
                 </div>
               </div>
             </SectionCard>
+
+            {commercial && <SectionCard title="Project financials" description="Budget, approved work, invoicing, payment, and outstanding balances are separate."><div className="grid grid-cols-2 gap-3 sm:grid-cols-4"><KpiCard title="Project budget" value={formatCurrency(commercial.financial.budget)} /><KpiCard title="Approved work" value={formatHours(commercial.time.approved_hours)} /><KpiCard title="Submitted invoices" value={formatCurrency(commercial.financial.submitted_invoice_amount)} /><KpiCard title="Approved invoices" value={formatCurrency(commercial.financial.approved_invoice_amount)} /><KpiCard title="Paid" value={formatCurrency(commercial.financial.paid_amount)} /><KpiCard title="Outstanding" value={formatCurrency(commercial.financial.outstanding_amount)} /><KpiCard title="Overdue" value={formatCurrency(commercial.financial.overdue_amount)} /><KpiCard title="Pending invoice reviews" value={commercial.financial.pending_invoice_reviews} /></div></SectionCard>}
 
             <SectionCard title="Recent Activity">
               <ActivityFeed activity={dashboard.recent_activity} />

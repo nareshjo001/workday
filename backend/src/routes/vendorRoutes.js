@@ -16,6 +16,7 @@ const notificationController = require("../controllers/notificationController");
 const rateCardController = require("../controllers/rateCardController");
 const invoiceLifecycleController = require("../controllers/invoiceLifecycleController");
 const paymentController = require("../controllers/paymentController");
+const dashboardExportController = require('../controllers/dashboardExportController');
 
 /**
  * Every route in this router requires a valid JWT AND role = VENDOR.
@@ -86,6 +87,7 @@ router.post("/invoices/:id/payments", paymentController.record);
 // authenticate/authorizeRoles declaration needed, and no existing route
 // above this line was changed.
 router.get("/dashboard", vendorDashboardController.getDashboard);
+router.get('/dashboard/exports/:dataset', dashboardExportController.export);
 router.get("/notifications", notificationController.list);
 router.patch("/notifications/read-all", notificationController.readAll);
 router.patch("/notifications/:id/read", notificationController.read);

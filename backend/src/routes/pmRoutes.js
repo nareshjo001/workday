@@ -14,6 +14,7 @@ const candidateSubmissionController = require("../controllers/candidateSubmissio
 const staffingPipelineController = require("../controllers/staffingPipelineController");
 const notificationController = require("../controllers/notificationController");
 const invoiceLifecycleController = require("../controllers/invoiceLifecycleController");
+const dashboardExportController = require('../controllers/dashboardExportController');
 
 /**
  * Every route here requires a valid JWT AND role = PM — same gate
@@ -70,6 +71,7 @@ router.get("/invoices/:id/pdf", invoiceLifecycleController.pdf);
 // reuse rationale as /projects above; no existing route above this line
 // was changed.
 router.get("/dashboard", pmDashboardController.getDashboard);
+router.get('/dashboard/exports/:dataset', dashboardExportController.export);
 router.get("/notifications", notificationController.list);
 router.patch("/notifications/read-all", notificationController.readAll);
 router.patch("/notifications/:id/read", notificationController.read);

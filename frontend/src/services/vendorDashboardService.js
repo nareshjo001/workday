@@ -6,8 +6,8 @@ import apiClient from "./apiClient";
  * backend derives the vendor's identity from the token, never from
  * anything sent here.
  */
-async function getDashboard() {
-  const { data } = await apiClient.get("/vendor/dashboard");
+async function getDashboard(params = {}) {
+  const { data } = await apiClient.get("/vendor/dashboard", { params });
   return data;
 }
 
