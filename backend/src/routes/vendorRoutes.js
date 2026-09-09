@@ -3,7 +3,6 @@ const authenticate = require("../middleware/authenticate");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { ROLES } = require("../constants/roles");
 const vendorContractorController = require("../controllers/vendorContractorController");
-const vendorAssignmentController = require("../controllers/vendorAssignmentController");
 const vendorProjectController = require("../controllers/vendorProjectController");
 const vendorInvoiceController = require("../controllers/vendorInvoiceController");
 const vendorDashboardController = require("../controllers/vendorDashboardController");
@@ -49,13 +48,9 @@ router.post("/contractor-documents", contractorDocumentController.upload);
 router.get("/contractors/:contractorId/documents", contractorDocumentController.list);
 router.patch("/contractor-documents/:id/review", contractorDocumentController.review);
 
-// Module 3 revision: browsing projects open for staffing. Vendor-centric
-// workflow revision replaced the old "type in a project ID" flow (and the
-// old single-contractor POST /assignments endpoint below it) with these
-// nested-resource routes: browse -> one project's requirements -> one
-// requirement's eligible contractors -> atomic multi-contractor assign.
-// Same gate reuse rationale as /contractors above — no new
-// authenticate/authorizeRoles declaration needed.
+// Vendors browse authorized projects and submit eligible candidates for
+// PM review. Assignment creation is intentionally absent from this router;
+// PM candidate acceptance is the only production assignment path.
 router.get("/projects", vendorProjectController.list);
 router.get("/projects/:id/requirements", vendorProjectController.getRequirements);
 router.get(
@@ -65,11 +60,8 @@ router.get(
 router.post("/projects/:projectId/requirements/:requirementId/candidates", candidateSubmissionController.submit);
 router.patch("/candidate-submissions/:id/withdraw", candidateSubmissionController.withdraw);
 
-// Module 6, extended by the invoice-workflow redesign: invoice visibility
-// AND approve/reject authority for a vendor's own contractors (approval
-// moved here from the PM side — see vendorInvoiceService.reviewInvoice).
-// Same gate reuse rationale as /contractors above — no new
-// authenticate/authorizeRoles declaration needed.
+// Vendor billing queue, draft construction, submission, document access,
+// and settlement recording. Client approval remains PM-only.
 router.get("/invoices", vendorInvoiceController.list);
 router.patch("/invoices/:id", invoiceLifecycleController.update);
 router.get("/billing-queue", invoiceLifecycleController.queue);

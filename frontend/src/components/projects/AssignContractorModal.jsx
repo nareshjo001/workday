@@ -7,26 +7,21 @@ import { formatSkill } from "../../constants/skills";
 
 /**
  * Contractor picker scoped to ONE project + ONE requirement, reworked
- * (vendor-centric workflow revision) for atomic MULTI-contractor
- * assignment: a checkbox per eligible contractor, capped at however many
- * open slots remain on the requirement, and one "Assign Selected" call
- * that either assigns everyone checked or fails the whole batch.
+ * for multi-contractor candidate submission: a checkbox per eligible
+ * contractor, capped at the requirement's open slots. Each submitted
+ * candidate remains pending until the PM accepts or rejects it.
  *
  * `contractors` here is already the server-filtered eligible list (own
- * vendor, ACTIVE, matching skill, not assigned to ANY project — see
+ * Vendor, active, matching skill, compliant and date-valid — see
  * vendorProjectService.getEligibleContractors /
  * contractorRepository.listEligibleForVendorAndSkill), so nothing is
  * re-filtered client-side; this component only handles selection.
  *
  * MVP FIX 1 ("work-hour allocation must belong to the PM, not the
  * Vendor"): this modal deliberately has NO hours input anywhere — the
- * Vendor's only job is picking which contractors fill the requirement's
- * open slots. Allocating hours to an assigned contractor is a PM-only
- * control (see PmMilestonesPage's "Team on this project" section /
- * pmProjectService.updateContractorAllocation); this component never
- * reads or sends an hours value, and the backend enforces the same rule
- * independently — see vendorAssignmentValidators.validateAssignContractors
- * and vendorAssignmentService.assignContractors.
+ * Vendor's only job is proposing candidates. Allocating hours after PM
+ * acceptance is a PM-only control; this component never reads or sends
+ * an hours value.
  */
 export default function AssignContractorModal({
   project,

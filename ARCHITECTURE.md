@@ -1,4 +1,4 @@
-# VMS Architecture
+# VMS Final Architecture
 
 ## Runtime topology
 
@@ -8,6 +8,8 @@ Browser -> Nginx SPA /api proxy -> Express API -> mysql2 pool -> MySQL 8
 ```
 
 The application is a modular monolith. Backend flow is `route -> controller -> validator -> service -> repository`; services own transactions and domain rules. React manages UI state and routing but is never an authorization boundary.
+
+The portfolio-ready architecture, final ERD, complete business workflow, and concurrency/lock table are maintained in [M23 Final Architecture](Expansion%20Doc/M23-Final-Architecture-Audit-Release-and-Internship-Story/FINAL_ARCHITECTURE.md).
 
 ## Security and tenancy
 

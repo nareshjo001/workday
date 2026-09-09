@@ -2,8 +2,8 @@
 
 ## Status
 
-Accepted — hackathon baseline.
+Accepted — extended through the portfolio release.
 
 ## Decision
 
-Milestone billing stores approved hours, rate, and amount once; invoices copy that snapshot. Later contractor rate changes never recalculate historic billing or invoice values.
+Candidate acceptance resolves a scoped rate card and snapshots bill rate, cost rate, currency, and rate-card identity onto the assignment. Milestone billing copies approved hours, bill rate, currency, and amount; invoice items copy the billing snapshot; a submitted invoice PDF is frozen; payments are append-only. Later rate-card, contractor, assignment, or project changes never recalculate historical billing, invoice, document, or settlement values.

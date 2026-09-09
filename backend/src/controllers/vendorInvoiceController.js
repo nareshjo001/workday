@@ -1,6 +1,4 @@
-const vendorInvoiceService = require("../services/vendorInvoiceService");
 const invoiceLifecycleService = require("../services/invoiceLifecycleService");
-const { validateInvoiceIdParam, validateReviewInvoice } = require("../validators/vendorInvoiceValidators");
 const asyncHandler = require("../utils/asyncHandler");
 const { parseListQuery } = require("../utils/listQuery");
 
@@ -8,9 +6,8 @@ const { parseListQuery } = require("../utils/listQuery");
  * `req.user.userId` is the ONLY source of the acting vendor's identity
  * here — vendor_id is never read from a query param or the request body.
  *
- * Invoice-workflow redesign: this controller gained a mutation
- * (`review`) it never had before — approval authority moved from PM to
- * Vendor, see vendorInvoiceService.reviewInvoice.
+ * Invoice review authority belongs to the owning PM/client. Vendor routes
+ * expose only the lifecycle operations implemented by invoiceLifecycleService.
  */
 const list = asyncHandler(async (req, res) => {
   const query = parseListQuery(req.query, {
@@ -23,14 +20,4 @@ const list = asyncHandler(async (req, res) => {
   res.status(200).json(await invoiceLifecycleService.listForActor(req.user, query));
 });
 
-const review = asyncHandler(async (req, res) => {
-  const invoiceId = validateInvoiceIdParam(req.params);
-  const { status, rejectionReason } = validateReviewInvoice(req.body);
-  const invoice = await vendorInvoiceService.reviewInvoice(req.user.userId, invoiceId, {
-    status,
-    rejectionReason,
-  }, { ...req.user, requestId: req.requestId });
-  res.status(200).json(invoice);
-});
-
-module.exports = { list, review };
+module.exports = { list };

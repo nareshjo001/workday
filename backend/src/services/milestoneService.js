@@ -202,13 +202,15 @@ async function checkAndTriggerMilestones(projectId, auditActor) {
           lockedContractors.set(contractorId, contractor);
         }
 
+        const assignmentRate = await assignmentRepository.rateSnapshotForContractorProject(conn, contractorId, projectId);
         const billing = await billingService.createBillingRecord(conn, {
           milestoneId: milestone.id,
           contractorId,
           approvedHours: hours,
           // M15: new billing uses the immutable assignment snapshot. The
           // legacy contractor rate is retained only for pre-M15 assignments.
-          hourlyRate: (await assignmentRepository.billRateSnapshotForContractorProject(conn, contractorId, projectId)) ?? contractor.hourly_rate,
+          hourlyRate: assignmentRate?.billRate ?? contractor.hourly_rate,
+          currency: assignmentRate?.currency ?? "USD",
         });
         // billing is null only if a contribution row already existed
         // (ER_DUP_ENTRY) — unreachable under the row lock held for this

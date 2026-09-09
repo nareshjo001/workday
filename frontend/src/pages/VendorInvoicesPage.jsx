@@ -4,32 +4,22 @@ import Spinner from "../components/Spinner";
 import AlertBanner from "../components/AlertBanner";
 import InvoiceTable from "../components/invoices/InvoiceTable";
 import InvoiceCardList from "../components/invoices/InvoiceCardList";
-import InvoiceReviewModal from "../components/invoices/InvoiceReviewModal";
 import vendorInvoiceService from "../services/vendorInvoiceService";
 import ListControls from "../components/ListControls";
 import InvoiceDocumentPanel from "../components/invoices/InvoiceDocumentPanel";
 import PaymentRecordModal from "../components/invoices/PaymentRecordModal";
 
 /**
- * Vendor's invoice review queue (Module 6, invoice-workflow redesign):
- * every invoice for this vendor's own contractors, across every status,
- * with inline Approve / Reject actions on any row still PENDING_REVIEW
- * (approval authority moved here from the PM — see PmInvoicesPage, now
- * read-only). This component never sends or reads a vendor id itself;
- * ownership is enforced entirely server-side (see
- * vendorInvoiceService.listInvoices → invoiceRepository.listForVendor's
- * SQL filter on the invoice's own snapshotted vendor_id, and
- * vendorInvoiceService.reviewInvoice → invoiceRepository.lockOwnedByVendorForReview
- * for the mutation).
+ * Vendor-owned billing queue, draft builder, submission history, document
+ * download, and payment recording. Client review belongs to the PM UI.
+ * Vendor identity and invoice ownership remain server-derived.
  */
 export default function VendorInvoicesPage() {
   const [invoices, setInvoices] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
-  const [reviewingId, setReviewingId] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
-  const [rejectTarget, setRejectTarget] = useState(null);
   const [page, setPage] = useState(1);
   const [pageInfo, setPageInfo] = useState({ total_pages: 1, total: 0 });
   const [queue,setQueue]=useState([]);
@@ -67,43 +57,6 @@ export default function VendorInvoicesPage() {
     return () => clearTimeout(timer);
   }, [successMessage]);
 
-  const handleApprove = async (invoiceId) => {
-    setActionError(null);
-    setReviewingId(invoiceId);
-    try {
-      const updated = await vendorInvoiceService.approveInvoice(invoiceId);
-      // Update in place (rather than dropping the row) — this page shows
-      // full history, not just a pending queue, so a reviewed invoice
-      // stays visible, just re-rendered in its read-only state.
-      setInvoices((prev) => prev.map((inv) => (inv.id === updated.id ? updated : inv)));
-      setSuccessMessage("Invoice approved.");
-    } catch (err) {
-      // A 409 here most often means someone else (or another tab) already
-      // reviewed this exact invoice — refresh so the row reflects the true
-      // server-side outcome instead of staying stuck on stale buttons.
-      setActionError(err.message);
-      loadInvoices();
-    } finally {
-      setReviewingId(null);
-    }
-  };
-
-  const handleRejectConfirm = async (invoiceId, rejectionReason) => {
-    setActionError(null);
-    setReviewingId(invoiceId);
-    try {
-      const updated = await vendorInvoiceService.rejectInvoice(invoiceId, rejectionReason);
-      setInvoices((prev) => prev.map((inv) => (inv.id === updated.id ? updated : inv)));
-      setSuccessMessage("Invoice rejected.");
-      setRejectTarget(null);
-    } catch (err) {
-      setActionError(err.message);
-      loadInvoices();
-    } finally {
-      setReviewingId(null);
-    }
-  };
-
   return (
     <DashboardLayout title="Invoices">
       <div className="mx-auto flex max-w-4xl flex-col gap-5">
@@ -130,15 +83,9 @@ export default function VendorInvoicesPage() {
           <div className="rounded-lg bg-surface p-4 shadow-panel ring-1 ring-border sm:p-6">
             <InvoiceTable
               invoices={invoices}
-              reviewingId={reviewingId}
-              onApprove={handleApprove}
-              onReject={(id) => setRejectTarget(invoices.find((inv) => inv.id === id))}
             />
             <InvoiceCardList
               invoices={invoices}
-              reviewingId={reviewingId}
-              onApprove={handleApprove}
-              onReject={(id) => setRejectTarget(invoices.find((inv) => inv.id === id))}
             />
             <div className="mt-3 flex flex-wrap gap-2">{invoices.map((invoice) => <button key={invoice.id} className="rounded border border-border px-2 py-1 text-xs" onClick={() => setSelectedInvoice(invoice)}>{invoice.invoice_number || `Draft #${invoice.id}`}</button>)}</div>
             <ListControls page={page} totalPages={pageInfo.total_pages} total={pageInfo.total} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
@@ -146,13 +93,6 @@ export default function VendorInvoicesPage() {
         )}
       </div>
 
-      {rejectTarget && (
-        <InvoiceReviewModal
-          invoice={rejectTarget}
-          onClose={() => setRejectTarget(null)}
-          onReject={handleRejectConfirm}
-        />
-      )}
       {paymentTarget && <PaymentRecordModal invoice={paymentTarget} onClose={() => setPaymentTarget(null)} onSave={recordPayment} />}
     </DashboardLayout>
   );

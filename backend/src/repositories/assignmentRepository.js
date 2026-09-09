@@ -130,14 +130,18 @@ async function createWithRequirement(conn, contractorId, projectId, requirementI
   return result.insertId;
 }
 
-async function billRateSnapshotForContractorProject(conn, contractorId, projectId) {
+async function rateSnapshotForContractorProject(conn, contractorId, projectId) {
   const [rows] = await conn.query(
-    `SELECT bill_rate_snapshot FROM project_assignments
+    `SELECT bill_rate_snapshot, currency FROM project_assignments
      WHERE contractor_id = ? AND project_id = ? AND bill_rate_snapshot IS NOT NULL
      ORDER BY id DESC LIMIT 1 FOR UPDATE`,
     [contractorId, projectId]
   );
-  return rows[0] ? Number(rows[0].bill_rate_snapshot) : null;
+  return rows[0] ? { billRate: Number(rows[0].bill_rate_snapshot), currency: rows[0].currency || "USD" } : null;
+}
+
+async function billRateSnapshotForContractorProject(conn, contractorId, projectId) {
+  return (await rateSnapshotForContractorProject(conn, contractorId, projectId))?.billRate ?? null;
 }
 
 /**
@@ -403,6 +407,7 @@ module.exports = {
   countAssignmentsForRequirement,
   createWithRequirement,
   billRateSnapshotForContractorProject,
+  rateSnapshotForContractorProject,
   updateAllocatedHours,
   sumAllocatedHoursForProject,
   assignmentDateBoundsForProject,

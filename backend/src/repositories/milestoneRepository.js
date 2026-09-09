@@ -218,11 +218,11 @@ async function updatePending(conn,id,{name,description,sequenceOrder,dueDate,thr
  * catches ER_DUP_ENTRY and treats it as "already billed, nothing to do"
  * rather than an error.
  */
-async function createBilling(conn, { milestoneId, contractorId, approvedHours, hourlyRate, billingAmount }) {
+async function createBilling(conn, { milestoneId, contractorId, approvedHours, hourlyRate, currency, billingAmount }) {
   const [result] = await conn.query(
-    `INSERT INTO milestone_billings (milestone_id, contractor_id, approved_hours, hourly_rate, billing_amount)
-     VALUES (?, ?, ?, ?, ?)`,
-    [milestoneId, contractorId, approvedHours, hourlyRate, billingAmount]
+    `INSERT INTO milestone_billings (milestone_id, contractor_id, approved_hours, hourly_rate, currency, billing_amount)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [milestoneId, contractorId, approvedHours, hourlyRate, currency, billingAmount]
   );
   return result.insertId;
 }

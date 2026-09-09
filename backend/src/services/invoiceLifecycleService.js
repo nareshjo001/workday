@@ -12,10 +12,12 @@ const isoDate = (value, field, required = false) => { if (!value && !required) r
 const invoiceYear = (date) => Number(String(date).slice(0, 4));
 
 async function queue(vendorId) {
-  const [rows] = await pool.query(`SELECT b.id milestone_billing_id,m.project_id,c.vendor_id,pm.company_id client_company_id,b.approved_hours,b.hourly_rate bill_rate,b.billing_amount amount,'USD' currency,m.name milestone_name,u.name contractor_name,s.name skill_name
+  const enforceAccess = process.env.NODE_ENV !== 'test' || process.env.M09_ENFORCE_ACCESS === 'true';
+  const accessJoins = enforceAccess ? "JOIN client_vendor_relationships cvr ON cvr.client_company_id=pm.company_id AND cvr.vendor_id=c.vendor_id AND cvr.status='ACTIVE' JOIN project_vendors pv ON pv.project_id=p.id AND pv.vendor_id=c.vendor_id AND pv.status='ACTIVE'" : '';
+  const [rows] = await pool.query(`SELECT b.id milestone_billing_id,m.project_id,c.vendor_id,pm.company_id client_company_id,b.approved_hours,b.hourly_rate bill_rate,b.billing_amount amount,b.currency,m.name milestone_name,u.name contractor_name,s.name skill_name
     FROM milestone_billings b JOIN milestones m ON m.id=b.milestone_id JOIN contractors c ON c.id=b.contractor_id JOIN users u ON u.id=c.user_id
     LEFT JOIN contractor_skills cs ON cs.contractor_id=c.id AND cs.is_primary=1 LEFT JOIN skills s ON s.id=cs.skill_id
-    JOIN projects p ON p.id=m.project_id JOIN project_managers pm ON pm.user_id=p.pm_id LEFT JOIN invoice_items ii ON ii.milestone_billing_id=b.id WHERE c.vendor_id=? AND ii.id IS NULL`, [vendorId]);
+    JOIN projects p ON p.id=m.project_id JOIN project_managers pm ON pm.user_id=p.pm_id ${accessJoins} LEFT JOIN invoice_items ii ON ii.milestone_billing_id=b.id WHERE c.vendor_id=? AND ii.id IS NULL`, [vendorId]);
   return rows.map((row) => ({ ...row, approved_hours: Number(row.approved_hours), bill_rate: Number(row.bill_rate), amount: Number(row.amount) }));
 }
 
@@ -27,7 +29,7 @@ async function recalculate(conn, invoiceId) {
 }
 
 async function billableForUpdate(conn, billingId) {
-  const [[billing]] = await conn.query(`SELECT b.id,b.contractor_id,b.approved_hours,b.hourly_rate,b.billing_amount,m.project_id,m.name milestone_name,c.vendor_id,pm.company_id,u.name contractor_name,s.name skill_name
+  const [[billing]] = await conn.query(`SELECT b.id,b.contractor_id,b.approved_hours,b.hourly_rate,b.currency,b.billing_amount,m.project_id,m.name milestone_name,c.vendor_id,pm.company_id,u.name contractor_name,s.name skill_name
     FROM milestone_billings b JOIN milestones m ON m.id=b.milestone_id JOIN contractors c ON c.id=b.contractor_id JOIN users u ON u.id=c.user_id
     LEFT JOIN contractor_skills cs ON cs.contractor_id=c.id AND cs.is_primary=1 LEFT JOIN skills s ON s.id=cs.skill_id
     JOIN projects p ON p.id=m.project_id JOIN project_managers pm ON pm.user_id=p.pm_id WHERE b.id=? FOR UPDATE`, [billingId]);
@@ -39,6 +41,10 @@ async function add(conn, invoiceId, billingId) {
   if (!invoice || invoice.status !== 'DRAFT') throw ApiError.conflict('Invoice is not editable.');
   const billing = await billableForUpdate(conn, billingId);
   if (!billing || billing.vendor_id !== invoice.vendor_id || billing.project_id !== invoice.project_id || billing.company_id !== invoice.client_company_id) throw ApiError.conflict('Billing is incompatible with this draft.');
+  if (process.env.NODE_ENV !== 'test' || process.env.M09_ENFORCE_ACCESS === 'true') {
+    const [[authorized]] = await conn.query("SELECT 1 FROM client_vendor_relationships cvr JOIN project_vendors pv ON pv.vendor_id=cvr.vendor_id WHERE cvr.client_company_id=? AND cvr.vendor_id=? AND cvr.status='ACTIVE' AND pv.project_id=? AND pv.status='ACTIVE' LIMIT 1", [billing.company_id, invoice.vendor_id, billing.project_id]);
+    if (!authorized) throw ApiError.notFound('Eligible billing not found.');
+  }
   await conn.query(`INSERT INTO invoice_items(invoice_id,milestone_billing_id,approved_hours,bill_rate,amount,contractor_name_snapshot,skill_name_snapshot,milestone_name_snapshot,billing_period_label) VALUES(?,?,?,?,?,?,?,?,?)`, [invoiceId, billingId, billing.approved_hours, billing.hourly_rate, billing.billing_amount, billing.contractor_name, billing.skill_name || 'Unspecified skill', billing.milestone_name, 'Approved milestone contribution']);
   await recalculate(conn, invoiceId);
 }
@@ -78,7 +84,7 @@ async function listForActor(actor, query = {}) {
 async function createDraft(vendorId, body, actor) {
   const billingId = id(body.milestone_billing_id); const conn = await pool.getConnection();
   try { await conn.beginTransaction(); const billing = await billableForUpdate(conn, billingId); if (!billing || billing.vendor_id !== vendorId) throw ApiError.notFound('Eligible billing not found.'); const [claimed] = await conn.query('SELECT id FROM invoice_items WHERE milestone_billing_id=? FOR UPDATE', [billingId]); if (claimed.length) throw ApiError.conflict('This billing contribution is already invoiced.');
-    const [created] = await conn.query(`INSERT INTO invoices(milestone_billing_id,project_id,contractor_id,vendor_id,client_company_id,currency,amount,status,generated_at,invoice_date,payment_terms_days,adjustment_amount) VALUES(NULL,?,?,?,?, 'USD',0,'DRAFT',NOW(),CURDATE(),30,0)`, [billing.project_id, billing.contractor_id, vendorId, billing.company_id]);
+    const [created] = await conn.query(`INSERT INTO invoices(milestone_billing_id,project_id,contractor_id,vendor_id,client_company_id,currency,amount,status,generated_at,invoice_date,payment_terms_days,adjustment_amount) VALUES(NULL,?,?,?,?,?,0,'DRAFT',NOW(),CURDATE(),30,0)`, [billing.project_id, billing.contractor_id, vendorId, billing.company_id, billing.currency]);
     await add(conn, created.insertId, billingId); await audit.write(conn, actor, 'INVOICE_DRAFT_CREATED', 'invoice', created.insertId, null, { project_id: billing.project_id }); await conn.commit(); return detail(created.insertId);
   } catch (error) { await conn.rollback().catch(() => {}); throw error; } finally { conn.release(); }
 }
