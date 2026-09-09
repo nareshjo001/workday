@@ -1,6 +1,7 @@
 const dashboardRepository = require("../repositories/dashboardRepository");
 const assignmentRepository = require("../repositories/assignmentRepository");
 const timesheetRepository = require("../repositories/timesheetRepository");
+const dashboardAnalyticsService = require("./dashboardAnalyticsService");
 
 /**
  * Vendor dashboard/analytics (UI + analytics redesign). Read-only —
@@ -34,27 +35,22 @@ function computeWorkProgressPercent(approvedHours, expectedHours) {
   return Math.min(100, Math.round((approvedHours / expectedHours) * 1000) / 10);
 }
 
-async function getVendorDashboard(vendorId) {
+async function getVendorDashboard(vendorId, rawFilters = {}, analyticsView = null) {
+  const filters = dashboardAnalyticsService.filters(rawFilters);
+  const scope = dashboardAnalyticsService.scoped("VENDOR", vendorId, filters);
+  const m20 = analyticsView || await dashboardAnalyticsService.dashboard("VENDOR", vendorId, filters);
   const [
-    activeProjects,
-    activeContractors,
-    completedProjects,
-    totalEarnings,
     earningsByCompany,
     earningsByContractor,
     invoiceStatusCounts,
     projectsForProgress,
     recentActivity,
   ] = await Promise.all([
-    dashboardRepository.countActiveProjectsForVendor(vendorId),
-    dashboardRepository.countActiveContractorsForVendor(vendorId),
-    dashboardRepository.countCompletedProjectsForVendor(vendorId),
-    dashboardRepository.totalEarningsForVendor(vendorId),
-    dashboardRepository.earningsByCompanyForVendor(vendorId),
-    dashboardRepository.earningsByContractorForVendor(vendorId),
-    dashboardRepository.invoiceStatusCountsForVendor(vendorId),
-    dashboardRepository.listActiveProjectsForVendor(vendorId),
-    dashboardRepository.listRecentActivityForVendor(vendorId, 15),
+    dashboardRepository.earningsByCompanyForVendor(vendorId, scope),
+    dashboardRepository.earningsByContractorForVendor(vendorId, scope),
+    dashboardRepository.invoiceStatusCountsForVendor(vendorId, scope),
+    dashboardRepository.listProjectsForVendorScope(scope),
+    dashboardRepository.listRecentActivityForVendor(vendorId, scope, 15),
   ]);
 
   // Second pass: attach the same server-computed allocated/approved/
@@ -77,6 +73,7 @@ async function getVendorDashboard(vendorId) {
         id: p.id,
         name: p.name,
         company_name: p.company_name,
+        status: p.status,
         start_date: p.start_date,
         end_date: p.end_date,
         expected_hours: p.expected_hours,
@@ -98,15 +95,19 @@ async function getVendorDashboard(vendorId) {
 
   return {
     summary: {
-      active_projects: activeProjects,
-      active_contractors: activeContractors,
-      completed_projects: completedProjects,
-      total_earnings: totalEarnings,
+      active_projects: m20.financial.active_projects,
+      active_contractors: m20.workforce.active_contractors,
+      completed_projects: m20.financial.completed_projects,
+      total_earnings: m20.financial.approved_earnings_amount,
     },
     earnings_by_company: earningsByCompany,
     earnings_by_contractor: earningsByContractor,
     project_progress: projectProgress,
     invoices: {
+      draft_count: byStatus.get("DRAFT")?.count || 0,
+      draft_total: byStatus.get("DRAFT")?.total || 0,
+      submitted_count: byStatus.get("SUBMITTED")?.count || 0,
+      submitted_total: byStatus.get("SUBMITTED")?.total || 0,
       pending_review_count: byStatus.get("PENDING_REVIEW")?.count || 0,
       approved_count: approvedCount,
       approved_total: approvedTotal,

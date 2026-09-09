@@ -177,6 +177,16 @@ summary::-webkit-details-marker { display: none; }
 .dashboard-tools > summary::after { content: "+"; color: var(--color-muted); font-size: 18px; }
 .dashboard-tools[open] > summary::after { content: "−"; }
 .dashboard-tools > div { display: grid; gap: 16px; padding: 4px 16px 16px; }
+.vendor-filter-toolbar { display: grid; grid-template-columns: minmax(140px, 1.05fr) minmax(160px, 1.25fr) minmax(120px, .8fr) minmax(132px, .9fr) minmax(132px, .9fr) auto; align-items: end; gap: 10px; }
+.vendor-filter-field { display: block; min-width: 0; color: var(--color-text-secondary); font-size: 11px; font-weight: 600; line-height: 1.25; }
+.vendor-filter-field > span { display: block; white-space: nowrap; }
+.vendor-filter-field > :is(input, select) { min-height: 38px; margin-top: 5px; }
+.vendor-filter-actions { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.vendor-filter-actions button { min-height: 38px; }
+@media (max-width: 1279px) {
+  .vendor-filter-toolbar { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .vendor-filter-actions { grid-column: 3; justify-content: flex-end; }
+}
 @media (max-width: 1023px) {
   .workspace { grid-template-columns: minmax(0, 1fr); }
   .workspace-sidebar { display: none; }
@@ -197,5 +207,8 @@ summary::-webkit-details-marker { display: none; }
   .workspace-content .flex.justify-between > .flex { flex-wrap: wrap; }
   .workspace-content form.flex > label { flex: 1 1 100%; }
   input, select, textarea { font-size: 16px; }
+  .vendor-filter-toolbar { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .vendor-filter-actions { grid-column: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .vendor-filter-actions button { width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0s !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; } }

@@ -11,8 +11,9 @@ import EmptyState from "../components/dashboard/EmptyState";
 import { KpiRowSkeleton, SectionSkeleton } from "../components/dashboard/Skeleton";
 import { formatCurrency, formatHours } from "../components/dashboard/format";
 import vendorDashboardService from "../services/vendorDashboardService";
+import vendorClientService from "../services/vendorClientService";
 import DashboardExports from "../components/dashboard/DashboardExports";
-import DashboardFilters from "../components/dashboard/DashboardFilters";
+import VendorDashboardFilters from "../components/dashboard/VendorDashboardFilters";
 
 /**
  * Vendor dashboard (UI + analytics redesign). Single read-only
@@ -27,6 +28,9 @@ export default function VendorHomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [filters, setFilters] = useState({});
+  const [filterOptions, setFilterOptions] = useState({ clients: [], projects: [] });
+  const [filterOptionsLoading, setFilterOptionsLoading] = useState(true);
+  const [filterOptionsError, setFilterOptionsError] = useState(null);
 
   const loadDashboard = useCallback(async (activeFilters = filters) => {
     setIsLoading(true);
@@ -45,9 +49,54 @@ export default function VendorHomePage() {
     loadDashboard();
   }, [loadDashboard]);
 
-  const summary = dashboard?.summary;
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadFilterOptions() {
+      setFilterOptionsLoading(true);
+      setFilterOptionsError(null);
+      try {
+        const response = await vendorClientService.list();
+        const clients = response.items || [];
+        const clientDetails = await Promise.all(clients.map((client) => vendorClientService.detail(client.id)));
+        const projectsById = new Map();
+
+        clientDetails.forEach((detail) => {
+          (detail.active_projects || []).forEach((project) => {
+            projectsById.set(project.id, {
+              id: project.id,
+              name: project.name,
+              clientId: detail.company.id,
+            });
+          });
+        });
+
+        if (!cancelled) {
+          setFilterOptions({
+            clients: clients.map((client) => ({ id: client.id, name: client.name })),
+            projects: Array.from(projectsById.values()).sort((a, b) => a.name.localeCompare(b.name)),
+          });
+        }
+      } catch (err) {
+        if (!cancelled) setFilterOptionsError(err.message || "Filter options could not be loaded.");
+      } finally {
+        if (!cancelled) setFilterOptionsLoading(false);
+      }
+    }
+
+    loadFilterOptions();
+    return () => { cancelled = true; };
+  }, []);
+
   const invoices = dashboard?.invoices;
   const commercial = dashboard?.m20;
+  const activeFilterLabels = [
+    filters.clientId && `Client: ${filterOptions.clients.find((item) => String(item.id) === String(filters.clientId))?.name || "Selected"}`,
+    filters.projectId && `Project: ${filterOptions.projects.find((item) => String(item.id) === String(filters.projectId))?.name || "Selected"}`,
+    filters.status && `Status: ${String(filters.status).replace("_", " ")}`,
+    filters.startDate && `Work from: ${filters.startDate}`,
+    filters.endDate && `Work through: ${filters.endDate}`,
+  ].filter(Boolean);
 
   return (
     <DashboardLayout title="Vendor dashboard">
@@ -86,7 +135,23 @@ export default function VendorHomePage() {
         </div>
 
         <details className="dashboard-tools"><summary>Filters &amp; exports</summary><div>
-        <SectionCard title="Filters" description="Metrics and exports use the same server-side scope."><DashboardFilters onApply={(next) => { setFilters(next); loadDashboard(next); }} /></SectionCard>
+        <SectionCard title="Filters" description="Client, project, and status scope every dashboard section. Dates scope work-date analytics only. Exports use the selected filters.">
+          <VendorDashboardFilters
+            clients={filterOptions.clients}
+            projects={filterOptions.projects}
+            optionsLoading={filterOptionsLoading}
+            onApply={(next) => { setFilters(next); loadDashboard(next); }}
+          />
+          {filterOptionsError && <p className="mt-2 text-xs text-error" role="alert">{filterOptionsError}</p>}
+          <div className="mt-3 flex flex-wrap items-center gap-2" aria-live="polite">
+            <span className="text-xs font-medium text-muted">Applied scope:</span>
+            {activeFilterLabels.length === 0 ? (
+              <span className="rounded-full border border-border bg-surface-muted px-2.5 py-1 text-xs text-text-secondary">All dashboard data</span>
+            ) : activeFilterLabels.map((label) => (
+              <span key={label} className="rounded-full border border-primary/25 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary">{label}</span>
+            ))}
+          </div>
+        </SectionCard>
         <SectionCard title="Exports" description="Download exactly the filtered data available to your organization."><DashboardExports role="vendor" filters={filters} /></SectionCard>
         </div></details>
 
@@ -101,15 +166,15 @@ export default function VendorHomePage() {
         ) : !dashboard ? null : (
           <>
             <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
-              <KpiCard title="Active Projects" value={summary.active_projects} icon="📁" />
-              <KpiCard title="Active Contractors" value={summary.active_contractors} icon="👥" />
+              <KpiCard title="Active Projects" value={commercial.financial.active_projects} icon="📁" />
+              <KpiCard title="Active Contractors" value={commercial.workforce.active_contractors} icon="👥" />
               <KpiCard
                 title="Total Contractor Earnings"
-                value={formatCurrency(summary.total_earnings)}
-                description="Approved invoices only"
+                value={formatCurrency(commercial.financial.approved_earnings_amount)}
+                description="Approved invoices, including legacy auto-approved"
                 icon="💰"
               />
-              <KpiCard title="Completed Projects" value={summary.completed_projects} icon="✅" />
+              <KpiCard title="Completed Projects" value={commercial.financial.completed_projects} icon="✅" />
             </div>
 
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
@@ -137,9 +202,9 @@ export default function VendorHomePage() {
               </SectionCard>
             </div>
 
-            <SectionCard title="Project Progress" description="Approved work hours vs. expected hours for each active project">
+            <SectionCard title="Project Progress" description="Approved work hours vs. expected hours for each project in the applied scope">
               {dashboard.project_progress.length === 0 ? (
-                <EmptyState message="No active projects yet." compact />
+                <EmptyState message="No projects match the applied scope." compact />
               ) : (
                 <div className="flex flex-col gap-4">
                   {dashboard.project_progress.map((p) => (
@@ -162,10 +227,20 @@ export default function VendorHomePage() {
               )}
             </SectionCard>
 
-            <SectionCard title="Invoice Overview" description="Across all of your contractors' invoices">
-              <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
+            <SectionCard title="Invoice Overview" description="Invoice lifecycle totals for the applied project scope">
+              <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                 <div className="flex flex-col gap-1 rounded-md bg-surface-muted p-3">
-                  <span className="text-xs text-muted">Pending Review</span>
+                  <span className="text-xs text-muted">Draft</span>
+                  <span className="text-lg font-semibold text-text">{invoices.draft_count}</span>
+                  <span className="text-xs text-muted">{formatCurrency(invoices.draft_total)}</span>
+                </div>
+                <div className="flex flex-col gap-1 rounded-md bg-surface-muted p-3">
+                  <span className="text-xs text-muted">Submitted</span>
+                  <span className="text-lg font-semibold text-text">{invoices.submitted_count}</span>
+                  <span className="text-xs text-muted">{formatCurrency(invoices.submitted_total)}</span>
+                </div>
+                <div className="flex flex-col gap-1 rounded-md bg-surface-muted p-3">
+                  <span className="text-xs text-muted">Legacy Pending</span>
                   <span className="text-lg font-semibold text-text">{invoices.pending_review_count}</span>
                 </div>
                 <div className="flex flex-col gap-1 rounded-md bg-surface-muted p-3">

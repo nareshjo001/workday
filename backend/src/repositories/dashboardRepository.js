@@ -96,7 +96,7 @@ async function countCompletedProjectsForVendor(vendorId) {
  * approved/expected -> progress% formula) rather than this file
  * reimplementing that math a third time.
  */
-async function listActiveProjectsForVendor(vendorId) {
+async function listProjectsForVendorScope(scope) {
   // p.created_at is included in the SELECT DISTINCT list solely so the
   // ORDER BY below is valid: SQL requires every ORDER BY expression to
   // appear in the SELECT list whenever DISTINCT is used (otherwise,
@@ -108,15 +108,13 @@ async function listActiveProjectsForVendor(vendorId) {
   // (vendorDashboardService.js), never surfaced to the API response.
   const [rows] = await pool.query(
     `SELECT DISTINCT p.id, p.name, COALESCE(cc.name, p.company_name) AS company_name,
-            p.start_date, p.end_date, p.expected_hours, p.created_at
-     FROM project_assignments pa
-     INNER JOIN contractors c ON c.id = pa.contractor_id
-     INNER JOIN projects p ON p.id = pa.project_id
-     LEFT JOIN project_managers pm_link ON pm_link.user_id = p.pm_id
-     LEFT JOIN client_companies cc ON cc.id = pm_link.company_id
-     WHERE c.vendor_id = ? AND pa.status = 'ACTIVE' AND p.status = 'ACTIVE'
+            p.status, p.start_date, p.end_date, p.expected_hours, p.created_at
+     FROM projects p
+     INNER JOIN project_managers pm ON pm.user_id = p.pm_id
+     LEFT JOIN client_companies cc ON cc.id = pm.company_id
+     WHERE ${scope.where}
      ORDER BY p.created_at DESC`,
-    [vendorId]
+    scope.values
   );
   return rows.map((r) => ({ ...r, expected_hours: r.expected_hours === null ? null : Number(r.expected_hours) }));
 }
@@ -142,7 +140,7 @@ async function totalEarningsForVendor(vendorId) {
  * Earned (APPROVED/AUTO_APPROVED) amount grouped by client company, for
  * "Highest Pay by Company" — highest first.
  */
-async function earningsByCompanyForVendor(vendorId) {
+async function earningsByCompanyForVendor(vendorId, scope) {
   // Grouped via a derived subquery (rather than `GROUP BY <alias>` or
   // repeating the COALESCE expression in GROUP BY) so this is valid under
   // ONLY_FULL_GROUP_BY on both MySQL and MariaDB — some strict-mode
@@ -151,18 +149,18 @@ async function earningsByCompanyForVendor(vendorId) {
   // textually matches the SELECT list. Grouping by a plain projected
   // column from a derived table is the portable, universally-valid form.
   const [rows] = await pool.query(
-    `SELECT company_name, SUM(amount) AS total
+    `SELECT company_name, SUM(total_amount) AS total
      FROM (
-       SELECT i.amount, COALESCE(cc.name, p.company_name, 'Unknown') AS company_name
+       SELECT i.total_amount, COALESCE(cc.name, p.company_name, 'Unknown') AS company_name
        FROM invoices i
        INNER JOIN projects p ON p.id = i.project_id
-       LEFT JOIN project_managers pm_link ON pm_link.user_id = p.pm_id
-       LEFT JOIN client_companies cc ON cc.id = pm_link.company_id
-       WHERE i.vendor_id = ? AND i.status IN ('APPROVED', 'AUTO_APPROVED')
+       INNER JOIN project_managers pm ON pm.user_id = p.pm_id
+       LEFT JOIN client_companies cc ON cc.id = pm.company_id
+       WHERE ${scope.where} AND i.vendor_id = ? AND i.status IN ('APPROVED', 'AUTO_APPROVED')
      ) earnings
      GROUP BY company_name
      ORDER BY total DESC`,
-    [vendorId]
+    [...scope.values, vendorId]
   );
   return rows.map((r) => ({ company_name: r.company_name, total: Number(r.total) }));
 }
@@ -171,16 +169,19 @@ async function earningsByCompanyForVendor(vendorId) {
  * Earned (APPROVED/AUTO_APPROVED) amount grouped by contractor, for
  * "Contractor Earnings Breakdown" — highest first.
  */
-async function earningsByContractorForVendor(vendorId) {
+async function earningsByContractorForVendor(vendorId, scope) {
   const [rows] = await pool.query(
-    `SELECT i.contractor_id, u.name AS contractor_name, SUM(i.amount) AS total
+    `SELECT i.contractor_id, u.name AS contractor_name, SUM(i.total_amount) AS total
      FROM invoices i
      INNER JOIN contractors c ON c.id = i.contractor_id
      INNER JOIN users u ON u.id = c.user_id
-     WHERE i.vendor_id = ? AND i.status IN ('APPROVED', 'AUTO_APPROVED')
+     INNER JOIN projects p ON p.id = i.project_id
+     INNER JOIN project_managers pm ON pm.user_id = p.pm_id
+     WHERE ${scope.where} AND i.vendor_id = ? AND c.vendor_id = ?
+       AND i.status IN ('APPROVED', 'AUTO_APPROVED')
      GROUP BY i.contractor_id, u.name
      ORDER BY total DESC`,
-    [vendorId]
+    [...scope.values, vendorId, vendorId]
   );
   return rows.map((r) => ({ contractor_id: r.contractor_id, contractor_name: r.contractor_name, total: Number(r.total) }));
 }
@@ -193,11 +194,14 @@ async function earningsByContractorForVendor(vendorId) {
  * everything ever generated for this vendor, regardless of review
  * outcome, since that's the literal amount that has been invoiced.
  */
-async function invoiceStatusCountsForVendor(vendorId) {
+async function invoiceStatusCountsForVendor(vendorId, scope) {
   const [rows] = await pool.query(
-    `SELECT status, COUNT(*) AS count, COALESCE(SUM(amount), 0) AS total
-     FROM invoices WHERE vendor_id = ? GROUP BY status`,
-    [vendorId]
+    `SELECT i.status, COUNT(*) AS count, COALESCE(SUM(i.total_amount), 0) AS total
+     FROM invoices i
+     INNER JOIN projects p ON p.id = i.project_id
+     INNER JOIN project_managers pm ON pm.user_id = p.pm_id
+     WHERE ${scope.where} AND i.vendor_id = ? GROUP BY i.status`,
+    [...scope.values, vendorId]
   );
   return rows.map((r) => ({ status: r.status, count: Number(r.count), total: Number(r.total) }));
 }
@@ -212,38 +216,37 @@ async function invoiceStatusCountsForVendor(vendorId) {
  * this schema — this reconstructs a feed from the real timestamped
  * events already recorded on each underlying table, nothing fabricated.
  */
-async function listRecentActivityForVendor(vendorId, limit) {
+async function listRecentActivityForVendor(vendorId, scope, limit) {
   const [rows] = await pool.query(
     `(SELECT 'ASSIGNED' AS type, CONCAT(u.name, ' assigned to ', p.name) AS message, pa.created_at AS occurred_at
       FROM project_assignments pa
       INNER JOIN contractors c ON c.id = pa.contractor_id
       INNER JOIN users u ON u.id = c.user_id
       INNER JOIN projects p ON p.id = pa.project_id
-      WHERE c.vendor_id = ?)
+      INNER JOIN project_managers pm ON pm.user_id = p.pm_id
+      WHERE ${scope.where} AND c.vendor_id = ?)
      UNION ALL
      (SELECT 'TIMESHEET_APPROVED', CONCAT(u.name, ' — ', t.hours_logged, 'h approved on ', p.name), t.reviewed_at
       FROM timesheets t
       INNER JOIN contractors c ON c.id = t.contractor_id
       INNER JOIN users u ON u.id = c.user_id
       INNER JOIN projects p ON p.id = t.project_id
-      WHERE c.vendor_id = ? AND t.status = 'APPROVED' AND t.reviewed_at IS NOT NULL)
+      INNER JOIN project_managers pm ON pm.user_id = p.pm_id
+      WHERE ${scope.where} AND c.vendor_id = ? AND t.status = 'APPROVED' AND t.reviewed_at IS NOT NULL)
      UNION ALL
      (SELECT 'MILESTONE_MET', CONCAT('Milestone "', m.name, '" reached on ', p.name), m.met_at
       FROM milestones m
       INNER JOIN projects p ON p.id = m.project_id
-      WHERE m.status = 'MET' AND m.met_at IS NOT NULL
-        AND EXISTS (
-          SELECT 1 FROM project_assignments pa2
-          INNER JOIN contractors c2 ON c2.id = pa2.contractor_id
-          WHERE pa2.project_id = p.id AND c2.vendor_id = ?
-        ))
+      INNER JOIN project_managers pm ON pm.user_id = p.pm_id
+      WHERE ${scope.where} AND m.status = 'MET' AND m.met_at IS NOT NULL)
      UNION ALL
      (SELECT 'INVOICE_GENERATED', CONCAT('Invoice generated for ', u.name, ' — ', p.name), i.generated_at
       FROM invoices i
       INNER JOIN projects p ON p.id = i.project_id
       INNER JOIN contractors c ON c.id = i.contractor_id
       INNER JOIN users u ON u.id = c.user_id
-      WHERE i.vendor_id = ?)
+      INNER JOIN project_managers pm ON pm.user_id = p.pm_id
+      WHERE ${scope.where} AND i.vendor_id = ?)
      UNION ALL
      (SELECT IF(i.status = 'REJECTED', 'INVOICE_REJECTED', 'INVOICE_APPROVED'),
              CONCAT('Invoice ', LOWER(i.status), ' for ', u.name, ' — ', p.name), i.reviewed_at
@@ -251,10 +254,12 @@ async function listRecentActivityForVendor(vendorId, limit) {
       INNER JOIN projects p ON p.id = i.project_id
       INNER JOIN contractors c ON c.id = i.contractor_id
       INNER JOIN users u ON u.id = c.user_id
-      WHERE i.vendor_id = ? AND i.reviewed_at IS NOT NULL AND i.status IN ('APPROVED', 'REJECTED'))
+      INNER JOIN project_managers pm ON pm.user_id = p.pm_id
+      WHERE ${scope.where} AND i.vendor_id = ? AND i.reviewed_at IS NOT NULL AND i.status IN ('APPROVED', 'REJECTED'))
      ORDER BY occurred_at DESC
      LIMIT ?`,
-    [vendorId, vendorId, vendorId, vendorId, vendorId, Number(limit)]
+    [...scope.values, vendorId, ...scope.values, vendorId, ...scope.values,
+      ...scope.values, vendorId, ...scope.values, vendorId, Number(limit)]
   );
   return rows;
 }
@@ -501,7 +506,7 @@ module.exports = {
   countActiveProjectsForVendor,
   countActiveContractorsForVendor,
   countCompletedProjectsForVendor,
-  listActiveProjectsForVendor,
+  listProjectsForVendorScope,
   totalEarningsForVendor,
   earningsByCompanyForVendor,
   earningsByContractorForVendor,
