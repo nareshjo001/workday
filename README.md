@@ -1,6 +1,8 @@
 # Vendor Management System
 
-VMS is a React, Node/Express, and MySQL modular monolith for Vendor, PM/client, and Contractor workflows. It began as a two-day Workday hackathon MVP and was subsequently hardened and expanded through M22.
+VMS is a React, Node/Express, and MySQL modular monolith for contingent-workforce management: project staffing, contractor compliance, timesheets, milestones, invoicing, payments, analytics, and offboarding.
+
+The initial MVP was developed during a two-day Workday hackathon. After the event, it was independently audited, hardened, redesigned, and expanded through M23. The complete final platform is not presented as two days of work and is not presented as a production customer deployment.
 
 ## Current workflow
 
@@ -65,4 +67,5 @@ Browser smoke against a running demo is `cd frontend; npm run test:e2e`.
 - [API](API.md)
 - [Expansion roadmap](ROADMAP.md)
 - [M22 deployment and operations](Expansion%20Doc/M22-Production-Deployment-Backup-Security-and-Demo-Environment/README.md)
+- [M23 final audit, release, and interview artifacts](Expansion%20Doc/M23-Final-Architecture-Audit-Release-and-Internship-Story/README.md)
 - [Expansion module records](Expansion%20Doc/)

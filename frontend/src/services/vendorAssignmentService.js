@@ -1,19 +1,15 @@
 import apiClient from "./apiClient";
 
 /**
- * Vendor's project-assignment API. Replaces the old single-contractor
- * POST /vendor/assignments endpoint (Module 3 revision) with the
- * vendor-centric workflow revision's atomic multi-contractor assign:
- * one request assigns every selected contractor to one requirement in a
- * single all-or-nothing transaction.
+ * Vendor candidate-submission adapter. The UI may submit several selected
+ * contractors, but each candidate is independently reviewed by the PM;
+ * only PM acceptance creates an assignment.
  *
  * MVP FIX 1 ("work-hour allocation must belong to the PM, not the
  * Vendor"): `contractorIds` is a plain array of ids — there is no hours
  * value anywhere in this request. Allocating hours to an assigned
  * contractor is exclusively pmProjectService.updateContractorAllocation's
- * job (a PM-only endpoint); the backend validator for THIS endpoint
- * (vendorAssignmentValidators.validateAssignContractors) never even
- * looks for an hours field, so sending one here would simply be ignored.
+ * job through the PM-only allocation endpoint.
  */
 async function submitCandidates(projectId, requirementId, contractorIds, dates = {}) {
   return Promise.all(contractorIds.map(async (contractorId) => (await apiClient.post(`/vendor/projects/${projectId}/requirements/${requirementId}/candidates`, { contractor_id: contractorId, start_date: dates.startDate || undefined, end_date: dates.endDate || undefined })).data));

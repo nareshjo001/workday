@@ -7,7 +7,6 @@ const authRoutes = require("./routes/authRoutes");
 const vendorRoutes = require("./routes/vendorRoutes");
 const pmRoutes = require("./routes/pmRoutes");
 const contractorRoutes = require("./routes/contractorRoutes");
-const sampleProtectedRoutes = require("./routes/sampleProtectedRoutes");
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 const requestContext = require("./middleware/requestContext");
 const { testConnection } = require("./config/db");
@@ -56,9 +55,6 @@ app.use("/api/auth", authRoutes);
 app.use("/api/vendor", vendorRoutes);
 app.use("/api/pm", pmRoutes);
 app.use("/api/contractor", contractorRoutes);
-// Verification-only endpoints for the RBAC middleware (see Module 1 testing notes).
-app.use("/api/_sample", sampleProtectedRoutes);
-
 app.use(notFoundHandler);
 app.use(errorHandler);
 

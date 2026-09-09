@@ -6,26 +6,11 @@ import apiClient from "./apiClient";
  * vendorContractorService — the JWT is attached automatically, so
  * nothing here ever passes a vendor id explicitly.
  *
- * Approval authority moved to the Vendor here — a Vendor now sees their
- * FULL invoice history (every status) and can approve/reject any row
- * still PENDING_REVIEW (see PmInvoicesPage for the PM's now-read-only
- * equivalent).
+ * Vendors own draft composition, submission, document access and payment
+ * recording. PM/client users own approval/rejection decisions.
  */
 async function listInvoices(params = {}) {
   const { data } = await apiClient.get("/vendor/invoices", { params });
-  return data;
-}
-
-async function approveInvoice(invoiceId) {
-  const { data } = await apiClient.patch(`/vendor/invoices/${invoiceId}`, { status: "APPROVED" });
-  return data;
-}
-
-async function rejectInvoice(invoiceId, rejectionReason) {
-  const { data } = await apiClient.patch(`/vendor/invoices/${invoiceId}`, {
-    status: "REJECTED",
-    rejection_reason: rejectionReason,
-  });
   return data;
 }
 
@@ -38,4 +23,4 @@ async function removeItem(invoiceId, milestoneBillingId){const {data}=await apiC
 async function downloadPdf(invoiceId){const {data}=await apiClient.get(`/vendor/invoices/${invoiceId}/pdf`,{responseType:'blob'});return URL.createObjectURL(data);}
 async function recordPayment(invoiceId,payload){const {data}=await apiClient.post(`/vendor/invoices/${invoiceId}/payments`,payload);return data;}
 
-export default { listInvoices, approveInvoice, rejectInvoice, billingQueue, createDraft, submitDraft, updateDraft, addItem, removeItem, downloadPdf, recordPayment };
+export default { listInvoices, billingQueue, createDraft, submitDraft, updateDraft, addItem, removeItem, downloadPdf, recordPayment };

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Workday VMS API
-  version: 1.0.0
+  version: 2.0.0
   description: JWT-protected Vendor Management System API. Errors use code, message, optional details, and request_id.
 components:
   securitySchemes:
@@ -102,14 +102,24 @@ paths:
       security: [{ bearerAuth: [] }]
       parameters: [{ name: id, in: path, required: true, schema: { type: integer } }, { name: requirementId, in: path, required: true, schema: { type: integer } }]
       responses: { '200': { description: Vendor-scoped eligible contractors }, '404': { description: Requirement not found } }
-  /api/vendor/projects/{id}/requirements/{requirementId}/assign:
+  /api/vendor/projects/{id}/requirements/{requirementId}/candidates:
     post:
       security: [{ bearerAuth: [] }]
-      responses: { '201': { description: Assignment created }, '409': { description: Capacity or active-assignment conflict } }
+      responses: { '201': { description: Candidate submitted for PM decision }, '404': { description: Project or requirement not found in active Vendor scope }, '409': { description: Eligibility, compliance, duplicate, or lifecycle conflict } }
   /api/vendor/invoices/{id}:
     patch:
       security: [{ bearerAuth: [] }]
-      responses: { '200': { description: Vendor invoice review recorded }, '404': { description: Not found in vendor scope }, '409': { description: Already reviewed } }
+      responses: { '200': { description: Allowed DRAFT invoice metadata updated with server-derived totals }, '404': { description: Not found in Vendor scope }, '409': { description: Invoice is not editable } }
+  /api/vendor/billing-queue:
+    get: { security: [{ bearerAuth: [] }], responses: { '200': { description: Active-relationship-scoped eligible uninvoiced milestone contributions } } }
+  /api/vendor/invoices/drafts:
+    post: { security: [{ bearerAuth: [] }], responses: { '201': { description: Vendor DRAFT created from one eligible milestone billing }, '404': { description: Billing not found in active Vendor scope }, '409': { description: Billing already claimed } } }
+  /api/vendor/invoices/{id}/submit:
+    post: { security: [{ bearerAuth: [] }], responses: { '200': { description: DRAFT submitted, numbered, and PDF frozen }, '409': { description: Invalid lifecycle or empty invoice } } }
+  /api/pm/candidate-submissions/{id}:
+    patch: { security: [{ bearerAuth: [] }], responses: { '200': { description: PM accepts or rejects submitted candidate; acceptance creates assignment }, '404': { description: Not found in PM scope }, '409': { description: Eligibility, capacity, overlap, or lifecycle conflict } } }
+  /api/pm/invoices/{id}/review:
+    patch: { security: [{ bearerAuth: [] }], responses: { '200': { description: PM approves or rejects submitted invoice }, '400': { description: Rejection reason missing }, '404': { description: Not found in PM scope }, '409': { description: Invoice is not submitted } } }
   /api/vendor/dashboard:
     get: { security: [{ bearerAuth: [] }], responses: { '200': { description: Vendor dashboard } } }
   /api/pm/projects/{id}/contractors:

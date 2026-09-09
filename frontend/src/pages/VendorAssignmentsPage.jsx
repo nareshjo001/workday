@@ -12,15 +12,9 @@ import ListControls from "../components/ListControls";
 
 /**
  * Vendor's project-staffing screen: browse projects open for staffing,
- * drill into one to see its per-skill requirements, and atomically assign
- * one or more compatible, unassigned-elsewhere contractors to an open
- * requirement (vendor-centric workflow revision).
- *
- * There is still no vendor_projects ownership relationship (MVP
- * decision, see report) — every Vendor sees the same staffing-available
- * project list — but which CONTRACTORS they may assign is scoped to
- * their own, both here in the UI (the eligible-contractors endpoint is
- * vendor-scoped) and enforced again server-side.
+ * drill into one to see its per-skill requirements, and submit one or
+ * more eligible contractors for PM review. Both project visibility and
+ * contractor eligibility are scoped and rechecked server-side.
  */
 export default function VendorAssignmentsPage() {
   const [projects, setProjects] = useState([]);

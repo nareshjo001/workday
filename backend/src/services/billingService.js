@@ -48,7 +48,7 @@ function calculateBillingAmount(approvedHours, hourlyRate) {
  * under the milestone row lock this should be unreachable but is not
  * assumed to be.
  */
-async function createBillingRecord(conn, { milestoneId, contractorId, approvedHours, hourlyRate }) {
+async function createBillingRecord(conn, { milestoneId, contractorId, approvedHours, hourlyRate, currency = "USD" }) {
   const billingAmount = calculateBillingAmount(approvedHours, hourlyRate);
   let billingId;
   try {
@@ -57,6 +57,7 @@ async function createBillingRecord(conn, { milestoneId, contractorId, approvedHo
       contractorId,
       approvedHours,
       hourlyRate,
+      currency,
       billingAmount,
     });
   } catch (err) {
@@ -65,7 +66,7 @@ async function createBillingRecord(conn, { milestoneId, contractorId, approvedHo
     }
     throw err;
   }
-  return { billingId, milestoneId, contractorId, approvedHours, hourlyRate, billingAmount };
+  return { billingId, milestoneId, contractorId, approvedHours, hourlyRate, currency, billingAmount };
 }
 
 module.exports = { calculateBillingAmount, createBillingRecord };
