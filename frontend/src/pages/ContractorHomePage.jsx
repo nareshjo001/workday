@@ -79,7 +79,7 @@ export default function ContractorHomePage() {
           </div>
         ) : !dashboard ? null : (
           <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
               <KpiCard title="Active Projects" value={activeProjects.length} icon="📁" />
               <KpiCard title="Total Approved Hours" value={formatHours(summary.total_approved_hours)} icon="⏱" />
               <KpiCard
@@ -96,7 +96,7 @@ export default function ContractorHomePage() {
               />
             </div>
 
-            {m20 && <SectionCard title="My work" description="Your assignment, timesheet, and compliance actions."><div className="grid grid-cols-2 gap-3 sm:grid-cols-4"><KpiCard title="Active assignments" value={m20.assignments.active_assignments}/><KpiCard title="Upcoming assignments" value={m20.assignments.upcoming_assignments}/><KpiCard title="Allocated hours" value={formatHours(m20.assignments.allocated_hours)}/><KpiCard title="Submitted hours" value={formatHours(m20.timesheets.submitted_hours)}/><KpiCard title="Approved hours" value={formatHours(m20.timesheets.approved_hours)}/><KpiCard title="Needs correction" value={m20.timesheets.rejected_action_items}/><KpiCard title="Documents expiring" value={m20.compliance.expiring_documents}/></div></SectionCard>}
+            {m20 && <SectionCard title="My work" description="Your assignment, timesheet, and compliance actions."><div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4"><KpiCard title="Active assignments" value={m20.assignments.active_assignments}/><KpiCard title="Upcoming assignments" value={m20.assignments.upcoming_assignments}/><KpiCard title="Allocated hours" value={formatHours(m20.assignments.allocated_hours)}/><KpiCard title="Submitted hours" value={formatHours(m20.timesheets.submitted_hours)}/><KpiCard title="Approved hours" value={formatHours(m20.timesheets.approved_hours)}/><KpiCard title="Needs correction" value={m20.timesheets.rejected_action_items}/><KpiCard title="Documents expiring" value={m20.compliance.expiring_documents}/></div></SectionCard>}
 
             <SectionCard title="Hours Trend" description="Approved hours per week">
               <LineChart data={dashboard.hours_trend} valueKey="hours" labelKey="period" emptyMessage="No hours data available." />
@@ -128,7 +128,7 @@ export default function ContractorHomePage() {
             </SectionCard>
 
             <SectionCard title="Timesheet Summary">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
                 <div className="flex flex-col gap-1 rounded-md bg-surface-muted p-3">
                   <span className="text-xs text-muted">Pending</span>
                   <span className="text-lg font-semibold text-text">{timesheets.pending}</span>

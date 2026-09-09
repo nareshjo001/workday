@@ -1,3 +1,4 @@
+import DataTableScroll from "../DataTableScroll";
 import { formatDate, formatDateTime, formatHours, TimesheetStatusBadge } from "./format";
 
 /**
@@ -17,6 +18,7 @@ import { formatDate, formatDateTime, formatHours, TimesheetStatusBadge } from ".
  */
 export default function TimesheetTable({ logs, onEdit }) {
   return (
+    <DataTableScroll label="Timesheet Table" className="hidden md:block">
     <table className="hidden w-full text-left text-sm md:table">
       <thead>
         <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
@@ -69,5 +71,6 @@ export default function TimesheetTable({ logs, onEdit }) {
         ))}
       </tbody>
     </table>
+    </DataTableScroll>
   );
 }

@@ -9,7 +9,7 @@
 export default function AuthLayout({ title, description, children }) {
   return (
     <div className="flex min-h-screen w-full flex-col md:flex-row">
-      <div className="hidden flex-col justify-between bg-primary px-10 py-12 text-primary-foreground md:flex md:w-1/2 lg:w-3/5 lg:px-16 lg:py-16">
+      <div className="hidden flex-col justify-between gap-16 bg-primary px-10 py-12 text-primary-foreground md:flex md:w-1/2 lg:px-16 lg:py-16">
         <span className="text-lg font-semibold tracking-tight">VMS</span>
 
         <div className="max-w-md">
@@ -30,7 +30,7 @@ export default function AuthLayout({ title, description, children }) {
           <p className="mt-1 text-sm text-muted">Contingent Workforce &amp; Timesheet Management</p>
         </div>
 
-        <div className="w-full max-w-sm rounded-lg bg-surface p-6 shadow-card ring-1 ring-border sm:p-8">
+        <div className="w-full max-w-md rounded-lg bg-surface p-6 shadow-card ring-1 ring-border sm:p-8">
           {(title || description) && (
             <div className="mb-6">
               {title && (

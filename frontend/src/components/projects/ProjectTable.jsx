@@ -1,3 +1,4 @@
+import DataTableScroll from "../DataTableScroll";
 import {
   formatDate,
   StatusBadge,
@@ -40,7 +41,8 @@ export default function ProjectTable({ projects, showId = true, onComplete, comp
   const showHours = projects.some((p) => p.expected_hours !== undefined && p.expected_hours !== null);
 
   return (
-    <table className="hidden w-full text-left text-sm md:table">
+    <DataTableScroll label="Project Table" className="hidden md:block">
+    <table className="project-data-table hidden w-full text-left text-sm md:table">
       <thead>
         <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
           {showId && <th className="py-3 pr-4 font-medium">ID</th>}
@@ -133,5 +135,6 @@ export default function ProjectTable({ projects, showId = true, onComplete, comp
         ))}
       </tbody>
     </table>
+    </DataTableScroll>
   );
 }

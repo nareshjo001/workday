@@ -95,8 +95,10 @@ export default function PmHomePage() {
           </div>
         </div>
 
+        <details className="dashboard-tools"><summary>Filters &amp; exports</summary><div>
         <SectionCard title="Filters" description="Metrics and exports use the same server-side scope."><DashboardFilters onApply={(next) => { setFilters(next); loadDashboard(next); }} /></SectionCard>
         <SectionCard title="Exports" description="Download exactly the filtered data available to your authorized projects."><DashboardExports role="pm" filters={filters} /></SectionCard>
+        </div></details>
 
         <AlertBanner message={loadError} />
 
@@ -108,7 +110,7 @@ export default function PmHomePage() {
           </div>
         ) : !dashboard ? null : (
           <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-5">
               <KpiCard title="Active Projects" value={summary.active_projects} icon="📁" />
               <KpiCard title="Active Contractors" value={summary.active_contractors} icon="👥" />
               <KpiCard title="Completed Projects" value={summary.completed_projects} icon="✅" />
@@ -234,7 +236,7 @@ export default function PmHomePage() {
             </div>
 
             <SectionCard title="Completion Analytics">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
                 <div className="flex flex-col gap-1 rounded-md bg-surface-muted p-3">
                   <span className="text-xs text-muted">Completed</span>
                   <span className="text-lg font-semibold text-text">{completion.completed_projects}</span>
@@ -257,7 +259,7 @@ export default function PmHomePage() {
               </div>
             </SectionCard>
 
-            {commercial && <SectionCard title="Project financials" description="Budget, approved work, invoicing, payment, and outstanding balances are separate."><div className="grid grid-cols-2 gap-3 sm:grid-cols-4"><KpiCard title="Project budget" value={formatCurrency(commercial.financial.budget)} /><KpiCard title="Approved work" value={formatHours(commercial.time.approved_hours)} /><KpiCard title="Submitted invoices" value={formatCurrency(commercial.financial.submitted_invoice_amount)} /><KpiCard title="Approved invoices" value={formatCurrency(commercial.financial.approved_invoice_amount)} /><KpiCard title="Paid" value={formatCurrency(commercial.financial.paid_amount)} /><KpiCard title="Outstanding" value={formatCurrency(commercial.financial.outstanding_amount)} /><KpiCard title="Overdue" value={formatCurrency(commercial.financial.overdue_amount)} /><KpiCard title="Pending invoice reviews" value={commercial.financial.pending_invoice_reviews} /></div></SectionCard>}
+            {commercial && <SectionCard title="Project financials" description="Budget, approved work, invoicing, payment, and outstanding balances are separate."><div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4"><KpiCard title="Project budget" value={formatCurrency(commercial.financial.budget)} /><KpiCard title="Approved work" value={formatHours(commercial.time.approved_hours)} /><KpiCard title="Submitted invoices" value={formatCurrency(commercial.financial.submitted_invoice_amount)} /><KpiCard title="Approved invoices" value={formatCurrency(commercial.financial.approved_invoice_amount)} /><KpiCard title="Paid" value={formatCurrency(commercial.financial.paid_amount)} /><KpiCard title="Outstanding" value={formatCurrency(commercial.financial.outstanding_amount)} /><KpiCard title="Overdue" value={formatCurrency(commercial.financial.overdue_amount)} /><KpiCard title="Pending invoice reviews" value={commercial.financial.pending_invoice_reviews} /></div></SectionCard>}
 
             <SectionCard title="Recent Activity">
               <ActivityFeed activity={dashboard.recent_activity} />

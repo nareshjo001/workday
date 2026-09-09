@@ -1,3 +1,4 @@
+import DataTableScroll from "../DataTableScroll";
 import { formatDateTime, formatCurrency, InvoiceStatusBadge } from "./format";
 
 /**
@@ -29,6 +30,7 @@ export default function InvoiceTable({ invoices, reviewingId, onApprove, onRejec
   const reviewModeAvailable = typeof onApprove === "function";
 
   return (
+    <DataTableScroll label="Invoice Table" className="hidden md:block">
     <table className="hidden w-full text-left text-sm md:table">
       <thead>
         <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
@@ -59,7 +61,7 @@ export default function InvoiceTable({ invoices, reviewingId, onApprove, onRejec
               {reviewModeAvailable ? (
                 <td className="py-3 pr-0">
                   {showActions ? (
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
                         disabled={isBusy}
@@ -104,5 +106,6 @@ export default function InvoiceTable({ invoices, reviewingId, onApprove, onRejec
         })}
       </tbody>
     </table>
+    </DataTableScroll>
   );
 }

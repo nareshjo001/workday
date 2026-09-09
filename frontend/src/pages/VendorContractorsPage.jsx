@@ -81,7 +81,7 @@ export default function VendorContractorsPage() {
   return (
     <DashboardLayout title="Contractors">
       <div className="mx-auto flex max-w-4xl flex-col gap-5">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold text-text">Contractors</h1>
           <PrimaryButton type="button" fullWidth={false} onClick={() => setIsAddOpen(true)}>
             + Add Contractor

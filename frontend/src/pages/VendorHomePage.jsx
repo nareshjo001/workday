@@ -85,8 +85,10 @@ export default function VendorHomePage() {
           </div>
         </div>
 
+        <details className="dashboard-tools"><summary>Filters &amp; exports</summary><div>
         <SectionCard title="Filters" description="Metrics and exports use the same server-side scope."><DashboardFilters onApply={(next) => { setFilters(next); loadDashboard(next); }} /></SectionCard>
         <SectionCard title="Exports" description="Download exactly the filtered data available to your organization."><DashboardExports role="vendor" filters={filters} /></SectionCard>
+        </div></details>
 
         <AlertBanner message={loadError} />
 
@@ -98,7 +100,7 @@ export default function VendorHomePage() {
           </div>
         ) : !dashboard ? null : (
           <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
               <KpiCard title="Active Projects" value={summary.active_projects} icon="📁" />
               <KpiCard title="Active Contractors" value={summary.active_contractors} icon="👥" />
               <KpiCard
@@ -161,7 +163,7 @@ export default function VendorHomePage() {
             </SectionCard>
 
             <SectionCard title="Invoice Overview" description="Across all of your contractors' invoices">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
                 <div className="flex flex-col gap-1 rounded-md bg-surface-muted p-3">
                   <span className="text-xs text-muted">Pending Review</span>
                   <span className="text-lg font-semibold text-text">{invoices.pending_review_count}</span>
@@ -183,7 +185,7 @@ export default function VendorHomePage() {
               </div>
             </SectionCard>
 
-            {commercial && <SectionCard title="Commercial lifecycle" description="Approved work, invoice state, settlement, and snapshot-based margin are distinct measures."><div className="grid grid-cols-2 gap-3 sm:grid-cols-4"><KpiCard title="Approved work" value={formatHours(commercial.time.approved_hours)} /><KpiCard title="Billable, uninvoiced" value={formatCurrency(commercial.financial.billable_uninvoiced_amount)} /><KpiCard title="Paid" value={formatCurrency(commercial.financial.paid_amount)} /><KpiCard title="Outstanding" value={formatCurrency(commercial.financial.outstanding_amount)} /><KpiCard title="Overdue" value={formatCurrency(commercial.financial.overdue_amount)} /><KpiCard title="Open requirements" value={commercial.workforce.open_requirements} /><KpiCard title="Pending reviews" value={commercial.candidates.pending_reviews} /><KpiCard title="Snapshot margin" value={commercial.financial.margin ? formatCurrency(commercial.financial.margin.amount) : "—"} description={commercial.financial.margin?.percentage == null ? "No snapshot margin" : `${commercial.financial.margin.percentage}%`} /></div></SectionCard>}
+            {commercial && <SectionCard title="Commercial lifecycle" description="Approved work, invoice state, settlement, and snapshot-based margin are distinct measures."><div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4"><KpiCard title="Approved work" value={formatHours(commercial.time.approved_hours)} /><KpiCard title="Billable, uninvoiced" value={formatCurrency(commercial.financial.billable_uninvoiced_amount)} /><KpiCard title="Paid" value={formatCurrency(commercial.financial.paid_amount)} /><KpiCard title="Outstanding" value={formatCurrency(commercial.financial.outstanding_amount)} /><KpiCard title="Overdue" value={formatCurrency(commercial.financial.overdue_amount)} /><KpiCard title="Open requirements" value={commercial.workforce.open_requirements} /><KpiCard title="Pending reviews" value={commercial.candidates.pending_reviews} /><KpiCard title="Snapshot margin" value={commercial.financial.margin ? formatCurrency(commercial.financial.margin.amount) : "—"} description={commercial.financial.margin?.percentage == null ? "No snapshot margin" : `${commercial.financial.margin.percentage}%`} /></div></SectionCard>}
 
             <SectionCard title="Recent Activity">
               <ActivityFeed activity={dashboard.recent_activity} />

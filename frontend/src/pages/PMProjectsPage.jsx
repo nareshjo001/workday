@@ -98,9 +98,9 @@ export default function PMProjectsPage() {
   return (
     <DashboardLayout title="Projects">
       <div className="mx-auto flex max-w-4xl flex-col gap-5">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold text-text">Projects</h1>
-          <div className="flex gap-2"><Link to="/pm/staffing-pipeline" className="rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary transition hover:bg-surface-muted">Staffing Pipeline</Link><Link to="/pm/vendor-access" className="rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary transition hover:bg-surface-muted">Manage Vendor Access</Link><PrimaryButton type="button" fullWidth={false} onClick={() => setIsCreateOpen(true)}>+ Create Project</PrimaryButton></div>
+          <div className="flex flex-wrap gap-2"><Link to="/pm/staffing-pipeline" className="rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary transition hover:bg-surface-muted">Staffing Pipeline</Link><Link to="/pm/vendor-access" className="rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary transition hover:bg-surface-muted">Manage Vendor Access</Link><PrimaryButton type="button" fullWidth={false} onClick={() => setIsCreateOpen(true)}>+ Create Project</PrimaryButton></div>
         </div>
 
         <AlertBanner message={successMessage} variant="success" />
@@ -137,8 +137,8 @@ function EmptyState({ onAdd }) {
     <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border bg-surface px-6 py-12 text-center">
       <p className="text-text-secondary">No projects yet.</p>
       <p className="max-w-sm text-sm text-muted">
-        Create your first project with staffing requirements, and Vendors will be able to browse it and
-        assign contractors.
+        Create your first project with staffing requirements, and connected Vendors will be able to
+        submit candidates for review.
       </p>
       <PrimaryButton type="button" fullWidth={false} onClick={onAdd} className="mt-2">
         + Create Project

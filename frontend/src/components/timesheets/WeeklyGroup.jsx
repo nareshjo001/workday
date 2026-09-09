@@ -49,7 +49,7 @@ export default function WeeklyGroup({ week, onEdit, onSubmitWeek, defaultOpen = 
       {isOpen && (
         <div className="border-t border-border px-4 py-3">
           {submittable.length > 0 && (
-            <div className="mb-3 flex items-center justify-between gap-3 rounded-md bg-warning-bg px-3 py-2 text-sm text-warning">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-md bg-warning-bg px-3 py-2 text-sm text-warning">
               <span>{submittable.length} draft{submittable.length === 1 ? "" : "s"} ready for review.</span>
               <button type="button" onClick={() => onSubmitWeek(submittable.map((log) => log.id))} className="rounded border border-warning px-2.5 py-1 text-xs font-medium">Submit week</button>
             </div>

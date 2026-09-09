@@ -1,3 +1,4 @@
+import DataTableScroll from "../DataTableScroll";
 import { formatDate, formatHours, formatCurrency, MilestoneStatusBadge } from "./format";
 
 /**
@@ -16,6 +17,7 @@ import { formatDate, formatHours, formatCurrency, MilestoneStatusBadge } from ".
  */
 export default function MilestoneTable({ milestones }) {
   return (
+    <DataTableScroll label="Milestone Table" className="hidden md:block">
     <table className="hidden w-full text-left text-sm md:table">
       <thead>
         <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
@@ -63,5 +65,6 @@ export default function MilestoneTable({ milestones }) {
         })}
       </tbody>
     </table>
+    </DataTableScroll>
   );
 }

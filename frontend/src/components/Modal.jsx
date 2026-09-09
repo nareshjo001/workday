@@ -17,23 +17,23 @@ export default function Modal({ title, onClose, children }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-8"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
       role="dialog"
       aria-modal="true"
       aria-label={title}
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-lg bg-surface p-6 shadow-card ring-1 ring-border"
+        className="ui-modal-panel min-w-0 w-full max-w-xl rounded-lg bg-surface p-5 shadow-card ring-1 ring-border sm:p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-5 flex items-center justify-between">
+        <div className="mb-5 flex items-start justify-between gap-4 border-b border-border pb-4">
           <h2 className="text-lg font-semibold text-text">{title}</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded-md p-1 text-muted transition hover:bg-surface-muted hover:text-text-secondary"
+            className="shrink-0 rounded-md p-2 text-muted transition hover:bg-surface-muted hover:text-text-secondary"
           >
             <CloseIcon />
           </button>

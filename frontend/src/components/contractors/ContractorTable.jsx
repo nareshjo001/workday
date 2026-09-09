@@ -1,3 +1,4 @@
+import DataTableScroll from "../DataTableScroll";
 import { formatRate, StatusBadge } from "./format";
 import { formatSkill } from "../../constants/skills";
 
@@ -10,6 +11,7 @@ import { formatSkill } from "../../constants/skills";
  */
 export default function ContractorTable({ contractors, onEdit, onHistory }) {
   return (
+    <DataTableScroll label="Contractor Table" className="hidden md:block">
     <table className="hidden w-full text-left text-sm md:table">
       <thead>
         <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
@@ -47,5 +49,6 @@ export default function ContractorTable({ contractors, onEdit, onHistory }) {
         ))}
       </tbody>
     </table>
+    </DataTableScroll>
   );
 }

@@ -58,7 +58,7 @@ export default function ProjectTeamModal({ project, onClose, onAssignRequirement
           const isFilled = req.assigned_count >= req.required_count;
           return (
             <div key={req.id} className="rounded-md border border-border p-3">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="font-medium text-text">{formatSkill(req.skill)}</p>
                   <p className="text-sm text-text-secondary">
@@ -81,7 +81,7 @@ export default function ProjectTeamModal({ project, onClose, onAssignRequirement
               {req.contractors && req.contractors.length > 0 ? (
                 <ul className="mt-3 flex flex-col gap-2.5 border-t border-border pt-3">
                   {req.contractors.map((c) => (
-                    <li key={c.contractor_id} className="flex items-center justify-between gap-3">
+                    <li key={c.contractor_id} className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-medium text-text">{c.name}</p>
                         <p className="text-xs text-muted">

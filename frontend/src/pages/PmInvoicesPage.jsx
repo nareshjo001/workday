@@ -9,16 +9,9 @@ import ListControls from "../components/ListControls";
 import InvoiceDocumentPanel from "../components/invoices/InvoiceDocumentPanel";
 
 /**
- * PM's invoice HISTORY (Module 6, narrowed by the invoice-workflow
- * redesign): every invoice across the PM's own projects, any status,
- * READ-ONLY — a PM no longer approves or rejects (that authority moved
- * to the Vendor, see VendorInvoicesPage). Vendor-approved invoices sort
- * first (see invoiceRepository.listForPm's ORDER BY) since they're the
- * primary financial record a PM cares about; PENDING_REVIEW/
- * AUTO_APPROVED/REJECTED still show for full visibility. No
- * approve/reject controls are rendered anywhere on this page — passing
- * neither onApprove nor onReject to InvoiceTable/InvoiceCardList puts
- * both into their read-only branch (see those components' own comments).
+ * PM invoice review and history for the PM's own projects. Submitted
+ * invoices expose the existing approve/reject actions; every other state
+ * remains an immutable history view.
  * Ownership is enforced entirely server-side (pmInvoiceService.listInvoices
  * → invoiceRepository.listForPm's SQL join on projects.pm_id).
  */
@@ -57,8 +50,8 @@ export default function PmInvoicesPage() {
       <div className="mx-auto flex max-w-4xl flex-col gap-5">
         <h1 className="text-xl font-semibold text-text">Invoices</h1>
         <p className="text-sm text-muted">
-          Read-only billing history for your projects. Vendors review and approve or reject each
-          invoice — once approved, it appears here as your project's financial record.
+          Review invoices submitted by Vendors for your projects, then track approved invoices and
+          their settlement state.
         </p>
 
         <AlertBanner message={loadError} />
@@ -71,8 +64,7 @@ export default function PmInvoicesPage() {
           <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-surface px-6 py-12 text-center">
             <p className="text-text-secondary">No invoices yet.</p>
             <p className="max-w-sm text-sm text-muted">
-              Invoices are generated automatically once a project milestone is met, and appear here
-              once a Vendor has reviewed them.
+              Vendor-submitted invoices will appear here when they are ready for client review.
             </p>
           </div>
         ) : (

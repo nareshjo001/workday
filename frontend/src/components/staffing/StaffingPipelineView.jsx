@@ -19,7 +19,7 @@ export default function StaffingPipelineView({ data, loading, error, title, audi
     open_candidates: value.open_candidates + item.open_candidate_count,
     sla_breached_requirements: value.sla_breached_requirements + (item.sla_breached ? 1 : 0),
   }), { open_positions: 0, open_candidates: 0, sla_breached_requirements: 0 });
-  return <div className="mx-auto flex max-w-6xl flex-col gap-5">
+  return <div className="mx-auto flex min-w-0 w-full max-w-6xl flex-col gap-5">
     <div><h1 className="text-xl font-semibold text-text">{title}</h1><p className="mt-1 text-sm text-muted">Open positions, candidate decisions, and the oldest review waiting for action.</p></div>
     <AlertBanner message={error} />
     {loading ? <Spinner label="Loading staffing pipeline…" /> : <>

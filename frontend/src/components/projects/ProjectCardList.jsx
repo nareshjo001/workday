@@ -48,7 +48,7 @@ export default function ProjectCardList({ projects, showId = true, onComplete, c
             <p className="mt-1 text-xs text-muted">Assigned {formatDate(project.assigned_date)}</p>
           )}
           {project.total_required !== undefined && (
-            <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
               <span className="text-xs text-muted">
                 Team: <StaffingProgress assigned={project.total_assigned} required={project.total_required} />
               </span>
@@ -62,7 +62,7 @@ export default function ProjectCardList({ projects, showId = true, onComplete, c
                 expectedHours={project.expected_hours}
                 progressPercent={project.work_progress_percent}
               />
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <HoursStaffingProgress
                   allocatedHours={project.allocated_hours}
                   expectedHours={project.expected_hours}

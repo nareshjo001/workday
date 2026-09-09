@@ -28,7 +28,7 @@ export default function BarList({ data, emptyMessage = "No data available.", bar
         const widthPercent = Math.max(2, Math.round((item.value / max) * 100));
         return (
           <li key={item.label ?? idx} className="flex flex-col gap-1">
-            <div className="flex items-center justify-between gap-3 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
               <span className="truncate text-text-secondary" title={item.label}>
                 {item.label}
               </span>

@@ -1,3 +1,4 @@
+import DataTableScroll from "../DataTableScroll";
 import { formatDate, formatDateTime, formatHours } from "./format";
 import { formatSkill } from "../../constants/skills";
 
@@ -17,6 +18,7 @@ import { formatSkill } from "../../constants/skills";
 export default function PendingTimesheetTable({ timesheets, reviewingId, onApprove, onReject, selectedIds = [], onToggle, onToggleAll }) {
   const allSelected = timesheets.length > 0 && timesheets.every((t) => selectedIds.includes(t.id));
   return (
+    <DataTableScroll label="Pending Timesheet Table" className="hidden md:block">
     <table className="hidden w-full text-left text-sm md:table">
       <thead>
         <tr className="border-b border-border text-xs uppercase tracking-wide text-muted">
@@ -43,7 +45,7 @@ export default function PendingTimesheetTable({ timesheets, reviewingId, onAppro
               <td className="py-3 pr-4 text-text-secondary">{formatHours(t.hours_logged)}</td>
               <td className="py-3 pr-4 text-text-secondary">{formatDateTime(t.submitted_at)}</td>
               <td className="py-3 pr-0">
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     disabled={isBusy}
@@ -67,5 +69,6 @@ export default function PendingTimesheetTable({ timesheets, reviewingId, onAppro
         })}
       </tbody>
     </table>
+    </DataTableScroll>
   );
 }

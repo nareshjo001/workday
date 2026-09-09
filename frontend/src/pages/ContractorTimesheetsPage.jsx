@@ -135,9 +135,9 @@ export default function ContractorTimesheetsPage() {
   return (
     <DashboardLayout title="Timesheets">
       <div className="mx-auto flex max-w-4xl flex-col gap-5">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold text-text">Timesheets</h1>
-          <div className="flex gap-2"><button type="button" onClick={handleSubmitDrafts} className="rounded-md border border-border px-3 py-2 text-sm">Submit visible drafts</button><PrimaryButton type="button" fullWidth={false} onClick={() => setIsLogOpen(true)}>+ Log Hours</PrimaryButton></div>
+          <div className="flex flex-wrap gap-2"><button type="button" onClick={handleSubmitDrafts} className="rounded-md border border-border px-3 py-2 text-sm">Submit visible drafts</button><PrimaryButton type="button" fullWidth={false} onClick={() => setIsLogOpen(true)}>+ Log Hours</PrimaryButton></div>
         </div>
 
         <AlertBanner message={successMessage} variant="success" />
