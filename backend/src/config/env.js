@@ -9,6 +9,10 @@ function required(name, fallback) {
   return value;
 }
 
+function featureEnabled(name) {
+  return String(process.env[name] || "false").trim().toLowerCase() === "true";
+}
+
 const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT) || 5000,
@@ -46,6 +50,14 @@ const env = {
     smtpPort: Number(process.env.SMTP_PORT) || 587,
     smtpUser: process.env.SMTP_USER || "",
     smtpPassword: process.env.SMTP_PASSWORD || "",
+  },
+  // Decision Intelligence is deliberately opt-in. These flags expose no
+  // intelligence behaviour by themselves; later modules own their engines.
+  intelligence: {
+    vendorRateIntelligence: featureEnabled("INTELLIGENCE_VENDOR_RATE_ENABLED"),
+    pmProjectControl: featureEnabled("INTELLIGENCE_PM_PROJECT_CONTROL_ENABLED"),
+    contractorTimesheetIntelligence: featureEnabled("INTELLIGENCE_CONTRACTOR_TIMESHEET_ENABLED"),
+    aiExplanations: featureEnabled("INTELLIGENCE_AI_EXPLANATIONS_ENABLED"),
   },
 };
 

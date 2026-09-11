@@ -7,6 +7,7 @@ const authRoutes = require("./routes/authRoutes");
 const vendorRoutes = require("./routes/vendorRoutes");
 const pmRoutes = require("./routes/pmRoutes");
 const contractorRoutes = require("./routes/contractorRoutes");
+const intelligenceRoutes = require("./routes/intelligenceRoutes");
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 const requestContext = require("./middleware/requestContext");
 const { testConnection } = require("./config/db");
@@ -55,6 +56,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/vendor", vendorRoutes);
 app.use("/api/pm", pmRoutes);
 app.use("/api/contractor", contractorRoutes);
+app.use("/api/intelligence", intelligenceRoutes);
 app.use(notFoundHandler);
 app.use(errorHandler);
 
