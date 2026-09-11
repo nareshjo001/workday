@@ -17,7 +17,7 @@ import { formatSkill } from "../../constants/skills";
  *
  * `onComplete`/`completingId` mirror ProjectTable's — see its comment.
  */
-export default function ProjectCardList({ projects, showId = true, onComplete, completingId, onSettings, onRequirements }) {
+export default function ProjectCardList({ projects, showId = true, onComplete, completingId, onSettings, onRequirements, onControl }) {
   return (
     <div className="flex flex-col gap-3 md:hidden">
       {projects.map((project) => (
@@ -83,7 +83,7 @@ export default function ProjectCardList({ projects, showId = true, onComplete, c
               </button>
             </div>
           )}
-          {(onSettings || onRequirements) && <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3">{onSettings && <button type="button" onClick={() => onSettings(project)} className="rounded-md border border-border px-3 py-2 text-xs font-medium text-text-secondary">Settings</button>}{onRequirements && <button type="button" onClick={() => onRequirements(project)} className="rounded-md border border-border px-3 py-2 text-xs font-medium text-text-secondary">Requirements</button>}</div>}
+          {(onSettings || onRequirements || onControl) && <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3">{onSettings && <button type="button" onClick={() => onSettings(project)} className="rounded-md border border-border px-3 py-2 text-xs font-medium text-text-secondary">Settings</button>}{onRequirements && <button type="button" onClick={() => onRequirements(project)} className="rounded-md border border-border px-3 py-2 text-xs font-medium text-text-secondary">Requirements</button>}{onControl && <button type="button" onClick={() => onControl(project)} className="rounded-md border border-border px-3 py-2 text-xs font-medium text-text-secondary">Project Control</button>}</div>}
         </div>
       ))}
     </div>

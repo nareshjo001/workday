@@ -12,6 +12,9 @@ import ListControls from "../components/ListControls";
 import useDebouncedValue from "../hooks/useDebouncedValue";
 import ProjectSettingsModal from "../components/projects/ProjectSettingsModal";
 import RequirementManagerModal from "../components/projects/RequirementManagerModal";
+import PMProjectControlPanel from "../components/projects/PMProjectControlPanel";
+import intelligenceService from "../services/intelligenceService";
+import pmProjectControlService from "../services/pmProjectControlService";
 
 /**
  * PM's project-management screen: list + create. All data comes from
@@ -28,6 +31,11 @@ export default function PMProjectsPage() {
   const [completingId, setCompletingId] = useState(null);
   const [settingsProject, setSettingsProject] = useState(null);
   const [requirementsProject, setRequirementsProject] = useState(null);
+  const [controlProject, setControlProject] = useState(null);
+  const [control, setControl] = useState(null);
+  const [controlLoading, setControlLoading] = useState(false);
+  const [controlError, setControlError] = useState(null);
+  const [controlEnabled, setControlEnabled] = useState(false);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [pageInfo, setPageInfo] = useState({ total_pages: 1, total: 0 });
@@ -50,6 +58,25 @@ export default function PMProjectsPage() {
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
+
+  useEffect(() => {
+    let active = true;
+    intelligenceService.getCapabilities().then((response) => {
+      if (active) setControlEnabled(response.capabilities.pm_project_control === true);
+    }).catch(() => { if (active) setControlEnabled(false); });
+    return () => { active = false; };
+  }, []);
+
+  const loadControl = useCallback(async (project) => {
+    if (!controlEnabled || !project) return;
+    setControlProject(project);
+    setControl(null);
+    setControlError(null);
+    setControlLoading(true);
+    try { setControl(await pmProjectControlService.getProjectControl(project.id)); }
+    catch { setControlError(true); }
+    finally { setControlLoading(false); }
+  }, [controlEnabled]);
 
   useEffect(() => {
     if (!successMessage) return undefined;
@@ -112,11 +139,12 @@ export default function PMProjectsPage() {
           <EmptyState onAdd={() => setIsCreateOpen(true)} />
         ) : (
           <div className="rounded-lg bg-surface p-4 shadow-panel ring-1 ring-border sm:p-6">
-            <ProjectTable projects={projects} onComplete={handleComplete} completingId={completingId} onSettings={setSettingsProject} onRequirements={setRequirementsProject} />
-            <ProjectCardList projects={projects} onComplete={handleComplete} completingId={completingId} onSettings={setSettingsProject} onRequirements={setRequirementsProject} />
+            <ProjectTable projects={projects} onComplete={handleComplete} completingId={completingId} onSettings={setSettingsProject} onRequirements={setRequirementsProject} onControl={controlEnabled ? loadControl : undefined} />
+            <ProjectCardList projects={projects} onComplete={handleComplete} completingId={completingId} onSettings={setSettingsProject} onRequirements={setRequirementsProject} onControl={controlEnabled ? loadControl : undefined} />
             <ListControls page={page} totalPages={pageInfo.total_pages} total={pageInfo.total} search={search} onSearchChange={(value) => { setPage(1); setSearch(value); }} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
           </div>
         )}
+        {controlEnabled && controlProject && <PMProjectControlPanel control={control} isLoading={controlLoading} error={controlError} onRefresh={() => loadControl(controlProject)} onOpenRequirements={() => setRequirementsProject(controlProject)} />}
       </div>
 
       {isCreateOpen && (
