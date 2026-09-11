@@ -1,8 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Modal from "../Modal";
 import FormField, { inputClassName } from "../FormField";
 import PrimaryButton from "../PrimaryButton";
 import AlertBanner from "../AlertBanner";
+import ContractorTimesheetIntelligencePanel from "./ContractorTimesheetIntelligencePanel";
+import intelligenceService from "../../services/intelligenceService";
+import contractorTimesheetIntelligenceService from "../../services/contractorTimesheetIntelligenceService";
 
 const MAX_HOURS_PER_DAY = 24;
 
@@ -35,6 +38,19 @@ export default function LogHoursModal({ projects, onClose, onSubmit }) {
   const [fieldErrors, setFieldErrors] = useState({});
   const [formError, setFormError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [intelligenceEnabled, setIntelligenceEnabled] = useState(false);
+  const [analysis, setAnalysis] = useState(null);
+  const [analysisError, setAnalysisError] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisStale, setAnalysisStale] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    intelligenceService.getCapabilities()
+      .then((response) => { if (active) setIntelligenceEnabled(response.capabilities.contractor_timesheet_intelligence === true); })
+      .catch(() => { if (active) setIntelligenceEnabled(false); });
+    return () => { active = false; };
+  }, []);
 
   const selectedProject = useMemo(
     () => projects.find((p) => String(p.id) === String(form.projectId)) || null,
@@ -49,6 +65,19 @@ export default function LogHoursModal({ projects, onClose, onSubmit }) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
     setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
+    if (analysis) { setAnalysis(null); setAnalysisStale(true); }
+    setAnalysisError(null);
+  };
+
+  const handleAnalyze = async () => {
+    const hoursLogged = Number(form.hoursLogged);
+    if (!form.projectId || !form.workDate || !Number.isFinite(hoursLogged) || hoursLogged <= 0) return;
+    setIsAnalyzing(true); setAnalysisError(null); setAnalysisStale(false);
+    try {
+      const result = await contractorTimesheetIntelligenceService.analyzeTimesheet({ projectId: Number(form.projectId), workDate: form.workDate, hoursLogged, description: form.description.trim() || undefined });
+      setAnalysis(result);
+    } catch (err) { setAnalysis(null); setAnalysisError(err.message); }
+    finally { setIsAnalyzing(false); }
   };
 
   const validate = () => {
@@ -164,6 +193,8 @@ export default function LogHoursModal({ projects, onClose, onSubmit }) {
           required={false}
           placeholder="What did you work on?"
         />
+
+        {intelligenceEnabled && <ContractorTimesheetIntelligencePanel proposal={form} analysis={analysis} stale={analysisStale} isLoading={isAnalyzing} error={analysisError} onAnalyze={handleAnalyze} />}
 
         <div className="mt-2 flex gap-3">
           <button
