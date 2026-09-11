@@ -8,6 +8,7 @@ const contractorTimesheetController = require("../controllers/contractorTimeshee
 const contractorDashboardController = require("../controllers/contractorDashboardController");
 const contractorAvailabilityController = require("../controllers/contractorAvailabilityController");
 const notificationController = require("../controllers/notificationController");
+const contractorTimesheetIntelligenceController = require("../controllers/contractorTimesheetIntelligenceController");
 
 /**
  * Every route here requires a valid JWT AND role = CONTRACTOR — same
@@ -39,6 +40,7 @@ router.delete("/availability/:id", contractorAvailabilityController.cancel);
 // gate reuse rationale as /profile above — no new
 // authenticate/authorizeRoles declaration needed.
 router.post("/timesheets", contractorTimesheetController.submit);
+router.post("/timesheet-intelligence/analyze", contractorTimesheetIntelligenceController.analyze);
 router.post("/timesheets/submit", contractorTimesheetController.submitSelected);
 router.get("/timesheets", contractorTimesheetController.list);
 router.patch("/timesheets/:id", contractorTimesheetController.update);
