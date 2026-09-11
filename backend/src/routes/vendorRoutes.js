@@ -17,6 +17,7 @@ const invoiceLifecycleController = require("../controllers/invoiceLifecycleContr
 const paymentController = require("../controllers/paymentController");
 const dashboardExportController = require('../controllers/dashboardExportController');
 const vendorOffboardingController = require('../controllers/vendorOffboardingController');
+const vendorRateIntelligenceController = require("../controllers/vendorRateIntelligenceController");
 
 /**
  * Every route in this router requires a valid JWT AND role = VENDOR.
@@ -44,6 +45,7 @@ router.get("/clients/:companyId/rate-cards", rateCardController.list);
 router.get("/rate-card-skills", rateCardController.listSkills);
 router.post("/rate-cards", rateCardController.create);
 router.patch("/rate-cards/:id", rateCardController.update);
+router.post("/rate-intelligence/analyze", vendorRateIntelligenceController.analyze);
 router.post("/contractor-documents", contractorDocumentController.upload);
 router.get("/contractors/:contractorId/documents", contractorDocumentController.list);
 router.patch("/contractor-documents/:id/review", contractorDocumentController.review);
