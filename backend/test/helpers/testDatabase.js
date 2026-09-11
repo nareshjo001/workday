@@ -33,8 +33,12 @@ async function resetTestDatabase() {
     await admin.end();
   }
 
-  const connection = await mysql.createConnection({ ...connectionConfig, database: name, multipleStatements: true });
+  // Open a second fresh connection without a selected schema, then select
+  // the database only after the admin phase has committed CREATE DATABASE.
+  // This avoids retaining a connection whose selected schema was dropped.
+  const connection = await mysql.createConnection({ ...connectionConfig, multipleStatements: true });
   try {
+    await connection.query("USE ??", [name]);
     const migrations = fs
       .readdirSync(path.join(__dirname, "../../src/migrations"))
       .filter((file) => file.endsWith(".sql"))
@@ -42,6 +46,9 @@ async function resetTestDatabase() {
     for (const migration of migrations) {
       await connection.query(fs.readFileSync(path.join(__dirname, "../../src/migrations", migration), "utf8"));
     }
+    // Make a final query against a core migrated table so reset never
+    // reports success while the new schema is unusable.
+    await connection.query("SELECT 1 FROM users LIMIT 1");
   } finally {
     await connection.end();
   }
