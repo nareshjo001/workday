@@ -15,6 +15,7 @@ const staffingPipelineController = require("../controllers/staffingPipelineContr
 const notificationController = require("../controllers/notificationController");
 const invoiceLifecycleController = require("../controllers/invoiceLifecycleController");
 const dashboardExportController = require('../controllers/dashboardExportController');
+const pmProjectControlController = require("../controllers/pmProjectControlController");
 
 /**
  * Every route here requires a valid JWT AND role = PM — same gate
@@ -35,6 +36,7 @@ router.get("/projects/:id/contractors", pmProjectController.listContractors);
 // COMPLETED, auto-releasing every active assignment on it.
 router.patch("/projects/:id/complete", pmProjectController.complete);
 router.get("/projects/:id/close-readiness", pmProjectController.closeReadiness);
+router.get("/projects/:id/control-intelligence", pmProjectControlController.analyze);
 // MVP fix 1: the PM (never the Vendor) sets/changes a specific,
 // already-assigned contractor's work-hour allocation on this project.
 router.patch(
