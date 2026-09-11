@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Modal from "../Modal";
 import PrimaryButton from "../PrimaryButton";
 import AlertBanner from "../AlertBanner";
 import Spinner from "../Spinner";
 import { formatSkill } from "../../constants/skills";
+import intelligenceService from "../../services/intelligenceService";
+import vendorRateIntelligenceService from "../../services/vendorRateIntelligenceService";
+import VendorRateIntelligencePanel from "./VendorRateIntelligencePanel";
 
 /**
  * Contractor picker scoped to ONE project + ONE requirement, reworked
@@ -37,17 +40,67 @@ export default function AssignContractorModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
   const [endDate, setEndDate] = useState(project.end_date || "");
+  const [rateCapability, setRateCapability] = useState(false);
+  const [proposedRate, setProposedRate] = useState("");
+  const [rateAnalysis, setRateAnalysis] = useState(null);
+  const [isAnalyzingRate, setIsAnalyzingRate] = useState(false);
+  const [rateAnalysisError, setRateAnalysisError] = useState(null);
 
   const remaining = Math.max(requirement.required_count - requirement.assigned_count, 0);
   const isFull = remaining === 0;
 
+  useEffect(() => {
+    let active = true;
+    intelligenceService.getCapabilities()
+      .then((response) => { if (active) setRateCapability(response.capabilities.vendor_rate_intelligence === true); })
+      .catch(() => { if (active) setRateCapability(false); });
+    return () => { active = false; };
+  }, []);
+
+  // Any commercial context change invalidates advisory output immediately.
+  useEffect(() => {
+    setRateAnalysis((current) => current ? { stale: true, message: "Commercial context changed. Re-analyze to refresh Rate Intelligence." } : current);
+    setRateAnalysisError(null);
+  }, [project.id, requirement.id]);
+
   const toggleContractor = (id) => {
     setFormError(null);
+    setRateAnalysis((current) => current ? { stale: true, message: "Contractor selection changed. Re-analyze to refresh Rate Intelligence." } : current);
+    setRateAnalysisError(null);
     setSelectedIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
       if (prev.length >= remaining) return prev; // capped at remaining open slots
       return [...prev, id];
     });
+  };
+
+  const updateProposedRate = (value) => {
+    setProposedRate(value);
+    // A changed proposed rate invalidates the server response. Do not retain
+    // its values: every margin, finding, and recommendation belongs only to
+    // the exact request that produced it.
+    setRateAnalysis((current) => current ? { stale: true, message: "Proposed rate changed. Re-analyze to refresh Rate Intelligence." } : current);
+    setRateAnalysisError(null);
+  };
+
+  const handleAnalyzeRate = async () => {
+    if (selectedIds.length !== 1 || proposedRate === "" || Number(proposedRate) < 0) return;
+    setIsAnalyzingRate(true);
+    setRateAnalysisError(null);
+    try {
+      const result = await vendorRateIntelligenceService.analyzeRate({
+        contractorId: selectedIds[0],
+        projectId: project.id,
+        requirementId: requirement.id,
+        proposedBillRate: Number(proposedRate),
+      });
+      setRateAnalysis({ result, stale: false });
+    } catch {
+      setRateAnalysis(null);
+      setRateAnalysisError(true);
+    } finally {
+      setIsAnalyzingRate(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -143,6 +196,18 @@ export default function AssignContractorModal({
               })}
             </div>
           </div>
+
+          {rateCapability && <VendorRateIntelligencePanel
+            selectedContractorId={selectedIds.length === 1 ? selectedIds[0] : null}
+            projectId={project.id}
+            requirementId={requirement.id}
+            proposedRate={proposedRate}
+            onProposedRateChange={updateProposedRate}
+            analysis={rateAnalysis}
+            isLoading={isAnalyzingRate}
+            error={rateAnalysisError}
+            onAnalyze={handleAnalyzeRate}
+          />}
 
           <div className="mt-2 flex gap-3">
             <button
