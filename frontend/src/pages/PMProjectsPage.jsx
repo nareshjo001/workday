@@ -15,6 +15,8 @@ import RequirementManagerModal from "../components/projects/RequirementManagerMo
 import PMProjectControlPanel from "../components/projects/PMProjectControlPanel";
 import intelligenceService from "../services/intelligenceService";
 import pmProjectControlService from "../services/pmProjectControlService";
+import auditActivityService from "../services/auditActivityService";
+import ActivityList from "../components/activity/ActivityList";
 
 /**
  * PM's project-management screen: list + create. All data comes from
@@ -36,6 +38,11 @@ export default function PMProjectsPage() {
   const [controlLoading, setControlLoading] = useState(false);
   const [controlError, setControlError] = useState(null);
   const [controlEnabled, setControlEnabled] = useState(false);
+  const [activityProject, setActivityProject] = useState(null);
+  const [activity, setActivity] = useState(null);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityError, setActivityError] = useState(null);
+  const [activityPage, setActivityPage] = useState(1);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [pageInfo, setPageInfo] = useState({ total_pages: 1, total: 0 });
@@ -77,6 +84,14 @@ export default function PMProjectsPage() {
     catch { setControlError(true); }
     finally { setControlLoading(false); }
   }, [controlEnabled]);
+
+  const loadActivity = useCallback(async (project, requestedPage = 1) => {
+    if (!project) return;
+    setActivityProject(project); setActivity(null); setActivityError(null); setActivityLoading(true); setActivityPage(requestedPage);
+    try { setActivity(await auditActivityService.project(project.id, requestedPage)); }
+    catch { setActivityError(true); }
+    finally { setActivityLoading(false); }
+  }, []);
 
   useEffect(() => {
     if (!successMessage) return undefined;
@@ -139,12 +154,13 @@ export default function PMProjectsPage() {
           <EmptyState onAdd={() => setIsCreateOpen(true)} />
         ) : (
           <div className="rounded-lg bg-surface p-4 shadow-panel ring-1 ring-border sm:p-6">
-            <ProjectTable projects={projects} onComplete={handleComplete} completingId={completingId} onSettings={setSettingsProject} onRequirements={setRequirementsProject} onControl={controlEnabled ? loadControl : undefined} />
-            <ProjectCardList projects={projects} onComplete={handleComplete} completingId={completingId} onSettings={setSettingsProject} onRequirements={setRequirementsProject} onControl={controlEnabled ? loadControl : undefined} />
+            <ProjectTable projects={projects} onComplete={handleComplete} completingId={completingId} onSettings={setSettingsProject} onRequirements={setRequirementsProject} onControl={controlEnabled ? loadControl : undefined} onActivity={loadActivity} />
+            <ProjectCardList projects={projects} onComplete={handleComplete} completingId={completingId} onSettings={setSettingsProject} onRequirements={setRequirementsProject} onControl={controlEnabled ? loadControl : undefined} onActivity={loadActivity} />
             <ListControls page={page} totalPages={pageInfo.total_pages} total={pageInfo.total} search={search} onSearchChange={(value) => { setPage(1); setSearch(value); }} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
           </div>
         )}
         {controlEnabled && controlProject && <PMProjectControlPanel control={control} isLoading={controlLoading} error={controlError} onRefresh={() => loadControl(controlProject)} onOpenRequirements={() => setRequirementsProject(controlProject)} />}
+        {activityProject && <ActivityList activity={activity} isLoading={activityLoading} error={activityError} onRetry={() => loadActivity(activityProject, activityPage)} onPrevious={() => loadActivity(activityProject, activityPage - 1)} onNext={() => loadActivity(activityProject, activityPage + 1)} />}
       </div>
 
       {isCreateOpen && (

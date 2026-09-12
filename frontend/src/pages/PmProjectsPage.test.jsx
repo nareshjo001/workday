@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
-import PMProjectsPage from "./PmProjectsPage";
+import PMProjectsPage from "./PMProjectsPage";
 
 const { getCapabilities, getProjectControl } = vi.hoisted(() => ({ getCapabilities: vi.fn(), getProjectControl: vi.fn() }));
 vi.mock("../layouts/DashboardLayout", () => ({ default: ({ children }) => <main>{children}</main> }));

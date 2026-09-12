@@ -9,6 +9,7 @@ const contractorDashboardController = require("../controllers/contractorDashboar
 const contractorAvailabilityController = require("../controllers/contractorAvailabilityController");
 const notificationController = require("../controllers/notificationController");
 const contractorTimesheetIntelligenceController = require("../controllers/contractorTimesheetIntelligenceController");
+const auditActivityController = require("../controllers/auditActivityController");
 
 /**
  * Every route here requires a valid JWT AND role = CONTRACTOR — same
@@ -19,6 +20,7 @@ const router = express.Router();
 router.use(authenticate, authorizeRoles(ROLES.CONTRACTOR));
 
 router.get("/projects", contractorProjectController.list);
+router.get("/activity", auditActivityController.contractor);
 
 // Module 3 revision: a contractor viewing/updating their own primary
 // skill. Lives in this router (rather than a new file) so it reuses

@@ -31,6 +31,7 @@ import PmStaffingPipelinePage from "./pages/PmStaffingPipelinePage";
 import VendorStaffingPipelinePage from "./pages/VendorStaffingPipelinePage";
 import NotificationsPage from "./pages/NotificationsPage";
 import VendorRateCardsPage from "./pages/VendorRateCardsPage";
+import ActivityPage from "./pages/ActivityPage";
 
 export default function App() {
   return (
@@ -54,6 +55,7 @@ export default function App() {
           <Route path="/vendor/staffing-pipeline" element={<VendorStaffingPipelinePage />} />
           <Route path="/vendor/notifications" element={<NotificationsPage role="vendor" />} />
           <Route path="/vendor/rate-cards" element={<VendorRateCardsPage />} />
+          <Route path="/vendor/activity" element={<ActivityPage role="vendor" />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={[ROLES.CONTRACTOR]} />}>
@@ -63,6 +65,7 @@ export default function App() {
           <Route path="/contractor/timesheets" element={<ContractorTimesheetsPage />} />
           <Route path="/contractor/availability" element={<ContractorAvailabilityPage />} />
           <Route path="/contractor/notifications" element={<NotificationsPage role="contractor" />} />
+          <Route path="/contractor/activity" element={<ActivityPage role="contractor" />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={[ROLES.PM]} />}>

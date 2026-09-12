@@ -33,7 +33,7 @@ import { formatSkill } from "../../constants/skills";
  * renders for that PM's own ACTIVE rows only. ContractorProjectsPage
  * never passes it, so a contractor never sees this control.
  */
-export default function ProjectTable({ projects, showId = true, onComplete, completingId, onSettings, onRequirements, onControl }) {
+export default function ProjectTable({ projects, showId = true, onComplete, completingId, onSettings, onRequirements, onControl, onActivity }) {
   const showAssignedDate = projects.some((p) => p.assigned_date !== undefined);
   const showAssignedSkill = projects.some((p) => p.assigned_skill !== undefined);
   const showCompany = projects.some((p) => p.company_name);
@@ -55,7 +55,7 @@ export default function ProjectTable({ projects, showId = true, onComplete, comp
           {showStaffing && <th className="py-3 pr-4 font-medium">Team</th>}
           {showHours && <th className="py-3 pr-4 font-medium">Hours</th>}
           <th className="py-3 pr-4 font-medium">Status</th>
-          {(onComplete || onSettings || onRequirements || onControl) && <th className="py-3 pr-0 font-medium" />}
+          {(onComplete || onSettings || onRequirements || onControl || onActivity) && <th className="py-3 pr-0 font-medium" />}
         </tr>
       </thead>
       <tbody>
@@ -115,11 +115,12 @@ export default function ProjectTable({ projects, showId = true, onComplete, comp
             <td className={onComplete ? "py-3 pr-4" : "py-3 pr-0"}>
               <StatusBadge status={project.status} />
             </td>
-            {(onComplete || onSettings || onRequirements || onControl) && (
+            {(onComplete || onSettings || onRequirements || onControl || onActivity) && (
               <td className="py-3 pr-0 text-right">
                 {onSettings && <button type="button" onClick={() => onSettings(project)} className="mr-2 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-text-secondary">Settings</button>}
                 {onRequirements && <button type="button" onClick={() => onRequirements(project)} className="mr-2 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-text-secondary">Requirements</button>}
                 {onControl && <button type="button" onClick={() => onControl(project)} className="mr-2 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-text-secondary">Project Control</button>}
+                {onActivity && <button type="button" onClick={() => onActivity(project)} className="mr-2 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-text-secondary">Activity</button>}
                 {project.status === "ACTIVE" && (
                   <button
                     type="button"

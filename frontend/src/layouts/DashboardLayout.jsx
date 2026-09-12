@@ -2,9 +2,9 @@ import { useAuth } from "../context/AuthContext";
 import { Link, NavLink } from "react-router-dom";
 
 const navigation = {
-  VENDOR: [["", "Overview"], ["contractors", "Contractors"], ["assignments", "Projects & assignments"], ["clients", "Clients"], ["staffing-pipeline", "Staffing pipeline"], ["compliance", "Compliance"], ["rate-cards", "Rate cards"], ["invoices", "Invoices & payments"], ["notifications", "Notifications"]],
+  VENDOR: [["", "Overview"], ["contractors", "Contractors"], ["assignments", "Projects & assignments"], ["clients", "Clients"], ["staffing-pipeline", "Staffing pipeline"], ["compliance", "Compliance"], ["rate-cards", "Rate cards"], ["invoices", "Invoices & payments"], ["activity", "Activity"], ["notifications", "Notifications"]],
   PM: [["", "Overview"], ["projects", "Projects"], ["vendor-access", "Vendor access"], ["staffing-pipeline", "Staffing & candidates"], ["timesheets", "Timesheet reviews"], ["milestones", "Milestones"], ["invoices", "Invoice reviews"], ["notifications", "Notifications"]],
-  CONTRACTOR: [["", "Overview"], ["profile", "My profile"], ["projects", "My projects"], ["timesheets", "Timesheets"], ["availability", "Availability"], ["notifications", "Notifications"]],
+  CONTRACTOR: [["", "Overview"], ["profile", "My profile"], ["projects", "My projects"], ["timesheets", "Timesheets"], ["availability", "Availability"], ["activity", "Activity"], ["notifications", "Notifications"]],
 };
 
 /**
