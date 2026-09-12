@@ -1,5 +1,5 @@
 async function append(conn, record) {
-  await conn.query(
+  const [result] = await conn.query(
     "INSERT INTO audit_log (actor_user_id, actor_role, action, entity_type, entity_id, before_json, after_json, request_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     [
       record.actorUserId,
@@ -12,6 +12,7 @@ async function append(conn, record) {
       record.requestId || null,
     ]
   );
+  return { id: result.insertId };
 }
 
 module.exports = { append };

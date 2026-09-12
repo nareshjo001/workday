@@ -5,6 +5,7 @@
 // Usage: node mvp_fix_test.js   (server must already be running on :5000)
 
 const BASE = process.env.API_BASE_URL || "http://localhost:5000/api";
+const { addCalendarDays, utcToday } = require("./test/helpers/workDate");
 let pass = 0;
 let fail = 0;
 const failures = [];
@@ -37,10 +38,12 @@ async function req(method, path, body, token) {
 }
 
 function todayPlus(days) {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
+  return addCalendarDays(utcToday(), days);
 }
+
+// These fixtures explicitly permit weekend work so the current UTC calendar
+// date remains a valid, non-future work date on every test run.
+const validWorkDate = utcToday();
 
 let seq = 0;
 function uniq(prefix) {
@@ -196,11 +199,8 @@ async function main() {
     "POST",
     "/pm/projects",
     {
-      // Backdated so more than one valid work_date (>= start_date, <=
-      // today, not future) is available — needed for B's second
-      // submission later in this test (M2-crossing scenario).
       name: "MVP Fix Project 1",
-      start_date: todayPlus(0),
+      start_date: validWorkDate,
       expected_hours: 20,
       // required_count 3, not 2: a third contractor (E) is added later to
       // exercise the M2-crossing-in-a-later-event scenario, since A and B
@@ -213,6 +213,8 @@ async function main() {
   assert(p1.status === 201, `create project 1: expected 201, got ${p1.status} ${JSON.stringify(p1.data)}`);
   const project1Id = p1.data.id;
   const requirement1Id = p1.data.requirements[0].id;
+  const p1Policy = await req("PATCH", `/pm/projects/${project1Id}`, { allow_weekend: true }, pm.token);
+  assert(p1Policy.status === 200, `allow weekend work on project 1 fixture: expected 200, got ${p1Policy.status} ${JSON.stringify(p1Policy.data)}`);
 
   // ===================== FIX 1: Vendor cannot allocate hours =====================
   console.log("\n--- FIX 1: Vendor assignment never sets/accepts allocated hours ---");
@@ -232,7 +234,7 @@ async function main() {
   const p1b = await req(
     "POST",
     "/pm/projects",
-    { name: "MVP Fix Project 1b", start_date: todayPlus(0), expected_hours: 10, requirements: [{ skill: "FRONTEND", required_count: 1 }] },
+    { name: "MVP Fix Project 1b", start_date: validWorkDate, expected_hours: 10, requirements: [{ skill: "FRONTEND", required_count: 1 }] },
     pm.token
   );
   const smuggleRes = await submitAndAccept(p1b.data.id, p1b.data.requirements[0].id, [contractorCId]);
@@ -246,7 +248,7 @@ async function main() {
   const preAllocSubmit = await req(
     "POST",
     "/contractor/timesheets",
-    { projectId: project1Id, workDate: todayPlus(0), hoursLogged: 3 },
+    { projectId: project1Id, workDate: validWorkDate, hoursLogged: 3 },
     contractorAToken
   );
   assert(preAllocSubmit.status === 409, `submit before allocation: expected 409, got ${preAllocSubmit.status} ${JSON.stringify(preAllocSubmit.data)}`);
@@ -299,9 +301,9 @@ async function main() {
   assert(m2.status === 201, `create M2: expected 201, got ${m2.status}`);
 
   // A submits 6h, B submits 8h (same day — two different contractors).
-  const subA6 = await req("POST", "/contractor/timesheets", { projectId: project1Id, workDate: todayPlus(0), hoursLogged: 6 }, contractorAToken);
+  const subA6 = await req("POST", "/contractor/timesheets", { projectId: project1Id, workDate: validWorkDate, hoursLogged: 6 }, contractorAToken);
   assert(subA6.status === 201, `A submits 6h: expected 201, got ${subA6.status} ${JSON.stringify(subA6.data)}`);
-  const subB8 = await req("POST", "/contractor/timesheets", { projectId: project1Id, workDate: todayPlus(0), hoursLogged: 8 }, contractorBToken);
+  const subB8 = await req("POST", "/contractor/timesheets", { projectId: project1Id, workDate: validWorkDate, hoursLogged: 8 }, contractorBToken);
   await req("POST", "/contractor/timesheets/submit", { timesheetIds: [subA6.data.id] }, contractorAToken);
   await req("POST", "/contractor/timesheets/submit", { timesheetIds: [subB8.data.id] }, contractorBToken);
   assert(subB8.status === 201, `B submits 8h: expected 201, got ${subB8.status}`);
@@ -346,7 +348,7 @@ async function main() {
   assert(aOverSubmit.status === 400 || aOverSubmit.status === 409, `A submits future-dated / over-capacity hours: expected 4xx, got ${aOverSubmit.status}`);
 
   // Dedicated same-day capacity check: A submits exactly their remaining 4h — should succeed.
-  const aExact4 = await req("POST", "/contractor/timesheets", { projectId: project1Id, workDate: todayPlus(0), hoursLogged: 4 }, contractorAToken);
+  const aExact4 = await req("POST", "/contractor/timesheets", { projectId: project1Id, workDate: validWorkDate, hoursLogged: 4 }, contractorAToken);
   // Same work_date as the earlier 6h row already exists for A -> UNIQUE constraint conflict expected (contractor/project/day), not a capacity error.
   assert(aExact4.status === 409, `A submits second row same day: expected 409 (duplicate day), got ${aExact4.status}`);
 
@@ -354,18 +356,20 @@ async function main() {
   const p2 = await req(
     "POST",
     "/pm/projects",
-    { name: "MVP Fix Project 2 (cap check)", start_date: todayPlus(0), expected_hours: 10, requirements: [{ skill: "FRONTEND", required_count: 1 }] },
+    { name: "MVP Fix Project 2 (cap check)", start_date: validWorkDate, expected_hours: 10, requirements: [{ skill: "FRONTEND", required_count: 1 }] },
     pm.token
   );
+  const p2Policy = await req("PATCH", `/pm/projects/${p2.data.id}`, { allow_weekend: true }, pm.token);
+  assert(p2Policy.status === 200, `allow weekend work on project 2 fixture: expected 200, got ${p2Policy.status} ${JSON.stringify(p2Policy.data)}`);
   const req2Id = p2.data.requirements[0].id;
   const assign2 = await submitAndAccept(p2.data.id, req2Id, [contractorDId]);
   assert(assign2.status === 201, `assign D to project 2: expected 201, got ${assign2.status} ${JSON.stringify(assign2.data)}`);
   const allocC2 = await req("PATCH", `/pm/projects/${p2.data.id}/contractors/${contractorDId}/allocation`, { allocated_hours: 2 }, pm.token);
   assert(allocC2.status === 200, `allocate D=2 on project 2: expected 200, got ${allocC2.status}`);
 
-  const cOverCap = await req("POST", "/contractor/timesheets", { projectId: p2.data.id, workDate: todayPlus(0), hoursLogged: 5 }, contractorDToken);
+  const cOverCap = await req("POST", "/contractor/timesheets", { projectId: p2.data.id, workDate: validWorkDate, hoursLogged: 5 }, contractorDToken);
   assert(cOverCap.status === 409, `D submits 5h against a 2h allocation: expected 409, got ${cOverCap.status} ${JSON.stringify(cOverCap.data)}`);
-  const cWithinCap = await req("POST", "/contractor/timesheets", { projectId: p2.data.id, workDate: todayPlus(0), hoursLogged: 2 }, contractorDToken);
+  const cWithinCap = await req("POST", "/contractor/timesheets", { projectId: p2.data.id, workDate: validWorkDate, hoursLogged: 2 }, contractorDToken);
   assert(cWithinCap.status === 201, `D submits exactly 2h (their full allocation): expected 201, got ${cWithinCap.status}`);
 
   // ---------- Back to project 1: reduce-below-approved rejection, rate-change immutability, M2 crossing ----------
@@ -421,7 +425,7 @@ async function main() {
   // E submits and gets approved for their full 6h -> project total becomes
   // 6 + 8 + 6 = 20h -> M2 (20h) reached, in a call that touches ONLY E's
   // timesheet — a genuinely separate, later event from M1's.
-  const subE6 = await req("POST", "/contractor/timesheets", { projectId: project1Id, workDate: todayPlus(0), hoursLogged: 6 }, contractorEToken);
+  const subE6 = await req("POST", "/contractor/timesheets", { projectId: project1Id, workDate: validWorkDate, hoursLogged: 6 }, contractorEToken);
   await req("POST", "/contractor/timesheets/submit", { timesheetIds: [subE6.data.id] }, contractorEToken);
   assert(subE6.status === 201, `E submits 6h: expected 201, got ${subE6.status} ${JSON.stringify(subE6.data)}`);
   const approveE6 = await req("PATCH", `/pm/timesheets/${subE6.data.id}`, { status: "APPROVED" }, pm.token);
@@ -475,9 +479,11 @@ async function main() {
   const p3 = await req(
     "POST",
     "/pm/projects",
-    { name: "MVP Fix Project 3 (concurrency)", start_date: todayPlus(0), expected_hours: 20, requirements: [{ skill: "FRONTEND", required_count: 2 }] },
+    { name: "MVP Fix Project 3 (concurrency)", start_date: validWorkDate, expected_hours: 20, requirements: [{ skill: "FRONTEND", required_count: 2 }] },
     pm.token
   );
+  const p3Policy = await req("PATCH", `/pm/projects/${p3.data.id}`, { allow_weekend: true }, pm.token);
+  assert(p3Policy.status === 200, `allow weekend work on project 3 fixture: expected 200, got ${p3Policy.status} ${JSON.stringify(p3Policy.data)}`);
   const req3Id = p3.data.requirements[0].id;
   const assignFG = await submitAndAccept(p3.data.id, req3Id, [contractorFId, contractorGId]);
   assert(assignFG.status === 201, `assign F+G to project 3: expected 201, got ${assignFG.status} ${JSON.stringify(assignFG.data)}`);
@@ -488,9 +494,9 @@ async function main() {
   const m1p3 = await req("POST", "/pm/milestones", { project_id: p3.data.id, name: "M1", threshold_hours: 10 }, pm.token);
   assert(m1p3.status === 201, `create M1 on project 3: expected 201, got ${m1p3.status}`);
 
-  const subF3 = await req("POST", "/contractor/timesheets", { projectId: p3.data.id, workDate: todayPlus(0), hoursLogged: 6 }, contractorFToken);
+  const subF3 = await req("POST", "/contractor/timesheets", { projectId: p3.data.id, workDate: validWorkDate, hoursLogged: 6 }, contractorFToken);
   assert(subF3.status === 201, `F submits 6h on project 3: expected 201, got ${subF3.status} ${JSON.stringify(subF3.data)}`);
-  const subG3 = await req("POST", "/contractor/timesheets", { projectId: p3.data.id, workDate: todayPlus(0), hoursLogged: 8 }, contractorGToken);
+  const subG3 = await req("POST", "/contractor/timesheets", { projectId: p3.data.id, workDate: validWorkDate, hoursLogged: 8 }, contractorGToken);
   await req("POST", "/contractor/timesheets/submit", { timesheetIds: [subF3.data.id] }, contractorFToken);
   await req("POST", "/contractor/timesheets/submit", { timesheetIds: [subG3.data.id] }, contractorGToken);
   assert(subG3.status === 201, `G submits 8h on project 3: expected 201, got ${subG3.status} ${JSON.stringify(subG3.data)}`);

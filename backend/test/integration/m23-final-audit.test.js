@@ -6,6 +6,7 @@ process.env.M09_ENFORCE_ACCESS = 'true';
 const assert = require('node:assert/strict');
 const { after, before, test } = require('node:test');
 const { resetTestDatabase } = require('../helpers/testDatabase');
+const { addCalendarDays, utcToday } = require('../helpers/workDate');
 const { pool } = require('../../src/config/db');
 const milestoneService = require('../../src/services/milestoneService');
 const app = require('../../src/app');
@@ -14,11 +15,8 @@ let server;
 let baseUrl;
 let sequence = 0;
 const state = {};
-const day = (offset) => {
-  const value = new Date();
-  value.setUTCDate(value.getUTCDate() + offset);
-  return value.toISOString().slice(0, 10);
-};
+const fixtureWorkDate = utcToday();
+const day = (offset) => addCalendarDays(fixtureWorkDate, offset);
 const email = (label) => `m23-${String(label).toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}-${++sequence}@test.example`;
 
 async function request(method, path, body, token) {
@@ -79,6 +77,8 @@ test('M23 reconciles approved work through immutable billing, invoice, PDF, and 
   assert.equal(projectResult.status, 201, JSON.stringify(projectResult.data));
   state.project = projectResult.data;
   state.requirementId = state.project.requirements[0].id;
+  const weekendPolicy = await request('PATCH', `/pm/projects/${state.project.id}`, { allow_weekend: true }, state.pmA.token);
+  assert.equal(weekendPolicy.status, 200, JSON.stringify(weekendPolicy.data));
 
   assert.equal((await request('POST', '/pm/vendor-access', { vendorId: state.vendorA.id, projectId: state.project.id }, state.pmA.token)).status, 201);
   const rateCard = await request('POST', '/vendor/rate-cards', {

@@ -6,6 +6,7 @@ const timesheetRepository = require("../repositories/timesheetRepository");
 const ApiError = require("../utils/ApiError");
 const auditService = require("./auditService");
 const notifications = require("./notificationService");
+const { submissionLifecycleKey } = require("../utils/notificationLifecycle");
 const { pageResult } = require("../utils/listQuery");
 
 function todayDateString() {
@@ -247,6 +248,7 @@ async function submitTimesheets(userId, timesheetIds, auditActor) {
   if (!contractor) throw ApiError.notFound("Contractor record not found for this account.");
   if (contractor.status !== "ACTIVE") throw ApiError.forbidden("Inactive contractors cannot submit timesheets.");
   const ids = [...new Set(timesheetIds)].sort((a, b) => a - b);
+  const submissionAuditIds = new Map();
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
@@ -266,11 +268,14 @@ async function submitTimesheets(userId, timesheetIds, auditActor) {
     }
     const updated = await timesheetRepository.markSubmitted(conn, ids);
     if (updated !== ids.length) throw ApiError.conflict("One or more timesheets changed before submission.");
-    if (auditActor) for (const row of rows) await auditService.write(conn, auditActor, "TIMESHEET_SUBMITTED", "timesheet", row.id, { status: row.status }, { status: "SUBMITTED" });
+    if (auditActor) for (const row of rows) {
+      const auditResult = await auditService.write(conn, auditActor, "TIMESHEET_SUBMITTED", "timesheet", row.id, { status: row.status }, { status: "SUBMITTED" });
+      submissionAuditIds.set(row.id, auditResult.id);
+    }
     await conn.commit();
   } catch (err) { await conn.rollback().catch(() => {}); throw err; } finally { conn.release(); }
   const result = await Promise.all(ids.map((id) => timesheetRepository.findById(id)));
-  for (const row of result) { const recipientId = await notifications.pmForProject(row.project_id); if (recipientId) await notifications.notify({ recipientId, eventType: "TIMESHEET_SUBMITTED", entityType: "timesheet", entityId: row.id, message: "A timesheet is ready for review.", deepLink: "/pm/timesheets" }); }
+  for (const row of result) { const recipientId = await notifications.pmForProject(row.project_id); if (recipientId) await notifications.notify({ recipientId, eventType: "TIMESHEET_SUBMITTED", entityType: "timesheet", entityId: row.id, lifecycleKey: submissionLifecycleKey({ auditId: submissionAuditIds.get(row.id), submittedAt: row.submitted_at }), message: "A timesheet is ready for review.", deepLink: "/pm/timesheets" }); }
   return result;
 }
 
