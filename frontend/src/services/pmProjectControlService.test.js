@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import apiClient from "./apiClient";
-import service, { parseProjectControl } from "./pmProjectControlService";
+import service, { parseFindingExplanation, parseProjectControl } from "./pmProjectControlService";
 
-vi.mock("./apiClient", () => ({ default: { get: vi.fn() } }));
+vi.mock("./apiClient", () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 const valid = { contract_version: "1", project: { id: 2, name: "Atlas", status: "ACTIVE" }, summary: { attention_count: 1, by_severity: { HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 1 } }, findings: [{ code: "TIMESHEETS_AWAITING_REVIEW", severity: "INFO", title: "Review", summary: "One item", evidence: [{ key: "count", label: "Count", value: 1 }], recommended_action: "Review it.", source: { engine: "pm_project_control", version: "1" } }] };
 describe("pmProjectControlService", () => {
   it("requests only the project control endpoint and preserves server counts", async () => { apiClient.get.mockResolvedValue({ data: valid }); await expect(service.getProjectControl(2)).resolves.toEqual(valid); expect(apiClient.get).toHaveBeenCalledWith("/pm/projects/2/control-intelligence"); });
   it("fails closed for malformed or inconsistent summaries", () => { expect(() => parseProjectControl({ ...valid, summary: { ...valid.summary, attention_count: 2 } })).toThrow("Invalid project control response."); expect(() => parseProjectControl({ ...valid, findings: [{ ...valid.findings[0], source: { engine: "wrong", version: "1" } }] })).toThrow("Invalid project control response."); });
+  it("requests and validates an explicit explanation without accepting arbitrary provider payloads", async () => { apiClient.post.mockResolvedValue({ data: { explanation: "The submitted timesheet needs review.", source: "AI" } }); await expect(service.explainFinding(2, "TIMESHEETS_AWAITING_REVIEW")).resolves.toEqual({ explanation: "The submitted timesheet needs review.", source: "AI" }); expect(apiClient.post).toHaveBeenCalledWith("/pm/projects/2/control-intelligence/TIMESHEETS_AWAITING_REVIEW/explanation"); expect(() => parseFindingExplanation({ explanation: { unsafe: true }, source: "AI" })).toThrow("Invalid project control explanation response."); expect(() => parseFindingExplanation({ explanation: "", source: "UNKNOWN" })).toThrow("Invalid project control explanation response."); });
 });

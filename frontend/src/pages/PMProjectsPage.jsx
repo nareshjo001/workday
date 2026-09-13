@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "../layouts/DashboardLayout";
 import Spinner from "../components/Spinner";
@@ -38,6 +38,11 @@ export default function PMProjectsPage() {
   const [controlLoading, setControlLoading] = useState(false);
   const [controlError, setControlError] = useState(null);
   const [controlEnabled, setControlEnabled] = useState(false);
+  const [aiExplanationsEnabled, setAiExplanationsEnabled] = useState(false);
+  const [explanations, setExplanations] = useState({});
+  const explanationContextVersion = useRef(0);
+  const explanationRequestSequence = useRef(0);
+  const activeExplanationRequests = useRef(new Map());
   const [activityProject, setActivityProject] = useState(null);
   const [activity, setActivity] = useState(null);
   const [activityLoading, setActivityLoading] = useState(false);
@@ -69,21 +74,51 @@ export default function PMProjectsPage() {
   useEffect(() => {
     let active = true;
     intelligenceService.getCapabilities().then((response) => {
-      if (active) setControlEnabled(response.capabilities.pm_project_control === true);
-    }).catch(() => { if (active) setControlEnabled(false); });
+      if (active) {
+        setControlEnabled(response.capabilities.pm_project_control === true);
+        setAiExplanationsEnabled(response.capabilities.ai_explanations === true);
+      }
+    }).catch(() => { if (active) { setControlEnabled(false); setAiExplanationsEnabled(false); } });
     return () => { active = false; };
+  }, []);
+
+  const invalidateExplanations = useCallback(() => {
+    explanationContextVersion.current += 1;
+    activeExplanationRequests.current.clear();
+    setExplanations({});
   }, []);
 
   const loadControl = useCallback(async (project) => {
     if (!controlEnabled || !project) return;
     setControlProject(project);
     setControl(null);
+    invalidateExplanations();
     setControlError(null);
     setControlLoading(true);
     try { setControl(await pmProjectControlService.getProjectControl(project.id)); }
     catch { setControlError(true); }
     finally { setControlLoading(false); }
-  }, [controlEnabled]);
+  }, [controlEnabled, invalidateExplanations]);
+
+  const explainFinding = useCallback(async (finding) => {
+    if (!aiExplanationsEnabled || !controlProject || !control) return;
+    const projectId = controlProject.id;
+    const contextVersion = explanationContextVersion.current;
+    const requestKey = `${projectId}:${finding.code}`;
+    const requestId = ++explanationRequestSequence.current;
+    activeExplanationRequests.current.set(requestKey, requestId);
+    setExplanations((current) => ({ ...current, [requestKey]: { loading: true } }));
+    try {
+      const data = await pmProjectControlService.explainFinding(projectId, finding.code);
+      if (contextVersion !== explanationContextVersion.current || activeExplanationRequests.current.get(requestKey) !== requestId) return;
+      activeExplanationRequests.current.delete(requestKey);
+      setExplanations((current) => ({ ...current, [requestKey]: { data } }));
+    } catch {
+      if (contextVersion !== explanationContextVersion.current || activeExplanationRequests.current.get(requestKey) !== requestId) return;
+      activeExplanationRequests.current.delete(requestKey);
+      setExplanations((current) => ({ ...current, [requestKey]: { error: true } }));
+    }
+  }, [aiExplanationsEnabled, control, controlProject]);
 
   const loadActivity = useCallback(async (project, requestedPage = 1) => {
     if (!project) return;
@@ -159,7 +194,7 @@ export default function PMProjectsPage() {
             <ListControls page={page} totalPages={pageInfo.total_pages} total={pageInfo.total} search={search} onSearchChange={(value) => { setPage(1); setSearch(value); }} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
           </div>
         )}
-        {controlEnabled && controlProject && <PMProjectControlPanel control={control} isLoading={controlLoading} error={controlError} onRefresh={() => loadControl(controlProject)} onOpenRequirements={() => setRequirementsProject(controlProject)} />}
+        {controlEnabled && controlProject && <PMProjectControlPanel control={control} isLoading={controlLoading} error={controlError} onRefresh={() => loadControl(controlProject)} onOpenRequirements={() => setRequirementsProject(controlProject)} aiEnabled={aiExplanationsEnabled} explanations={explanations} onExplain={explainFinding} />}
         {activityProject && <ActivityList activity={activity} isLoading={activityLoading} error={activityError} onRetry={() => loadActivity(activityProject, activityPage)} onPrevious={() => loadActivity(activityProject, activityPage - 1)} onNext={() => loadActivity(activityProject, activityPage + 1)} />}
       </div>
 

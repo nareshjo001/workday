@@ -60,6 +60,12 @@ Browser smoke against a running demo is `cd frontend; npm run test:e2e`.
 - Documents/PDFs use opaque UUID storage keys, MIME signature/size validation, and authorization before binary download.
 - Migrations are ledgered with checksums and run explicitly, never on ordinary backend startup.
 
+## Decision Intelligence
+
+The expansion adds deterministic, role-safe decision support: Vendor historical Rate & Margin Intelligence, PM Project Control, Contractor Timesheet Intelligence, Automated Reminders, and role-safe Activity. These features expose verified findings and evidence while authorized people retain every business decision.
+
+An optional, bounded generative-AI adapter can explain a PM Project Control finding only after the PM explicitly requests it. It has a deterministic fallback and is never decision authority: it cannot change calculations, severity, approvals, compliance outcomes, or financial recommendations.
+
 ## Documentation
 
 - [Architecture](ARCHITECTURE.md)

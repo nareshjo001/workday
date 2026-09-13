@@ -1,4 +1,5 @@
 const express = require("express");
+const rateLimit = require("express-rate-limit");
 const authenticate = require("../middleware/authenticate");
 const authorizeRoles = require("../middleware/authorizeRoles");
 const { ROLES } = require("../constants/roles");
@@ -17,6 +18,7 @@ const invoiceLifecycleController = require("../controllers/invoiceLifecycleContr
 const dashboardExportController = require('../controllers/dashboardExportController');
 const pmProjectControlController = require("../controllers/pmProjectControlController");
 const auditActivityController = require("../controllers/auditActivityController");
+const pmFindingExplanationController = require("../controllers/pmFindingExplanationController");
 
 /**
  * Every route here requires a valid JWT AND role = PM — same gate
@@ -25,6 +27,18 @@ const auditActivityController = require("../controllers/auditActivityController"
 const router = express.Router();
 
 router.use(authenticate, authorizeRoles(ROLES.PM));
+
+// This narrow, authenticated limiter prevents an optional external-provider
+// request from being used as an unbounded proxy. It is deliberately local to
+// the explanation action and does not affect ordinary PM workflows.
+const explanationLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `pm-explanation:${req.user.userId}`,
+  message: { message: "Too many explanation requests. Please try again shortly." },
+});
 
 router.post("/projects", pmProjectController.create);
 router.get("/projects", pmProjectController.list);
@@ -38,6 +52,7 @@ router.get("/projects/:id/contractors", pmProjectController.listContractors);
 router.patch("/projects/:id/complete", pmProjectController.complete);
 router.get("/projects/:id/close-readiness", pmProjectController.closeReadiness);
 router.get("/projects/:id/control-intelligence", pmProjectControlController.analyze);
+router.post("/projects/:projectId/control-intelligence/:findingCode/explanation", explanationLimiter, pmFindingExplanationController.explain);
 router.get("/projects/:projectId/activity", auditActivityController.pmProject);
 // MVP fix 1: the PM (never the Vendor) sets/changes a specific,
 // already-assigned contractor's work-hour allocation on this project.

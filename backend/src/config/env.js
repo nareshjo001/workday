@@ -58,6 +58,10 @@ const env = {
     pmProjectControl: featureEnabled("INTELLIGENCE_PM_PROJECT_CONTROL_ENABLED"),
     contractorTimesheetIntelligence: featureEnabled("INTELLIGENCE_CONTRACTOR_TIMESHEET_ENABLED"),
     aiExplanations: featureEnabled("INTELLIGENCE_AI_EXPLANATIONS_ENABLED"),
+    aiProvider: process.env.AI_PROVIDER || "openai",
+    aiModel: process.env.AI_MODEL || "gpt-4o-mini",
+    aiApiKey: process.env.AI_API_KEY || "",
+    aiTimeoutMs: Number(process.env.AI_TIMEOUT_MS) || 5000,
   },
 };
 

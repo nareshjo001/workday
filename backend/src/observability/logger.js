@@ -12,7 +12,13 @@ function redact(value, key = "") {
 function write(level, event, fields = {}) {
   // One JSON object per line keeps logs searchable in local development and
   // compatible with ordinary container/platform log collectors.
-  console[level === "error" ? "error" : "log"](JSON.stringify({ timestamp: new Date().toISOString(), level, event, ...redact(fields) }));
+  const target = level === "error" ? "error" : level === "warn" ? "warn" : "log";
+  console[target](JSON.stringify({ timestamp: new Date().toISOString(), level, event, ...redact(fields) }));
 }
 
-module.exports = { info: (event, fields) => write("info", event, fields), error: (event, fields) => write("error", event, fields), redact };
+module.exports = {
+  info: (event, fields) => write("info", event, fields),
+  warn: (event, fields) => write("warn", event, fields),
+  error: (event, fields) => write("error", event, fields),
+  redact,
+};

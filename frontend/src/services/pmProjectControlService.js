@@ -4,6 +4,7 @@ const severities = new Set(["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]);
 const primitive = (value) => value === null || ["string", "number", "boolean"].includes(typeof value);
 
 function invalidResponse() { throw new Error("Invalid project control response."); }
+function invalidExplanationResponse() { throw new Error("Invalid project control explanation response."); }
 
 export function parseProjectControl(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)
@@ -33,4 +34,16 @@ async function getProjectControl(projectId) {
   return parseProjectControl(data);
 }
 
-export default { getProjectControl };
+export function parseFindingExplanation(payload) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)
+    || typeof payload.explanation !== "string" || !payload.explanation.trim() || payload.explanation.length > 600
+    || !["AI", "DETERMINISTIC"].includes(payload.source)) invalidExplanationResponse();
+  return { explanation: payload.explanation.trim(), source: payload.source };
+}
+
+async function explainFinding(projectId, findingCode) {
+  const { data } = await apiClient.post(`/pm/projects/${projectId}/control-intelligence/${encodeURIComponent(findingCode)}/explanation`);
+  return parseFindingExplanation(data);
+}
+
+export default { getProjectControl, explainFinding };
