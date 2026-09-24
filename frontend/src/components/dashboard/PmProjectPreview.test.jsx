@@ -43,5 +43,8 @@ test("opens the compact real-action menu, dismisses it with Escape, and dispatch
   fireEvent.click(trigger);
   fireEvent.click(screen.getByRole("menuitem", { name: "Activity" }));
   expect(screen.queryByRole("menu")).not.toBeInTheDocument();
-  expect(onActivity).toHaveBeenCalledWith(projects[0], undefined);
+  expect(onActivity).toHaveBeenCalledWith(
+    expect.objectContaining({ id: 1 }),
+    trigger,
+  );
 });
