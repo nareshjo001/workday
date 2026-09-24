@@ -11,20 +11,9 @@ function todayDateString() {
 }
 
 /**
- * Edits a single REJECTED daily log (PATCH /api/contractor/timesheets/:id)
- * — the only path a contractor has to change hours/date after a PM has
- * rejected a submission. `log` is the REJECTED row being edited; `project`
- * is that log's own project (looked up by the parent page from its
- * already-loaded assignment list) purely to derive the same date-bound
- * UX hints LogHoursModal shows — again a convenience only, not the
- * security boundary; contractorTimesheetService.updateTimesheet
- * re-validates the window server-side against a freshly-fetched project
- * row regardless.
- *
- * There is no project picker here — project_id is immutable on an edit
- * (enforced server-side by never accepting it from this request body at
- * all, see validateEditTimesheet), so the project name is shown as
- * read-only context instead.
+ * Edits a single DRAFT or REJECTED daily log (PATCH /api/contractor/timesheets/:id).
+ * - For DRAFT: edits the existing draft in-place; status remains DRAFT.
+ * - For REJECTED: edits the rejected log; status returns to DRAFT for resubmission.
  */
 export default function EditLogModal({ log, project, onClose, onSubmit }) {
   const [workDate, setWorkDate] = useState(log.work_date);
@@ -35,8 +24,8 @@ export default function EditLogModal({ log, project, onClose, onSubmit }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const today = todayDateString();
-  const minDate = project?.start_date || undefined;
-  const maxDate = project?.end_date && project.end_date < today ? project.end_date : today;
+  const minDate = project?.project_start_date || undefined;
+  const maxDate = project?.project_end_date && project.project_end_date < today ? project.project_end_date : today;
 
   const validate = () => {
     const errors = {};
@@ -45,9 +34,9 @@ export default function EditLogModal({ log, project, onClose, onSubmit }) {
       errors.workDate = "Select the date you worked.";
     } else if (workDate > today) {
       errors.workDate = "Date cannot be in the future.";
-    } else if (project && workDate < project.start_date) {
+    } else if (project && workDate < project.project_start_date) {
       errors.workDate = "Date cannot be before the project's start date.";
-    } else if (project?.end_date && workDate > project.end_date) {
+    } else if (project?.project_end_date && workDate > project.project_end_date) {
       errors.workDate = "Date cannot be after the project's end date.";
     }
 
@@ -79,12 +68,20 @@ export default function EditLogModal({ log, project, onClose, onSubmit }) {
     }
   };
 
+  const isRejected = log.status === "REJECTED";
+  const title = isRejected ? "Edit Rejected Log" : "Edit Draft Log";
+  const helperText = isRejected
+    ? "Editing this log returns it to drafts so you can resubmit it for review."
+    : "Editing this log updates your saved draft.";
+  const submitLabel = isRejected ? "Resubmit" : "Save Changes";
+  const loadingLabel = isRejected ? "Resubmitting…" : "Saving…";
+
   return (
-    <Modal title="Edit Rejected Log" onClose={onClose}>
+    <Modal title={title} onClose={onClose}>
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <AlertBanner message={formError} />
         <p className="text-sm text-muted">
-          Editing this log resubmits it for review — its status will change back to Pending.
+          {helperText}
         </p>
 
         <div className="flex flex-col gap-1.5">
@@ -134,8 +131,8 @@ export default function EditLogModal({ log, project, onClose, onSubmit }) {
           >
             Cancel
           </button>
-          <PrimaryButton isLoading={isSubmitting} loadingText="Resubmitting…" className="flex-1">
-            Resubmit
+          <PrimaryButton isLoading={isSubmitting} loadingText={loadingLabel} className="flex-1">
+            {submitLabel}
           </PrimaryButton>
         </div>
       </form>

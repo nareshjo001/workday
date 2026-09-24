@@ -9,7 +9,6 @@ import EditLogModal from "../components/timesheets/EditLogModal";
 import { groupTimesheetsByProjectAndWeek } from "../components/timesheets/weekGrouping";
 import contractorTimesheetService from "../services/contractorTimesheetService";
 import contractorProjectService from "../services/contractorProjectService";
-import ListControls from "../components/ListControls";
 
 /**
  * Contractor's own timesheet history + daily "Log Hours" submission.
@@ -31,14 +30,14 @@ export default function ContractorTimesheetsPage() {
   const [editingLog, setEditingLog] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
   const [page, setPage] = useState(1);
-  const [pageInfo, setPageInfo] = useState({ total_pages: 1, total: 0 });
+  const [pageInfo, setPageInfo] = useState({ total_pages: 1, total_weeks: 0, page_size: 5 });
 
   const loadAll = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
     try {
       const [timesheetData, projectData] = await Promise.all([
-        contractorTimesheetService.listMyTimesheets({ page, pageSize: 25, sort: "work_date", order: "desc" }),
+        contractorTimesheetService.listMyTimesheets({ page, pageSize: 5, sort: "work_date", order: "desc" }),
         contractorProjectService.listAssignedProjects(),
       ]);
       setTimesheets(timesheetData.items);
@@ -78,7 +77,7 @@ export default function ContractorTimesheetsPage() {
   const activeProjects = useMemo(
     () =>
       assignedProjects.filter(
-        (p) => p.status === "ACTIVE" && (p.assignment_status === undefined || p.assignment_status === "ACTIVE")
+        (p) => p.project_status === "ACTIVE" && (p.assignment_status === undefined || p.assignment_status === "ACTIVE")
       ),
     [assignedProjects]
   );
@@ -112,10 +111,15 @@ export default function ContractorTimesheetsPage() {
   };
 
   const handleEditSubmit = async (payload) => {
+    const wasRejected = editingLog?.status === "REJECTED";
     const updated = await contractorTimesheetService.updateTimesheet(editingLog.id, payload);
     setTimesheets((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
     setEditingLog(null);
-    setSuccessMessage(`Resubmitted ${updated.hours_logged} hours for "${updated.project_name}".`);
+    setSuccessMessage(
+      wasRejected
+        ? `Resubmitted ${updated.hours_logged} hours for "${updated.project_name}".`
+        : `Updated draft (${updated.hours_logged}h) for "${updated.project_name}".`
+    );
   };
 
   const handleSubmitDrafts = async () => {
@@ -132,12 +136,45 @@ export default function ContractorTimesheetsPage() {
     setSuccessMessage(`${ids.length} daily entr${ids.length === 1 ? "y" : "ies"} submitted for review.`);
   };
 
+  const totalWeeks = Number(pageInfo.total_weeks || 0);
+  const pageSize = Number(pageInfo.page_size || 5);
+  const startWeek = totalWeeks === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endWeek = Math.min(page * pageSize, totalWeeks);
+  const paginationSummary =
+    totalWeeks === 1
+      ? "Showing 1 of 1 week"
+      : startWeek === endWeek
+      ? `Showing ${startWeek} of ${totalWeeks} weeks`
+      : `Showing ${startWeek}–${endWeek} of ${totalWeeks} weeks`;
+
   return (
     <DashboardLayout title="Timesheets">
-      <div className="mx-auto flex max-w-4xl flex-col gap-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold text-text">Timesheets</h1>
-          <div className="flex flex-wrap gap-2"><button type="button" onClick={handleSubmitDrafts} className="rounded-md border border-border px-3 py-2 text-sm">Submit visible drafts</button><PrimaryButton type="button" fullWidth={false} onClick={() => setIsLogOpen(true)}>+ Log Hours</PrimaryButton></div>
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Timesheets</h1>
+            <p className="mt-1 text-sm text-slate-500">Track and manage your daily project hours and approvals.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleSubmitDrafts}
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 shadow-2xs hover:bg-slate-50 hover:border-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 transition cursor-pointer"
+            >
+              Submit visible drafts
+            </button>
+            <PrimaryButton
+              type="button"
+              fullWidth={false}
+              onClick={() => setIsLogOpen(true)}
+              className="h-10 px-4 text-sm font-semibold rounded-lg"
+            >
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              <span>Log Hours</span>
+            </PrimaryButton>
+          </div>
         </div>
 
         <AlertBanner message={successMessage} variant="success" />
@@ -146,14 +183,19 @@ export default function ContractorTimesheetsPage() {
         {isLoading ? (
           <Spinner label="Loading your timesheets…" />
         ) : groupedProjects.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-surface px-6 py-12 text-center">
-            <p className="text-text-secondary">No timesheets logged yet.</p>
-            <p className="max-w-sm text-sm text-muted">
+          <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center shadow-2xs">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <p className="text-base font-semibold text-slate-900">No timesheets logged yet</p>
+            <p className="max-w-sm text-sm text-slate-500">
               Log your hours against a project you're assigned to, and your PM will review them.
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-6 rounded-lg bg-surface p-4 shadow-panel ring-1 ring-border sm:p-6">
+          <div className="flex flex-col gap-6">
             {groupedProjects.map((project) => (
               <ProjectTimesheetGroup
                 key={project.project_id}
@@ -163,7 +205,40 @@ export default function ContractorTimesheetsPage() {
                 onSubmitWeek={handleSubmitWeek}
               />
             ))}
-            <ListControls page={page} totalPages={pageInfo.total_pages} total={pageInfo.total} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
+
+            {totalWeeks > 0 && (
+              <nav
+                aria-label="Timesheets pagination"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2"
+              >
+                <span className="text-xs sm:text-sm font-medium text-slate-500">
+                  {paginationSummary}
+                </span>
+                {pageInfo.total_pages > 1 && (
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                      className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3.5 text-xs sm:text-sm font-medium text-slate-700 shadow-2xs hover:bg-slate-50 disabled:opacity-40 transition cursor-pointer"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-xs sm:text-sm font-medium text-slate-500">
+                      Page {page} of {pageInfo.total_pages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPage((p) => Math.min(pageInfo.total_pages, p + 1))}
+                      disabled={page >= pageInfo.total_pages}
+                      className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-300 bg-white px-3.5 text-xs sm:text-sm font-medium text-slate-700 shadow-2xs hover:bg-slate-50 disabled:opacity-40 transition cursor-pointer"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </nav>
+            )}
           </div>
         )}
       </div>

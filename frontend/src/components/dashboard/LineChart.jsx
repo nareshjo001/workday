@@ -1,66 +1,110 @@
+import { useEffect, useRef, useState } from "react";
 import EmptyState from "./EmptyState";
 
 /**
  * Small SVG line/sparkline chart — used for the Contractor dashboard's
- * "Hours Trend" (approved hours per week over time). Built as plain
- * inline SVG rather than pulling in a charting library: this project has
- * no chart library installed anywhere (checked before writing this —
- * see the dashboard redesign's final report for that note), and a
- * handful of points on one line is well within what a ~30-line component
- * can render correctly, so adding a new dependency for it would not be
- * "absolutely necessary" per the spec's own instruction.
- *
- * `stroke="currentColor"` + a `text-primary` class (rather than a
- * hard-coded hex) means the line always matches the app's current
- * --color-primary token, the same pattern every other themed element in
- * this app already uses via Tailwind utility classes.
+ * "Hours Trend" (approved hours per week over time). It deliberately
+ * preserves the project's existing dependency-free inline SVG approach
+ * while providing responsive axes, grid lines, markers, and tooltips.
  */
-export default function LineChart({ data, valueKey = "hours", labelKey = "period", emptyMessage = "No data available." }) {
+export default function LineChart({
+  data,
+  valueKey = "hours",
+  labelKey = "period",
+  emptyMessage = "No data available.",
+  formatLabel = (label) => label,
+  seriesLabel = "Approved hours",
+  yAxisLabel = "Hours",
+}) {
+  const chartHostRef = useRef(null);
+  const [chartWidth, setChartWidth] = useState(900);
+  const dataLength = data?.length ?? 0;
+
+  useEffect(() => {
+    if (!chartHostRef.current || typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(([entry]) => {
+      setChartWidth(Math.max(300, Math.round(entry.contentRect.width)));
+    });
+    observer.observe(chartHostRef.current);
+    return () => observer.disconnect();
+  }, [dataLength]);
+
   if (!data || data.length === 0) {
     return <EmptyState message={emptyMessage} compact />;
   }
 
-  const width = 480;
-  const height = 140;
-  const paddingX = 24;
-  const paddingY = 16;
-  const values = data.map((d) => d[valueKey]);
-  const maxValue = Math.max(...values, 0) || 1;
+  const width = chartWidth;
+  const height = width < 480 ? 220 : width < 800 ? 240 : 270;
+  const plot = { left: 58, right: 20, top: 28, bottom: 46 };
+  const values = data.map((d) => Number(d[valueKey]) || 0);
+  const rawMax = Math.max(...values, 0);
+  const tickStep = Math.max(1, Math.ceil(rawMax / 4));
+  const maxValue = tickStep * 4;
+  const baseline = height - plot.bottom;
 
   const points = data.map((d, i) => {
     const x =
       data.length === 1
         ? width / 2
-        : paddingX + (i / (data.length - 1)) * (width - paddingX * 2);
-    const y = height - paddingY - (d[valueKey] / maxValue) * (height - paddingY * 2);
-    return { x, y, label: d[labelKey], value: d[valueKey] };
+        : plot.left + (i / (data.length - 1)) * (width - plot.left - plot.right);
+    const y = baseline - ((Number(d[valueKey]) || 0) / maxValue) * (baseline - plot.top);
+    return { x, y, label: d[labelKey], value: Number(d[valueKey]) || 0 };
   });
 
   const pathD = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const areaD = points.length > 1
+    ? `${pathD} L${points[points.length - 1].x.toFixed(1)},${baseline} L${points[0].x.toFixed(1)},${baseline} Z`
+    : "";
+  const yTicks = Array.from({ length: 5 }, (_, index) => index * tickStep);
+  const targetLabels = width < 480 ? 3 : width < 800 ? 4 : 6;
+  const labelInterval = Math.max(1, Math.ceil(points.length / targetLabels));
+  const visibleLabelIndexes = new Set(
+    points.map((_, index) => index).filter((index) => index % labelInterval === 0 || index === points.length - 1)
+  );
 
   return (
-    <div className="w-full">
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full text-primary" role="img" aria-label="Approved hours over time">
-        <line
-          x1={paddingX}
-          y1={height - paddingY}
-          x2={width - paddingX}
-          y2={height - paddingY}
-          className="stroke-border"
-          strokeWidth="1"
-        />
-        {points.length > 1 && <path d={pathD} fill="none" stroke="currentColor" strokeWidth="2" />}
+    <div className="contractor-hours-chart" data-testid="contractor-hours-chart">
+      <div className="contractor-hours-legend" aria-label={`${seriesLabel} legend`}>
+        <span aria-hidden="true" />
+        {seriesLabel}
+      </div>
+      <div ref={chartHostRef} className="contractor-hours-chart-scroll">
+        <svg viewBox={`0 0 ${width} ${height}`} style={{ height }} role="img" aria-label={`${seriesLabel} per week`}>
+          <title>{seriesLabel} per week</title>
+          <desc>Weekly approved hours, beginning at zero hours.</desc>
+          <defs>
+            <linearGradient id="contractor-hours-area" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#2f75e8" stopOpacity="0.2" />
+              <stop offset="100%" stopColor="#2f75e8" stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
+          {yTicks.map((tick) => {
+            const y = baseline - (tick / maxValue) * (baseline - plot.top);
+            return (
+              <g key={tick}>
+                <line x1={plot.left} y1={y} x2={width - plot.right} y2={y} className="contractor-hours-gridline" />
+                <text x={plot.left - 13} y={y + 4} textAnchor="end" className="contractor-hours-axis-text">{tick}</text>
+              </g>
+            );
+          })}
+          <text x="16" y={(plot.top + baseline) / 2} textAnchor="middle" className="contractor-hours-axis-title" transform={`rotate(-90 16 ${(plot.top + baseline) / 2})`}>
+            {yAxisLabel}
+          </text>
+          {areaD && <path d={areaD} fill="url(#contractor-hours-area)" />}
+          {points.length > 1 && <path d={pathD} className="contractor-hours-line" />}
+          {points.map((p, index) => visibleLabelIndexes.has(index) && (
+            <text key={`label-${p.label}`} x={p.x} y={height - 16} textAnchor="middle" className="contractor-hours-axis-text">
+              {formatLabel(p.label, true)}
+            </text>
+          ))}
         {points.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r="3.5" fill="currentColor">
+          <circle key={i} cx={p.x} cy={p.y} r="4" className="contractor-hours-marker">
             <title>
-              {p.label}: {p.value}h
+              {formatLabel(p.label, false)}: {p.value}h approved
             </title>
           </circle>
         ))}
-      </svg>
-      <div className="mt-1 flex justify-between text-xs text-muted">
-        <span>{points[0]?.label}</span>
-        {points.length > 1 && <span>{points[points.length - 1]?.label}</span>}
+        </svg>
       </div>
     </div>
   );

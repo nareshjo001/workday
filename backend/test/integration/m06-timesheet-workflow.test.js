@@ -46,9 +46,20 @@ test("M06 preserves daily drafts, requires reasons, supports correction/resubmis
 
   const draft = await request("POST", "/contractor/timesheets", { projectId, workDate, hoursLogged: 8, description: "Build daily workflow" }, contractor);
   assert.equal(draft.response.status, 201); assert.equal(draft.data.status, "DRAFT"); assert.equal(draft.data.submitted_at, null);
+
+  // Contractor can edit own DRAFT: remains DRAFT, values persist, submitted_at remains null
+  const draftEdit = await request("PATCH", `/contractor/timesheets/${draft.data.id}`, { workDate, hoursLogged: 6, description: "Build daily workflow v2" }, contractor);
+  assert.equal(draftEdit.response.status, 200);
+  assert.equal(draftEdit.data.status, "DRAFT");
+  assert.equal(draftEdit.data.hours_logged, 6);
+  assert.equal(draftEdit.data.description, "Build daily workflow v2");
+  assert.equal(draftEdit.data.submitted_at, null);
+
   const queueBeforeSubmit = await request("GET", "/pm/timesheets/pending", undefined, pm.token); assert.equal(queueBeforeSubmit.data.total, 0);
   assert.equal((await request("POST", "/contractor/timesheets/submit", { timesheetIds: [draft.data.id] }, contractor)).response.status, 200);
-  const queue = await request("GET", "/pm/timesheets/pending", undefined, pm.token); assert.equal(queue.data.items.length, 1); assert.equal(queue.data.items[0].description, "Build daily workflow");
+  const queue = await request("GET", "/pm/timesheets/pending", undefined, pm.token); assert.equal(queue.data.items.length, 1); assert.equal(queue.data.items[0].description, "Build daily workflow v2");
+  const submittedEdit = await request("PATCH", `/contractor/timesheets/${draft.data.id}`, { workDate, hoursLogged: 8, description: "Should not edit submitted" }, contractor);
+  assert.equal(submittedEdit.response.status, 409); assert.match(submittedEdit.data.message, /only draft and rejected timesheets can be edited/i);
   assert.equal((await request("PATCH", `/pm/timesheets/${draft.data.id}`, { status: "REJECTED" }, pm.token)).response.status, 400);
   const rejected = await request("PATCH", `/pm/timesheets/${draft.data.id}`, { status: "REJECTED", rejectionReason: "Please add test evidence." }, pm.token);
   assert.equal(rejected.response.status, 200); assert.equal(rejected.data.rejection_reason, "Please add test evidence.");
@@ -57,6 +68,8 @@ test("M06 preserves daily drafts, requires reasons, supports correction/resubmis
   assert.equal((await request("POST", "/contractor/timesheets/submit", { timesheetIds: [draft.data.id] }, contractor)).response.status, 200);
   const reviewed = await request("PATCH", "/pm/timesheets/bulk-review", { timesheetIds: [draft.data.id], status: "APPROVED" }, pm.token);
   assert.equal(reviewed.response.status, 200); assert.equal(reviewed.data[0].status, "APPROVED");
+  const approvedEdit = await request("PATCH", `/contractor/timesheets/${draft.data.id}`, { workDate, hoursLogged: 8, description: "Should not edit approved" }, contractor);
+  assert.equal(approvedEdit.response.status, 409); assert.match(approvedEdit.data.message, /only draft and rejected timesheets can be edited/i);
   assert.equal((await request("PATCH", "/pm/timesheets/bulk-review", { timesheetIds: [draft.data.id], status: "APPROVED" }, pm.token)).response.status, 409);
   assert.equal((await request("PATCH", "/pm/timesheets/bulk-review", { timesheetIds: [draft.data.id], status: "APPROVED" }, vendor.token)).response.status, 403);
 });

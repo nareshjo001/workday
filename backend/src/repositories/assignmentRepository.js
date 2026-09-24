@@ -295,9 +295,16 @@ async function listProjectsForContractor(contractorId) {
   const [rows] = await pool.query(
     `SELECT p.id, p.name, p.description,
             COALESCE(cc.name, p.company_name) AS company_name, pm_user.name AS pm_name,
-            p.start_date, p.end_date, p.status,
+            p.start_date AS project_start_date,
+            p.end_date AS project_end_date,
+            p.status AS project_status,
             pa.assigned_date, pr.skill AS assigned_skill,
-            pa.allocated_hours, pa.status AS assignment_status, pa.released_at, pa.start_date, pa.end_date, pa.actual_end_date, pa.release_reason,
+            pa.allocated_hours,
+            pa.status AS assignment_status,
+            pa.released_at AS assignment_released_at,
+            pa.start_date AS assignment_start_date,
+            pa.end_date AS assignment_end_date,
+            pa.actual_end_date, pa.release_reason,
             COALESCE(SUM(CASE WHEN t.status = 'APPROVED' THEN t.hours_logged ELSE 0 END), 0) AS approved_hours,
             COALESCE(SUM(CASE WHEN t.status IN ('DRAFT', 'SUBMITTED') THEN t.hours_logged ELSE 0 END), 0) AS pending_hours
      FROM project_assignments pa

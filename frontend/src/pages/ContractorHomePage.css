@@ -1,0 +1,543 @@
+.contractor-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.contractor-summary-card,
+.contractor-work-card {
+  min-width: 0;
+  border: 1px solid #dce5f0;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.045);
+}
+
+.contractor-summary-card {
+  min-height: 122px;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+  border-radius: 14px;
+}
+
+.contractor-summary-copy {
+  min-width: 0;
+}
+
+.contractor-metric-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.contractor-summary-card .contractor-metric-icon {
+  width: 56px;
+  height: 56px;
+}
+
+.contractor-metric-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.contractor-summary-card .contractor-metric-icon svg {
+  width: 27px;
+  height: 27px;
+}
+
+.contractor-metric--blue .contractor-metric-icon {
+  background: #eaf3ff;
+  color: #1769e8;
+}
+
+.contractor-metric--green .contractor-metric-icon {
+  background: #e8f8ef;
+  color: #0ea65b;
+}
+
+.contractor-metric--amber .contractor-metric-icon {
+  background: #fff4df;
+  color: #ec8a08;
+}
+
+.contractor-metric--violet .contractor-metric-icon {
+  background: #f2eaff;
+  color: #8549ef;
+}
+
+.contractor-metric--rose .contractor-metric-icon {
+  background: #ffe9ec;
+  color: #e53b4f;
+}
+
+.contractor-metric-label {
+  color: #516782;
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.contractor-summary-value,
+.contractor-work-value {
+  color: #102343;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.contractor-hours-panel {
+  min-width: 0;
+  padding: 1.25rem;
+  border: 1px solid #dce5f0;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.045);
+}
+
+.contractor-hours-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.35rem;
+}
+
+.contractor-hours-heading h2 {
+  color: #102343;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.contractor-hours-heading p {
+  margin-top: 0.2rem;
+  color: #71839c;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.contractor-hours-chart {
+  min-width: 0;
+}
+
+.contractor-hours-legend {
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  color: #71839c;
+  font-size: 0.74rem;
+}
+
+.contractor-hours-legend > span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2f75e8;
+  box-shadow: 0 0 0 3px #eaf2ff;
+}
+
+.contractor-hours-chart-scroll {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.contractor-hours-chart-scroll svg {
+  width: 100%;
+  min-width: 0;
+  display: block;
+}
+
+.contractor-hours-gridline {
+  stroke: #dce6f2;
+  stroke-width: 1;
+  stroke-dasharray: 4 5;
+}
+
+.contractor-hours-axis-text {
+  fill: #71839c;
+  font-size: 11px;
+}
+
+.contractor-hours-axis-title {
+  fill: #61748f;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.contractor-hours-line {
+  fill: none;
+  stroke: #2f75e8;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.contractor-hours-marker {
+  fill: #ffffff;
+  stroke: #2f75e8;
+  stroke-width: 2.25;
+}
+
+.contractor-hours-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 0.75rem;
+  overflow: hidden;
+  border: 1px solid #e8eef6;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.contractor-hours-summary-item {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 1rem;
+}
+
+.contractor-hours-summary-item + .contractor-hours-summary-item {
+  border-left: 1px solid #dfe7f1;
+}
+
+.contractor-hours-summary-item .contractor-metric-icon {
+  width: 38px;
+  height: 38px;
+}
+
+.contractor-hours-summary-item .contractor-metric-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.contractor-hours-summary-copy {
+  min-width: 0;
+}
+
+.contractor-hours-summary-label {
+  color: #71839c;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.contractor-hours-summary-value-row {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.65rem;
+  margin-top: 0.18rem;
+}
+
+.contractor-hours-summary-value-row strong {
+  flex: 0 0 auto;
+  color: #102343;
+  font-size: 1.12rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.contractor-hours-summary-value-row span {
+  min-width: 0;
+  color: #71839c;
+  font-size: 0.7rem;
+  line-height: 1.3;
+}
+
+.contractor-project-progress-copy {
+  min-width: 0;
+}
+
+.contractor-project-hours-line {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.3rem;
+  white-space: nowrap;
+}
+
+.contractor-project-hours-badge {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.contractor-project-progress-percent {
+  display: block;
+  margin-top: 0.2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.contractor-timesheet-panel {
+  min-width: 0;
+  padding: 1.25rem;
+  border: 1px solid #dce5f0;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.045);
+}
+
+.contractor-timesheet-heading {
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.contractor-timesheet-heading h2 {
+  color: #102343;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.contractor-timesheet-heading p {
+  margin-top: 0.2rem;
+  color: #71839c;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.contractor-timesheet-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.contractor-timesheet-card {
+  min-width: 0;
+  min-height: 104px;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid;
+  border-radius: 12px;
+}
+
+.contractor-timesheet-card .contractor-metric-icon {
+  width: 48px;
+  height: 48px;
+}
+
+.contractor-timesheet-card .contractor-metric-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.contractor-timesheet-card-copy {
+  min-width: 0;
+}
+
+.contractor-timesheet-card-copy p {
+  color: #516782;
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.contractor-timesheet-card-copy strong {
+  display: block;
+  margin-top: 0.3rem;
+  color: #102343;
+  font-size: 1.55rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+}
+
+.contractor-timesheet-card--pending {
+  border-color: #dbeafe;
+  background: #f5f9ff;
+}
+
+.contractor-timesheet-card--pending .contractor-metric-icon {
+  color: var(--color-accent);
+  background: #e5f1ff;
+}
+
+.contractor-timesheet-card--approved {
+  border-color: var(--color-success-border);
+  background: var(--color-success-bg);
+}
+
+.contractor-timesheet-card--approved .contractor-metric-icon {
+  color: var(--color-success);
+  background: #dcfce7;
+}
+
+.contractor-timesheet-card--rejected {
+  border-color: var(--color-error-border);
+  background: var(--color-error-bg);
+}
+
+.contractor-timesheet-card--rejected .contractor-metric-icon {
+  color: var(--color-error);
+  background: #fee2e2;
+}
+
+.contractor-timesheet-card--total {
+  border-color: #ddd6fe;
+  background: #f8f7ff;
+}
+
+.contractor-timesheet-card--total .contractor-metric-icon {
+  color: #7c3aed;
+  background: #ede9fe;
+}
+
+.contractor-summary-value {
+  margin-top: 0.28rem;
+  font-size: 1.55rem;
+  line-height: 1.1;
+}
+
+.contractor-metric-description {
+  margin-top: 0.35rem;
+  color: #71839c;
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.contractor-work-panel {
+  min-width: 0;
+  padding: 1.25rem;
+  border: 1px solid #dce5f0;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.045);
+}
+
+.contractor-work-heading {
+  margin-bottom: 1rem;
+}
+
+.contractor-work-heading h2 {
+  color: #102343;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.contractor-work-heading p {
+  margin-top: 0.2rem;
+  color: #71839c;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.contractor-work-row {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.contractor-work-row + .contractor-work-row {
+  margin-top: 0.75rem;
+}
+
+.contractor-work-row--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.contractor-work-row--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.contractor-work-card {
+  min-height: 84px;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 12px;
+}
+
+.contractor-work-value {
+  margin-top: 0.28rem;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+@media (max-width: 1199px) {
+  .contractor-summary-grid,
+  .contractor-work-row--four,
+  .contractor-work-row--three {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .contractor-timesheet-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 639px) {
+  .contractor-summary-grid,
+  .contractor-work-row--four,
+  .contractor-work-row--three {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .contractor-summary-card {
+    min-height: 108px;
+    grid-template-columns: 50px minmax(0, 1fr);
+    gap: 0.85rem;
+    padding: 0.95rem 1rem;
+  }
+
+  .contractor-summary-card .contractor-metric-icon {
+    width: 50px;
+    height: 50px;
+  }
+
+  .contractor-work-panel {
+    padding: 1rem;
+  }
+
+  .contractor-work-card {
+    min-height: 78px;
+  }
+
+  .contractor-hours-panel {
+    padding: 1rem;
+  }
+
+  .contractor-hours-heading {
+    display: block;
+  }
+
+  .contractor-timesheet-panel {
+    padding: 1rem;
+  }
+
+  .contractor-timesheet-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .contractor-timesheet-card {
+    min-height: 92px;
+  }
+
+  .contractor-hours-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .contractor-hours-summary-item + .contractor-hours-summary-item {
+    border-top: 1px solid #dfe7f1;
+    border-left: 0;
+  }
+
+}

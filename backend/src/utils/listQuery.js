@@ -2,9 +2,9 @@ const ApiError = require("./ApiError");
 
 const MAX_PAGE_SIZE = 100;
 
-function parseListQuery(query = {}, { allowedSorts, allowedFilters = {} }) {
+function parseListQuery(query = {}, { allowedSorts, allowedFilters = {}, defaultPageSize = 25 }) {
   const page = query.page === undefined ? 1 : Number(query.page);
-  const pageSize = query.pageSize === undefined ? 25 : Number(query.pageSize);
+  const pageSize = query.pageSize === undefined ? defaultPageSize : Number(query.pageSize);
   const sort = query.sort === undefined ? "default" : String(query.sort);
   const order = query.order === undefined ? "desc" : String(query.order).toLowerCase();
   if (!Number.isInteger(page) || page < 1) throw ApiError.badRequest("page must be a positive integer.");

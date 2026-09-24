@@ -1,0 +1,77 @@
+.contractor-projects-page { display:flex; min-width:0; flex-direction:column; gap:1.35rem; }
+.contractor-projects-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:1.5rem; }
+.contractor-projects-heading h1 { margin:0; color:var(--color-text); font-weight:700; }
+.contractor-projects-heading p { margin-top:.3rem; color:var(--color-text-secondary); font-size:.9rem; line-height:1.45; }
+.contractor-projects-controls { display:flex; flex:0 0 auto; align-items:center; gap:.65rem; }
+.contractor-projects-filter select { min-width:9.75rem; min-height:2.5rem; border:1px solid var(--color-border); border-radius:9px; background:var(--color-surface); padding:.5rem 2rem .5rem .75rem; color:var(--color-text-secondary); font-size:.8rem; font-weight:600; }
+.contractor-projects-filter select:focus-visible { outline:2px solid var(--color-accent); outline-offset:2px; }
+.contractor-projects-availability { display:inline-flex; min-height:2.5rem; flex:0 0 auto; align-items:center; justify-content:center; border:1px solid var(--color-border); border-radius:9px; background:var(--color-surface); padding:.55rem .9rem; color:var(--color-primary); font-size:.8rem; font-weight:600; transition:border-color 150ms ease,background-color 150ms ease; }
+.contractor-projects-availability:hover { border-color:var(--color-primary); background:var(--color-primary-light); }
+.contractor-projects-availability:focus-visible { outline:2px solid var(--color-accent); outline-offset:2px; }
+.contractor-projects-panel,.contractor-projects-empty { border:1px solid var(--color-border); border-radius:14px; background:var(--color-surface); box-shadow:0 4px 14px rgb(15 23 42 / .04); }
+.contractor-projects-panel { min-width:0; overflow:hidden; }
+.contractor-projects-table { min-width:0; padding:.85rem 1rem 0; }
+.contractor-projects-table-head,.contractor-projects-table-row { display:grid; grid-template-columns:minmax(13rem,1.65fr) minmax(10rem,1.2fr) minmax(7rem,.9fr) minmax(7rem,.8fr) minmax(6rem,.7fr) minmax(6rem,.65fr); column-gap:1.15rem; }
+.contractor-projects-table-head { align-items:center; border:1px solid var(--color-border); border-radius:10px 10px 0 0; background:var(--color-surface-muted); padding:.75rem .9rem; color:var(--color-muted); font-size:.68rem; font-weight:700; letter-spacing:.045em; text-transform:uppercase; }
+.contractor-projects-table-row { min-height:7.75rem; align-items:start; border:1px solid var(--color-border); border-top:0; padding:1.1rem .9rem; color:var(--color-text-secondary); font-size:.82rem; line-height:1.45; transition:background-color 150ms ease; }
+.contractor-projects-table-row:last-child { border-radius:0 0 10px 10px; }
+.contractor-projects-table-row:hover { background:#f8fafd; }
+.contractor-projects-project,.contractor-projects-company,.contractor-projects-dates,.contractor-projects-date { display:flex; min-width:0; flex-direction:column; }
+.contractor-projects-project { gap:.3rem; }
+.contractor-projects-project strong { overflow-wrap:anywhere; color:var(--color-text); font-size:.9rem; font-weight:650; }
+.contractor-projects-project>span,.contractor-projects-company small { color:var(--color-muted); font-size:.75rem; }
+.contractor-projects-project>span { display:-webkit-box; overflow:hidden; line-height:1.45; -webkit-box-orient:vertical; -webkit-line-clamp:3; }
+.contractor-projects-company { gap:.25rem; overflow-wrap:anywhere; }
+.contractor-projects-dates { gap:.65rem; }
+.contractor-projects-date { gap:.12rem; white-space:nowrap; }
+.contractor-projects-date small { color:var(--color-muted); font-size:.68rem; font-weight:500; }
+.contractor-projects-date .contractor-projects-released-date { margin-top:.22rem; color:var(--color-text-secondary); line-height:1.35; white-space:normal; }
+.contractor-projects-status { display:flex; min-width:0; align-items:flex-start; flex-direction:column; gap:.35rem; }
+.contractor-projects-status>small { color:var(--color-muted); font-size:.66rem; line-height:1.3; }
+.contractor-projects-skill { display:inline-flex; max-width:100%; align-items:center; border:1px solid; border-radius:999px; padding:.28rem .65rem; font-size:.72rem; font-weight:600; line-height:1.2; overflow-wrap:anywhere; }
+.contractor-projects-filter-empty { grid-column:1 / -1; padding:2.25rem 1rem; color:var(--color-muted); font-size:.82rem; text-align:center; }
+.contractor-projects-footer { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-top:.85rem; border-top:1px solid var(--color-border); padding:.9rem 1rem; color:var(--color-muted); font-size:.78rem; }
+.contractor-projects-footer span:last-child { text-align:right; }
+.contractor-projects-cards { display:none; }
+.contractor-projects-empty { display:flex; align-items:center; flex-direction:column; padding:3rem 1.5rem; text-align:center; }
+.contractor-projects-empty-icon { display:grid; width:3.25rem; height:3.25rem; place-items:center; border-radius:14px; background:var(--color-primary-light); color:var(--color-primary); }
+.contractor-projects-empty-icon svg { width:1.6rem; height:1.6rem; }
+.contractor-projects-empty p { margin-top:.9rem; color:var(--color-text); font-weight:650; }
+.contractor-projects-empty>span { max-width:28rem; margin-top:.25rem; color:var(--color-muted); font-size:.8rem; }
+
+@media (max-width:1279px) {
+  .contractor-projects-table-head,.contractor-projects-table-row { grid-template-columns:minmax(10rem,1.5fr) minmax(8rem,1fr) minmax(6.5rem,.85fr) minmax(6.5rem,.75fr) minmax(5.5rem,.65fr) minmax(5.5rem,.6fr); column-gap:.75rem; }
+}
+
+@media (max-width:1023px) {
+  .contractor-projects-table { overflow-x:auto; }
+  .contractor-projects-table-head,.contractor-projects-table-row { min-width:890px; }
+}
+
+@media (max-width:767px) {
+  .contractor-projects-heading { align-items:stretch; flex-direction:column; gap:.85rem; }
+  .contractor-projects-controls { align-items:stretch; flex-wrap:wrap; }
+  .contractor-projects-filter { flex:1 1 10rem; }
+  .contractor-projects-filter select { width:100%; }
+  .contractor-projects-availability { flex:1 1 auto; }
+  .contractor-projects-table { display:none; }
+  .contractor-projects-cards { display:grid; gap:.75rem; padding:.85rem; }
+  .contractor-project-card { min-width:0; border:1px solid var(--color-border); border-radius:11px; padding:.95rem; }
+  .contractor-project-card-title { display:flex; align-items:flex-start; justify-content:space-between; gap:.75rem; }
+  .contractor-project-card-title>div { min-width:0; }
+  .contractor-project-card-title h2 { overflow-wrap:anywhere; color:var(--color-text); font-size:.95rem; font-weight:650; }
+  .contractor-project-card-title p { margin-top:.25rem; color:var(--color-muted); font-size:.76rem; line-height:1.45; }
+  .contractor-project-card-details { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.8rem; margin-top:.9rem; border-top:1px solid var(--color-border); padding-top:.85rem; }
+  .contractor-project-card-details div { min-width:0; }
+  .contractor-project-card-details dt,.contractor-project-card-skill>span { color:var(--color-muted); font-size:.68rem; }
+  .contractor-project-card-details dd { overflow-wrap:anywhere; margin-top:.12rem; color:var(--color-text-secondary); font-size:.8rem; }
+  .contractor-project-card-details small { display:block; margin-top:.15rem; color:var(--color-muted); font-size:.7rem; }
+  .contractor-project-card-skill { display:flex; align-items:center; justify-content:space-between; gap:.75rem; margin-top:.85rem; border-top:1px solid var(--color-border); padding-top:.8rem; }
+  .contractor-projects-footer { align-items:flex-start; flex-direction:column; margin-top:0; }
+  .contractor-projects-footer span:last-child { text-align:left; }
+}
+
+@media (max-width:419px) {
+  .contractor-project-card-title { flex-direction:column; }
+  .contractor-project-card-details { grid-template-columns:minmax(0,1fr); }
+}

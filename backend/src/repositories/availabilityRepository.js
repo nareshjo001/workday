@@ -1,10 +1,12 @@
 const { pool } = require("../config/db");
 
-async function listForContractor(contractorId) {
+async function listForContractor(contractorId, range = null) {
+  const rangeClause = range ? " AND start_date <= ? AND end_date >= ?" : "";
+  const params = range ? [contractorId, range.toDate, range.fromDate] : [contractorId];
   const [rows] = await pool.query(
     `SELECT id, start_date, end_date, reason, status, created_at, cancelled_at
-     FROM contractor_unavailability WHERE contractor_id = ? ORDER BY start_date ASC, id ASC`,
-    [contractorId]
+     FROM contractor_unavailability WHERE contractor_id = ?${rangeClause} ORDER BY start_date ASC, id ASC`,
+    params
   );
   return rows;
 }

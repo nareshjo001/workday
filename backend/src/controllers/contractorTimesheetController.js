@@ -20,7 +20,23 @@ const submit = asyncHandler(async (req, res) => {
 });
 
 const list = asyncHandler(async (req, res) => {
-  const query = parseListQuery(req.query, { allowedSorts: { default: "t.work_date", work_date: "t.work_date", status: "t.status", submitted_at: "t.submitted_at" }, allowedFilters: { status: (v) => { const x = String(v).toUpperCase(); if (!["DRAFT", "SUBMITTED", "APPROVED", "REJECTED"].includes(x)) throw require("../utils/ApiError").badRequest("Unsupported timesheet status."); return x; }, projectId: (v) => { const n = Number(v); if (!Number.isInteger(n) || n < 1) throw require("../utils/ApiError").badRequest("projectId must be a positive integer."); return n; }, startDate: isoDateFilter } });
+  const query = parseListQuery(req.query, {
+    defaultPageSize: 5,
+    allowedSorts: { default: "t.work_date", work_date: "t.work_date", status: "t.status", submitted_at: "t.submitted_at" },
+    allowedFilters: {
+      status: (v) => {
+        const x = String(v).toUpperCase();
+        if (!["DRAFT", "SUBMITTED", "APPROVED", "REJECTED"].includes(x)) throw require("../utils/ApiError").badRequest("Unsupported timesheet status.");
+        return x;
+      },
+      projectId: (v) => {
+        const n = Number(v);
+        if (!Number.isInteger(n) || n < 1) throw require("../utils/ApiError").badRequest("projectId must be a positive integer.");
+        return n;
+      },
+      startDate: isoDateFilter,
+    },
+  });
   res.status(200).json(await contractorTimesheetService.listMyTimesheetsPage(req.user.userId, query));
 });
 

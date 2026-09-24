@@ -7,7 +7,6 @@ const ApiError = require("../utils/ApiError");
 const auditService = require("./auditService");
 const notifications = require("./notificationService");
 const { submissionLifecycleKey } = require("../utils/notificationLifecycle");
-const { pageResult } = require("../utils/listQuery");
 
 function todayDateString() {
   return new Date().toISOString().slice(0, 10);
@@ -238,9 +237,23 @@ async function listMyTimesheets(userId) {
 }
 async function listMyTimesheetsPage(userId, query) {
   const contractor = await contractorRepository.findByUserId(userId);
-  if (!contractor) return pageResult([], 0, query);
+  if (!contractor) {
+    return {
+      items: [],
+      page: query.page,
+      page_size: query.pageSize,
+      total_weeks: 0,
+      total_pages: 0,
+    };
+  }
   const { rows, total } = await timesheetRepository.listPageByContractor(contractor.id, query);
-  return pageResult(rows, total, query);
+  return {
+    items: rows,
+    page: query.page,
+    page_size: query.pageSize,
+    total_weeks: total,
+    total_pages: Math.ceil(total / query.pageSize),
+  };
 }
 
 async function submitTimesheets(userId, timesheetIds, auditActor) {
@@ -335,8 +348,8 @@ async function updateTimesheet(userId, timesheetId, { workDate, hoursLogged, des
       // another contractor — never confirm which.
       throw ApiError.notFound("Timesheet not found.");
     }
-    if (existing.status !== "REJECTED") {
-      throw ApiError.conflict("Only rejected timesheets can be edited.");
+    if (existing.status !== "DRAFT" && existing.status !== "REJECTED") {
+      throw ApiError.conflict("Only draft and rejected timesheets can be edited.");
     }
 
     const assignment = await assignmentRepository.lockActiveForContractorProject(
@@ -367,7 +380,11 @@ async function updateTimesheet(userId, timesheetId, { workDate, hoursLogged, des
 
     let updated;
     try {
-      updated = await timesheetRepository.updateRejectedLog(conn, timesheetId, { workDate, hoursLogged, description });
+      if (existing.status === "DRAFT") {
+        updated = await timesheetRepository.updateDraftLog(conn, timesheetId, { workDate, hoursLogged, description });
+      } else {
+        updated = await timesheetRepository.updateRejectedLog(conn, timesheetId, { workDate, hoursLogged, description });
+      }
     } catch (err) {
       if (err?.code === "ER_DUP_ENTRY") {
         throw ApiError.conflict("A timesheet for this project and date already exists.");
@@ -375,20 +392,25 @@ async function updateTimesheet(userId, timesheetId, { workDate, hoursLogged, des
       throw err;
     }
     if (!updated) {
-      // Lost a race — status changed between the lock read and the
-      // conditional UPDATE (should be unreachable given the row lock,
-      // but the conditional WHERE status = 'REJECTED' is the real
-      // guarantee, not the lock alone).
-      throw ApiError.conflict("Only rejected timesheets can be edited.");
+      throw ApiError.conflict("Only draft and rejected timesheets can be edited.");
     }
 
     if (auditActor) {
-      await auditService.write(conn, auditActor, "TIMESHEET_RESUBMITTED", "timesheet", timesheetId, {
-        work_date: existing.work_date, hours_logged: Number(existing.hours_logged), description: existing.description || null,
-        rejection_reason: existing.rejection_reason || null, status: existing.status,
-      }, {
-        work_date: workDate, hours_logged: hoursLogged, description, status: "DRAFT",
-      });
+      if (existing.status === "REJECTED") {
+        await auditService.write(conn, auditActor, "TIMESHEET_RESUBMITTED", "timesheet", timesheetId, {
+          work_date: existing.work_date, hours_logged: Number(existing.hours_logged), description: existing.description || null,
+          rejection_reason: existing.rejection_reason || null, status: existing.status,
+        }, {
+          work_date: workDate, hours_logged: hoursLogged, description, status: "DRAFT",
+        });
+      } else {
+        await auditService.write(conn, auditActor, "TIMESHEET_DRAFT_SAVED", "timesheet", timesheetId, {
+          work_date: existing.work_date, hours_logged: Number(existing.hours_logged), description: existing.description || null,
+          status: "DRAFT",
+        }, {
+          work_date: workDate, hours_logged: hoursLogged, description, status: "DRAFT",
+        });
+      }
     }
 
     await conn.commit();

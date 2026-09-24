@@ -44,6 +44,17 @@ test("M11 prevents overlapping staffing, respects unavailability, and preserves 
   assert.equal(unavailable.response.status, 409); assert.match(unavailable.data.message, /unavailable/i);
   const availabilityList = await request("GET", "/contractor/availability", undefined, contractor);
   assert.equal(availabilityList.response.status, 200); assert.equal(availabilityList.data.length, 1);
+  const missingReason = await request("POST", "/contractor/availability", { start_date: day(20), end_date: day(22) }, contractor);
+  assert.equal(missingReason.response.status, 400); assert.match(missingReason.data.details[0], /reason is required/i);
+  const laterAvailability = await request("POST", "/contractor/availability", { start_date: day(20), end_date: day(22), reason: "Training" }, contractor);
+  assert.equal(laterAvailability.response.status, 201);
+  const overlappingFilter = await request("GET", `/contractor/availability?from_date=${day(12)}&to_date=${day(20)}`, undefined, contractor);
+  assert.equal(overlappingFilter.response.status, 200);
+  assert.deepEqual(overlappingFilter.data.map((item) => item.id), [availability.data.id, laterAvailability.data.id]);
+  const emptyFilter = await request("GET", `/contractor/availability?from_date=${day(13)}&to_date=${day(19)}`, undefined, contractor);
+  assert.equal(emptyFilter.response.status, 200); assert.deepEqual(emptyFilter.data, []);
+  const invalidFilter = await request("GET", `/contractor/availability?from_date=${day(13)}`, undefined, contractor);
+  assert.equal(invalidFilter.response.status, 400);
   const raceA = await project(pm, "M11 Race A", day(14), day(16)); const raceB = await project(pm, "M11 Race B", day(14), day(16));
   const raceSubmissions = await Promise.all([raceA, raceB].map((item) => request("POST", `/vendor/projects/${item.id}/requirements/${item.requirementId}/candidates`, { contractor_id: createdContractor.data.id, start_date: day(14), end_date: day(16) }, vendor)));
   const race = await Promise.all(raceSubmissions.map((result) => request("PATCH", `/pm/candidate-submissions/${result.data.id}`, { status:"ACCEPTED" }, pm)));

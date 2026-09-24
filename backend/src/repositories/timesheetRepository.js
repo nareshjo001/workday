@@ -79,14 +79,54 @@ async function listByContractor(contractorId) {
 }
 
 async function listPageByContractor(contractorId, query) {
-  const where = ["t.contractor_id = ?"]; const params = [contractorId];
+  const where = ["t.contractor_id = ?"];
+  const params = [contractorId];
   if (query.filters.status) { where.push("t.status = ?"); params.push(query.filters.status); }
   if (query.filters.projectId) { where.push("t.project_id = ?"); params.push(query.filters.projectId); }
   if (query.filters.startDate) { where.push("t.work_date >= ?"); params.push(query.filters.startDate); }
   const clause = where.join(" AND ");
-  const [[count]] = await pool.query(`SELECT COUNT(*) AS total FROM timesheets t WHERE ${clause}`, params);
-  const [rows] = await pool.query(`SELECT t.id, t.contractor_id, t.project_id, p.name AS project_name, t.work_date, t.hours_logged, t.description, t.status, t.rejection_reason, t.submitted_at, t.reviewed_at, reviewer.name AS reviewer_name FROM timesheets t INNER JOIN projects p ON p.id=t.project_id LEFT JOIN users reviewer ON reviewer.id=t.reviewed_by WHERE ${clause} ORDER BY ${query.sortColumn} ${query.order}, t.id ${query.order} LIMIT ? OFFSET ?`, [...params, query.pageSize, query.offset]);
-  return { rows: rows.map(toView), total: Number(count.total) };
+
+  // STEP 1: Count distinct non-empty calendar weeks (Monday-based: DATE_SUB(..., INTERVAL WEEKDAY(...) DAY))
+  const [[count]] = await pool.query(
+    `SELECT COUNT(DISTINCT DATE_SUB(t.work_date, INTERVAL WEEKDAY(t.work_date) DAY)) AS total
+     FROM timesheets t
+     WHERE ${clause}`,
+    params
+  );
+  const totalWeeks = Number(count?.total) || 0;
+  if (totalWeeks === 0) {
+    return { rows: [], total: 0 };
+  }
+
+  // STEP 2: Fetch the selected distinct week starts for the requested page
+  const [weekRows] = await pool.query(
+    `SELECT DISTINCT DATE_SUB(t.work_date, INTERVAL WEEKDAY(t.work_date) DAY) AS week_start
+     FROM timesheets t
+     WHERE ${clause}
+     ORDER BY week_start DESC
+     LIMIT ? OFFSET ?`,
+    [...params, query.pageSize, query.offset]
+  );
+  const weekStarts = weekRows.map((r) => r.week_start);
+  if (!weekStarts.length) {
+    return { rows: [], total: totalWeeks };
+  }
+
+  // STEP 3: Fetch ALL timesheet rows belonging to those selected calendar weeks (no row LIMIT)
+  const [rows] = await pool.query(
+    `SELECT t.id, t.contractor_id, t.project_id, p.name AS project_name,
+            t.work_date, t.hours_logged, t.description, t.status, t.rejection_reason,
+            t.submitted_at, t.reviewed_at, reviewer.name AS reviewer_name
+     FROM timesheets t
+     INNER JOIN projects p ON p.id = t.project_id
+     LEFT JOIN users reviewer ON reviewer.id = t.reviewed_by
+     WHERE ${clause}
+       AND DATE_SUB(t.work_date, INTERVAL WEEKDAY(t.work_date) DAY) IN (?)
+     ORDER BY t.work_date DESC, t.id DESC`,
+    [...params, weekStarts]
+  );
+
+  return { rows: rows.map(toView), total: totalWeeks };
 }
 
 /**
@@ -236,6 +276,21 @@ async function updateRejectedLog(conn, timesheetId, { workDate, hoursLogged, des
      SET work_date = ?, hours_logged = ?, description = ?, status = 'DRAFT',
          reviewed_by = NULL, reviewed_at = NULL, rejection_reason = NULL, submitted_at = NOW()
      WHERE id = ? AND status = 'REJECTED'`,
+    [workDate, hoursLogged, description, timesheetId]
+  );
+  return result.affectedRows > 0;
+}
+
+/**
+ * Applies a contractor's edit to their own DRAFT daily log.
+ * Preserves DRAFT status (DRAFT -> DRAFT) and leaves all review/submitted
+ * metadata untouched (no fabricated timestamps, no fake review history).
+ */
+async function updateDraftLog(conn, timesheetId, { workDate, hoursLogged, description = null }) {
+  const [result] = await conn.query(
+    `UPDATE timesheets
+     SET work_date = ?, hours_logged = ?, description = ?
+     WHERE id = ? AND status = 'DRAFT'`,
     [workDate, hoursLogged, description, timesheetId]
   );
   return result.affectedRows > 0;
@@ -427,6 +482,7 @@ module.exports = {
   markReviewed,
   lockForOwnerEdit,
   updateRejectedLog,
+  updateDraftLog,
   lockOwnedByIds,
   markSubmitted,
   sumReservedHoursForContractorProject,
