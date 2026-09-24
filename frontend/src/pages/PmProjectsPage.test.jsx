@@ -3,13 +3,13 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import PMProjectsPage from "./PMProjectsPage";
 
-const { getCapabilities, getProjectControl, explainFinding } = vi.hoisted(() => ({ getCapabilities: vi.fn(), getProjectControl: vi.fn(), explainFinding: vi.fn() }));
+const { getCapabilities, getProjectControl, explainFinding, projectActivity } = vi.hoisted(() => ({ getCapabilities: vi.fn(), getProjectControl: vi.fn(), explainFinding: vi.fn(), projectActivity: vi.fn() }));
 vi.mock("../layouts/DashboardLayout", () => ({ default: ({ children }) => <main>{children}</main> }));
 vi.mock("../services/pmProjectService", () => ({ default: { listProjects: vi.fn().mockResolvedValue({ items: [{ id: 2, name: "Atlas", status: "ACTIVE" }, { id: 3, name: "Nova", status: "ACTIVE" }], total_pages: 1, total: 2 }) } }));
 vi.mock("../services/intelligenceService", () => ({ default: { getCapabilities } }));
 vi.mock("../services/pmProjectControlService", () => ({ default: { getProjectControl, explainFinding } }));
-vi.mock("../components/projects/ProjectTable", () => ({ default: ({ projects, onControl }) => <div>{onControl && projects.map((project) => <button key={project.id} onClick={() => onControl(project)}>Open control {project.id}</button>)}</div> }));
-vi.mock("../components/projects/ProjectCardList", () => ({ default: () => null }));
+vi.mock("../services/auditActivityService", () => ({ default: { project: projectActivity } }));
+vi.mock("../components/dashboard/PmProjectPreview", () => ({ default: ({ projects, onControl, onActivity }) => <div>{onControl && projects.map((project) => <button key={project.id} onClick={(event) => onControl(project, event.currentTarget)}>Open control {project.id}</button>)}{onActivity && projects.map((project) => <button key={project.id} onClick={(event) => onActivity(project, event.currentTarget)}>Open activity {project.id}</button>)}</div> }));
 
 const caps = (enabled, ai = false) => ({ capabilities: { pm_project_control: enabled, ai_explanations: ai } });
 const response = { project: { id: 2, name: "Atlas", status: "ACTIVE" }, summary: { attention_count: 0, by_severity: { HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 } }, findings: [] };
@@ -18,9 +18,96 @@ const deferred = () => { let resolve; let reject; const promise = new Promise((r
 describe("PMProjectsPage M28 boundary", () => {
   it("does not expose or request Project Control when disabled", async () => { getCapabilities.mockResolvedValue(caps(false)); render(<MemoryRouter><PMProjectsPage /></MemoryRouter>); await waitFor(() => expect(getCapabilities).toHaveBeenCalled()); expect(screen.queryByText("Open control")).not.toBeInTheDocument(); expect(getProjectControl).not.toHaveBeenCalled(); });
   it("clears stale findings and loads selected project control only after the explicit action", async () => { getCapabilities.mockResolvedValue(caps(true)); getProjectControl.mockResolvedValueOnce(response).mockResolvedValueOnce({ ...response, project: { name: "Nova", status: "ACTIVE" } }); render(<MemoryRouter><PMProjectsPage /></MemoryRouter>); await screen.findByText("Open control 2"); fireEvent.click(screen.getByText("Open control 2")); await screen.findByText("No current attention items for this project."); fireEvent.click(screen.getByText("Open control 3")); expect(screen.getByText("Loading project attention…")).toBeInTheDocument(); expect(screen.queryByText("No current attention items for this project.")).not.toBeInTheDocument(); await waitFor(() => expect(getProjectControl).toHaveBeenLastCalledWith(3)); });
+  it("opens Project Control as a modal and restores trigger focus after Escape", async () => { getCapabilities.mockResolvedValue(caps(true)); getProjectControl.mockResolvedValue(response); render(<MemoryRouter><PMProjectsPage /></MemoryRouter>); const trigger = await screen.findByText("Open control 2"); fireEvent.click(trigger); const dialog = await screen.findByRole("dialog", { name: "Project Control" }); expect(dialog).toContainElement(screen.getByText("Attention Summary")); expect(document.body.style.overflow).toBe("hidden"); fireEvent.keyDown(document, { key: "Escape" }); await waitFor(() => expect(screen.queryByRole("dialog", { name: "Project Control" })).not.toBeInTheDocument()); await waitFor(() => expect(trigger).toHaveFocus()); expect(document.body.style.overflow).toBe(""); });
+  it("opens Project Activity as a modal overlay and restores trigger focus on close", async () => {
+    projectActivity.mockResolvedValue({
+      project: { id: 2, name: "Atlas", status: "ACTIVE" },
+      items: [{
+        id: 101,
+        occurred_at: "2026-09-14T10:15:00.000Z",
+        event: "INVOICE_APPROVED",
+        actor: { display_name: "Sarah Chen", role: "CLIENT" },
+        entity: { type: "INVOICE", id: "INV-1" },
+        title: "Invoice approved",
+        summary: "Sarah Chen approved invoice.",
+        details: [],
+      }],
+      pagination: { page: 1, limit: 25, total: 1, total_pages: 1 },
+    });
+
+    render(<MemoryRouter><PMProjectsPage /></MemoryRouter>);
+    const trigger = await screen.findByText("Open activity 2");
+    fireEvent.click(trigger);
+
+    const dialog = await screen.findByRole("dialog", { name: "Activity" });
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(document.body.style.overflow).toBe("hidden");
+
+    expect(await screen.findByText("Invoice approved")).toBeInTheDocument();
+    expect(screen.getByText("Atlas · ACTIVE")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Activity" })).not.toBeInTheDocument());
+    await waitFor(() => expect(trigger).toHaveFocus());
+    expect(document.body.style.overflow).toBe("");
+  });
   it("requests an AI explanation only after an explicit finding click and clears it on refresh", async () => { const populated = { ...response, summary: { attention_count: 1, by_severity: { HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 1 } }, findings: [{ code: "OPEN_REQUIREMENTS_REMAIN", severity: "INFO", title: "Staffing", summary: "One role remains.", evidence: [{ key: "remaining", label: "Remaining roles", value: 1 }], recommended_action: "Review requirements.", source: { engine: "pm_project_control", version: "1" } }] }; getCapabilities.mockResolvedValue(caps(true, true)); getProjectControl.mockResolvedValue(populated); explainFinding.mockResolvedValue({ explanation: "One recorded role is unstaffed.", source: "AI" }); render(<MemoryRouter><PMProjectsPage /></MemoryRouter>); await screen.findByText("Open control 2"); fireEvent.click(screen.getByText("Open control 2")); await screen.findByRole("button", { name: "Explain with AI" }); expect(explainFinding).not.toHaveBeenCalled(); fireEvent.click(screen.getByRole("button", { name: "Explain with AI" })); await waitFor(() => expect(explainFinding).toHaveBeenCalledWith(2, "OPEN_REQUIREMENTS_REMAIN")); await screen.findByText("AI explanation"); fireEvent.click(screen.getByRole("button", { name: "Refresh attention" })); await waitFor(() => expect(getProjectControl).toHaveBeenCalledTimes(2)); expect(screen.queryByText("AI explanation")).not.toBeInTheDocument(); });
   it("ignores a Project A response after switching to Project B with the same finding code", async () => { const oldRequest = deferred(); getCapabilities.mockResolvedValue(caps(true, true)); getProjectControl.mockResolvedValueOnce(controlWithFinding(2, "Atlas")).mockResolvedValueOnce(controlWithFinding(3, "Nova")); explainFinding.mockReturnValueOnce(oldRequest.promise); render(<MemoryRouter><PMProjectsPage /></MemoryRouter>); await screen.findByText("Open control 2"); fireEvent.click(screen.getByText("Open control 2")); await screen.findByText("Atlas staffing"); fireEvent.click(screen.getByRole("button", { name: "Explain with AI" })); fireEvent.click(screen.getByText("Open control 3")); await screen.findByText("Nova staffing"); await act(async () => { oldRequest.resolve({ explanation: "Project A explanation", source: "AI" }); await Promise.resolve(); }); expect(screen.queryByText("Project A explanation")).not.toBeInTheDocument(); expect(screen.getByText("Nova staffing")).toBeInTheDocument(); });
   it("ignores a pre-refresh explanation response", async () => { const oldRequest = deferred(); getCapabilities.mockResolvedValue(caps(true, true)); getProjectControl.mockResolvedValueOnce(controlWithFinding(2, "Atlas")).mockResolvedValueOnce(controlWithFinding(2, "Atlas refreshed")); explainFinding.mockReturnValueOnce(oldRequest.promise); render(<MemoryRouter><PMProjectsPage /></MemoryRouter>); await screen.findByText("Open control 2"); fireEvent.click(screen.getByText("Open control 2")); await screen.findByText("Atlas staffing"); fireEvent.click(screen.getByRole("button", { name: "Explain with AI" })); fireEvent.click(screen.getByRole("button", { name: "Refresh attention" })); await screen.findByText("Atlas refreshed staffing"); await act(async () => { oldRequest.resolve({ explanation: "Old refresh explanation", source: "AI" }); await Promise.resolve(); }); expect(screen.queryByText("Old refresh explanation")).not.toBeInTheDocument(); });
   it("keeps a newer request loading when an older response resolves, then keeps the newer result", async () => { const first = deferred(); const second = deferred(); getCapabilities.mockResolvedValue(caps(true, true)); getProjectControl.mockResolvedValue(controlWithFinding(2, "Atlas")); explainFinding.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise); render(<MemoryRouter><PMProjectsPage /></MemoryRouter>); await screen.findByText("Open control 2"); fireEvent.click(screen.getByText("Open control 2")); await screen.findByText("Atlas staffing"); fireEvent.click(screen.getByRole("button", { name: "Explain with AI" })); fireEvent.click(screen.getByRole("button", { name: "Refresh attention" })); await screen.findByText("Atlas staffing"); fireEvent.click(screen.getByRole("button", { name: "Explain with AI" })); await act(async () => { first.resolve({ explanation: "Older explanation", source: "AI" }); await Promise.resolve(); }); expect(screen.getByRole("button", { name: "Generating explanation…" })).toBeDisabled(); await act(async () => { second.resolve({ explanation: "Newer explanation", source: "AI" }); await Promise.resolve(); }); await screen.findByText("Newer explanation"); expect(screen.queryByText("Older explanation")).not.toBeInTheDocument(); });
   it("does not let an old response overwrite a newer valid result", async () => { const first = deferred(); const second = deferred(); getCapabilities.mockResolvedValue(caps(true, true)); getProjectControl.mockResolvedValue(controlWithFinding(2, "Atlas")); explainFinding.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise); render(<MemoryRouter><PMProjectsPage /></MemoryRouter>); await screen.findByText("Open control 2"); fireEvent.click(screen.getByText("Open control 2")); await screen.findByRole("button", { name: "Explain with AI" }); fireEvent.click(screen.getByRole("button", { name: "Explain with AI" })); fireEvent.click(screen.getByRole("button", { name: "Refresh attention" })); await waitFor(() => expect(screen.queryByText("Loading project attention…")).not.toBeInTheDocument()); fireEvent.click(screen.getByRole("button", { name: "Explain with AI" })); await act(async () => { second.resolve({ explanation: "Current explanation", source: "DETERMINISTIC" }); await Promise.resolve(); }); await screen.findByText("Current explanation"); await act(async () => { first.resolve({ explanation: "Stale explanation", source: "AI" }); await Promise.resolve(); }); expect(screen.getByText("Current explanation")).toBeInTheDocument(); expect(screen.queryByText("Stale explanation")).not.toBeInTheDocument(); });
+  it("transitions from Project Control to Staffing Requirements using modal replacement without stacking", async () => {
+    getCapabilities.mockResolvedValue(caps(true));
+    getProjectControl.mockResolvedValue(controlWithFinding(2, "Atlas"));
+    render(<MemoryRouter><PMProjectsPage /></MemoryRouter>);
+
+    const trigger = await screen.findByText("Open control 2");
+    fireEvent.click(trigger);
+
+    const controlDialog = await screen.findByRole("dialog", { name: "Project Control" });
+    expect(controlDialog).toBeInTheDocument();
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(document.body.style.overflow).toBe("hidden");
+
+    const viewRequirementsBtn = await screen.findByRole("button", { name: "View requirements" });
+    fireEvent.click(viewRequirementsBtn);
+
+    expect(screen.queryByRole("dialog", { name: "Project Control" })).not.toBeInTheDocument();
+
+    const reqDialog = await screen.findByRole("dialog", { name: /Staffing requirements: Atlas/i });
+    expect(reqDialog).toBeInTheDocument();
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(document.body.style.overflow).toBe("hidden");
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.queryByRole("dialog", { name: "Project Control" })).not.toBeInTheDocument();
+    await waitFor(() => expect(trigger).toHaveFocus());
+    expect(document.body.style.overflow).toBe("");
+  });
+  it("handles repeated Control -> Requirements modal transitions cleanly without stale state", async () => {
+    getCapabilities.mockResolvedValue(caps(true));
+    getProjectControl.mockResolvedValue(controlWithFinding(2, "Atlas"));
+    render(<MemoryRouter><PMProjectsPage /></MemoryRouter>);
+
+    const trigger = await screen.findByText("Open control 2");
+
+    for (let i = 0; i < 3; i++) {
+      fireEvent.click(trigger);
+      await screen.findByRole("dialog", { name: "Project Control" });
+      expect(screen.getAllByRole("dialog")).toHaveLength(1);
+
+      const viewReqBtn = await screen.findByRole("button", { name: "View requirements" });
+      fireEvent.click(viewReqBtn);
+      await screen.findByRole("dialog", { name: /Staffing requirements: Atlas/i });
+      expect(screen.queryByRole("dialog", { name: "Project Control" })).not.toBeInTheDocument();
+      expect(screen.getAllByRole("dialog")).toHaveLength(1);
+
+      fireEvent.keyDown(document, { key: "Escape" });
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(screen.queryByRole("dialog", { name: "Project Control" })).not.toBeInTheDocument();
+    }
+  });
 });

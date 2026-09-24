@@ -1,66 +1,12 @@
 import { formatDateTime, formatCurrency, InvoiceStatusBadge } from "./format";
 
-/**
- * Mobile presentation of an invoice list — visible below md, where
- * InvoiceTable takes over. Same split pattern as
- * components/projects/ProjectCardList, and shared between Vendor review
- * mode and PM read-only history the same way InvoiceTable is — see that
- * component's own comment for the reviewModeAvailable/showActions
- * rationale (invoice-workflow redesign: review controls only ever render
- * for a row still PENDING_REVIEW, even on the Vendor's page, which shows
- * full history not just the pending queue).
- */
-export default function InvoiceCardList({ invoices, reviewingId, onApprove, onReject }) {
-  const reviewModeAvailable = typeof onApprove === "function";
-
-  return (
-    <div className="flex flex-col gap-3 md:hidden">
-      {invoices.map((inv) => {
-        const isBusy = reviewingId === inv.id;
-        const showActions = reviewModeAvailable && inv.status === "PENDING_REVIEW";
-        return (
-          <div key={inv.id} className="rounded-md border border-border bg-surface p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-medium text-text">{inv.project_name}</p>
-                <p className="text-xs text-muted">{inv.contractor_name}</p>
-              </div>
-              {!showActions && <InvoiceStatusBadge status={inv.status} />}
-            </div>
-            <p className="mt-2 text-sm text-text-secondary">{inv.milestone_name}</p>
-            <p className="mt-1 text-sm font-medium text-text">{formatCurrency(inv.amount)}</p>
-            <p className="mt-1 text-xs text-muted">Generated {formatDateTime(inv.generated_at)}</p>
-
-            {showActions ? (
-              <div className="mt-3 flex gap-2 border-t border-border pt-3">
-                <button
-                  type="button"
-                  disabled={isBusy}
-                  onClick={() => onApprove(inv.id)}
-                  className="flex-1 rounded-md bg-success-bg px-3 py-2 text-sm font-medium text-success transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Approve
-                </button>
-                <button
-                  type="button"
-                  disabled={isBusy}
-                  onClick={() => onReject(inv.id)}
-                  className="flex-1 rounded-md bg-error-bg px-3 py-2 text-sm font-medium text-error transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Reject
-                </button>
-              </div>
-            ) : (
-              <div className="mt-3 border-t border-border pt-3">
-                <p className="text-xs text-muted">
-                  {inv.reviewed_at ? `Reviewed ${formatDateTime(inv.reviewed_at)}` : "Not yet reviewed"}
-                </p>
-                {inv.rejection_reason && <p className="mt-1 text-xs text-error">{inv.rejection_reason}</p>}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
+export default function InvoiceCardList({ invoices, selectedId, onSelect }) {
+  return <div className="mt-4 flex flex-col gap-2 md:hidden">{invoices.map((invoice) => {
+    const isSelected = selectedId === invoice.id;
+    return <button key={invoice.id} type="button" aria-current={isSelected ? "true" : undefined} onClick={() => onSelect?.(invoice)} className={`rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${isSelected ? "border-blue-300 bg-blue-50/70 shadow-xs" : "border-slate-200 bg-white hover:bg-slate-50/60"}`}>
+      <span className="flex items-start justify-between gap-3"><span className="min-w-0"><span className="block truncate text-sm font-semibold text-blue-700">{invoice.invoice_number || `Draft #${invoice.id}`}</span><span className="mt-0.5 block truncate text-xs text-slate-500">{invoice.project_name || "Project unavailable"}</span></span><InvoiceStatusBadge status={invoice.status} /></span>
+      <span className="mt-3 flex items-center justify-between gap-3 border-t border-slate-200 pt-2 text-xs"><span className="font-semibold tabular-nums text-slate-900">{formatCurrency(invoice.total_amount ?? invoice.amount)}</span><span className="text-right text-slate-500">{formatDateTime(invoice.generated_at)}</span></span>
+      {invoice.rejection_reason && <span className="mt-2 block truncate text-xs text-red-600">{invoice.rejection_reason}</span>}
+    </button>;
+  })}</div>;
 }

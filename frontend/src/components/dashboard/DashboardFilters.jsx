@@ -4,5 +4,29 @@ const FIELDS = [["clientId", "Client ID"], ["projectId", "Project ID"], ["skillI
 export default function DashboardFilters({ onApply }) {
   const [values, setValues] = useState({ clientId: "", projectId: "", skillId: "", status: "", startDate: "", endDate: "" });
   function apply(event) { event.preventDefault(); onApply(Object.fromEntries(Object.entries(values).filter(([, value]) => value !== ""))); }
-  return <form onSubmit={apply} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{FIELDS.map(([key, label]) => <label key={key} className="text-xs text-muted">{label}<input value={values[key]} onChange={(event) => setValues({ ...values, [key]: event.target.value })} className="mt-1 w-full rounded border border-border bg-surface px-2 py-1.5 text-text" /></label>)}<label className="text-xs text-muted">Start date<input type="date" value={values.startDate} onChange={(event) => setValues({ ...values, startDate: event.target.value })} className="mt-1 w-full rounded border border-border bg-surface px-2 py-1.5 text-text" /></label><label className="text-xs text-muted">End date<input type="date" value={values.endDate} onChange={(event) => setValues({ ...values, endDate: event.target.value })} className="mt-1 w-full rounded border border-border bg-surface px-2 py-1.5 text-text" /></label><button className="self-end rounded bg-primary px-3 py-2 text-xs font-medium text-primary-foreground">Apply filters</button></form>;
+  const controlClass = "mt-1 w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-text shadow-sm";
+
+  return (
+    <form onSubmit={apply} className="pm-filter-toolbar">
+      {FIELDS.map(([key, label]) => (
+        <label key={key} className="dashboard-filter-field">
+          <span>{label}</span>
+          <input value={values[key]} onChange={(event) => setValues({ ...values, [key]: event.target.value })} className={controlClass} />
+        </label>
+      ))}
+      <label className="dashboard-filter-field">
+        <span>Start date</span>
+        <input type="date" value={values.startDate} onChange={(event) => setValues({ ...values, startDate: event.target.value })} className={controlClass} />
+      </label>
+      <label className="dashboard-filter-field">
+        <span>End date</span>
+        <input type="date" value={values.endDate} onChange={(event) => setValues({ ...values, endDate: event.target.value })} className={controlClass} />
+      </label>
+      <div className="pm-filter-actions">
+        <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-panel transition hover:bg-primary-hover">
+          Apply filters
+        </button>
+      </div>
+    </form>
+  );
 }

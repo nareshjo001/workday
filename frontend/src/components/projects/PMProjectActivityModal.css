@@ -1,0 +1,179 @@
+.project-activity-modal {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 720px !important;
+  max-height: calc(100dvh - 40px) !important;
+  flex-direction: column;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border-radius: 18px !important;
+  background: #ffffff;
+  box-shadow: 0 24px 64px rgb(15 23 42 / 24%) !important;
+}
+
+.project-activity-modal-header {
+  flex: 0 0 auto;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  gap: 24px !important;
+  margin: 0 !important;
+  padding: 22px 28px 18px !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.project-activity-modal-header > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.project-activity-modal-header h2 {
+  color: #0f172a;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.project-activity-modal-header p {
+  margin: 0 !important;
+}
+
+.project-activity-modal-sub-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.project-activity-modal-desc {
+  display: block;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.project-activity-modal-context {
+  display: block;
+  color: #0f172a !important;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.project-activity-modal-header .ui-modal-header-actions {
+  display: flex !important;
+  flex-shrink: 0 !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.project-activity-refresh-btn {
+  display: inline-flex;
+  height: 42px;
+  min-height: 42px;
+  width: auto;
+  min-width: max-content;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #cbdaf0;
+  border-radius: 9px;
+  outline: none;
+  background: #ffffff;
+  padding: 0 14px;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 4%);
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.project-activity-refresh-btn:hover:not(:disabled) {
+  border-color: #93b4e7;
+  background: #f8fbff;
+}
+
+.project-activity-refresh-btn:focus-visible {
+  box-shadow: 0 0 0 3px rgb(59 130 246 / 16%);
+}
+
+.project-activity-refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.project-activity-refresh-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: #2563eb;
+}
+
+.project-activity-modal-header .ui-modal-header-actions button[aria-label="Close"] {
+  display: inline-flex;
+  height: 42px;
+  width: 42px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  color: #64748b;
+  padding: 0;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.project-activity-modal-header .ui-modal-header-actions button[aria-label="Close"]:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+  border-color: #e2e8f0;
+}
+
+.project-activity-modal-header .ui-modal-header-actions button[aria-label="Close"]:focus-visible {
+  box-shadow: 0 0 0 3px rgb(59 130 246 / 16%);
+}
+
+.project-activity-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: 20px 28px 28px;
+}
+
+.project-activity-modal-body > section > header {
+  display: none !important;
+}
+
+@media (max-width: 640px) {
+  .project-activity-modal {
+    width: calc(100vw - 20px) !important;
+    max-height: calc(100dvh - 20px) !important;
+    border-radius: 14px !important;
+  }
+
+  .project-activity-modal-header {
+    flex-wrap: wrap !important;
+    gap: 14px !important;
+    padding: 16px 18px 14px !important;
+  }
+
+  .project-activity-modal-header > div:first-child {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .project-activity-modal-header .ui-modal-header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .project-activity-modal-body {
+    padding: 14px 18px 20px;
+  }
+}

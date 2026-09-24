@@ -16,11 +16,17 @@ const STATUS_STYLES = {
 export function MilestoneStatusBadge({ status }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold ${
         STATUS_STYLES[status] || "bg-surface-muted text-muted"
       }`}
     >
-      {status === "MET" ? "✓ Met" : status}
+      {status === "MET" && (
+        <svg aria-hidden="true" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+          <circle cx="10" cy="10" r="9" />
+          <path d="m6 10 2.5 2.5L14.5 7" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+      {status === "MET" ? "Met" : status}
     </span>
   );
 }

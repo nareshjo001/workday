@@ -1,0 +1,583 @@
+/* PM Candidate Review Queue Enterprise Styles */
+
+.crq-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+/* ==========================================================================
+   Section Header
+   ========================================================================== */
+
+.crq-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.crq-section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+  line-height: 1.3;
+}
+
+.crq-section-desc {
+  font-size: 13.5px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.crq-counter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
+  width: fit-content;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.crq-counter-icon {
+  color: #64748b;
+  display: flex;
+  align-items: center;
+}
+
+/* ==========================================================================
+   Table Container Card
+   ========================================================================== */
+
+.crq-table-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
+  overflow: hidden;
+}
+
+.crq-loading-box {
+  padding: 48px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Scroll wrapper for responsive desktop/tablet */
+.crq-table-scroll-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.crq-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+}
+
+.crq-thead {
+  background-color: #f8fafc;
+}
+
+.crq-th {
+  padding: 13px 20px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.crq-th-actions {
+  text-align: right;
+}
+
+.crq-tr {
+  transition: background-color 0.15s ease;
+}
+
+.crq-tr:hover {
+  background-color: #f8fafc;
+}
+
+.crq-td {
+  padding: 18px 20px;
+  vertical-align: middle;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 13.5px;
+}
+
+.crq-tr:last-child .crq-td {
+  border-bottom: none;
+}
+
+/* Column Specific Styling */
+.crq-candidate-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.4;
+}
+
+.crq-vendor-name {
+  font-size: 13.5px;
+  color: #475569;
+  font-weight: 450;
+}
+
+.crq-project-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.crq-project-name {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.crq-skill-name {
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.crq-dates-text {
+  font-size: 13px;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Semantic Status Badges
+   ========================================================================== */
+
+.crq-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.crq-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Pending / Submitted */
+.crq-status-pill--pending {
+  background-color: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+.crq-status-pill--pending .crq-status-dot {
+  background-color: #f59e0b;
+}
+
+/* Shortlisted */
+.crq-status-pill--shortlisted {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+.crq-status-pill--shortlisted .crq-status-dot {
+  background-color: #3b82f6;
+}
+
+/* Accepted */
+.crq-status-pill--accepted {
+  background-color: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+.crq-status-pill--accepted .crq-status-dot {
+  background-color: #10b981;
+}
+
+/* Rejected */
+.crq-status-pill--rejected {
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+.crq-status-pill--rejected .crq-status-dot {
+  background-color: #ef4444;
+}
+
+/* Withdrawn / Default */
+.crq-status-pill--withdrawn,
+.crq-status-pill--default {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+.crq-status-pill--withdrawn .crq-status-dot,
+.crq-status-pill--default .crq-status-dot {
+  background-color: #64748b;
+}
+
+/* ==========================================================================
+   Action Buttons
+   ========================================================================== */
+
+.crq-actions-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.crq-actions-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.crq-btn-accept {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1.5px solid #10b981;
+  background-color: #ffffff;
+  color: #047857;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.05s ease;
+}
+
+.crq-btn-accept:hover:not(:disabled) {
+  background-color: #ecfdf5;
+  border-color: #059669;
+  color: #065f46;
+}
+
+.crq-btn-accept:active:not(:disabled) {
+  background-color: #d1fae5;
+  transform: translateY(1px);
+}
+
+.crq-btn-accept:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.crq-btn-reject {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1.5px solid #f87171;
+  background-color: #ffffff;
+  color: #b91c1c;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.05s ease;
+}
+
+.crq-btn-reject:hover:not(:disabled) {
+  background-color: #fef2f2;
+  border-color: #ef4444;
+  color: #991b1b;
+}
+
+.crq-btn-reject:active:not(:disabled) {
+  background-color: #fee2e2;
+  transform: translateY(1px);
+}
+
+.crq-btn-reject:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Sidebar open (default / uncollapsed): show only icons (tick, cross) */
+.workspace:not(.has-collapsed-sidebar) .crq-btn-accept,
+.workspace:not(.has-collapsed-sidebar) .crq-btn-reject {
+  width: 32px;
+  min-width: 32px;
+  max-width: 32px;
+  height: 32px;
+  padding: 0;
+  gap: 0;
+  justify-content: center;
+}
+
+.workspace:not(.has-collapsed-sidebar) .crq-btn-accept :is(.crq-btn-label, span),
+.workspace:not(.has-collapsed-sidebar) .crq-btn-reject :is(.crq-btn-label, span) {
+  display: none;
+}
+
+/* Sidebar collapsed: show full button with icon + text label */
+.workspace.has-collapsed-sidebar .crq-btn-accept,
+.workspace.has-collapsed-sidebar .crq-btn-reject {
+  width: auto;
+  min-width: auto;
+  max-width: none;
+  height: 32px;
+  padding: 0 12px;
+  gap: 5px;
+  justify-content: center;
+}
+
+.workspace.has-collapsed-sidebar .crq-btn-accept :is(.crq-btn-label, span),
+.workspace.has-collapsed-sidebar .crq-btn-reject :is(.crq-btn-label, span) {
+  display: inline;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Empty State
+   ========================================================================== */
+
+.crq-empty-container {
+  padding: 56px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.crq-empty-icon-wrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  margin-bottom: 14px;
+}
+
+.crq-empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+}
+
+.crq-empty-desc {
+  font-size: 13.5px;
+  color: #64748b;
+  margin: 0;
+  max-width: 420px;
+  line-height: 1.45;
+}
+
+/* ==========================================================================
+   Rejection Modal Dialog
+   ========================================================================== */
+
+.crq-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 16px;
+  animation: crqFadeIn 0.15s ease-out;
+}
+
+@keyframes crqFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.crq-modal-dialog {
+  background-color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  width: 100%;
+  max-width: 520px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: crqSlideUp 0.15s ease-out;
+}
+
+@keyframes crqSlideUp {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.crq-modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.crq-modal-icon-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background-color: #fef2f2;
+  color: #dc2626;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.crq-modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+}
+
+.crq-modal-desc {
+  font-size: 13.5px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.crq-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.crq-label {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #0f172a;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.crq-textarea {
+  width: 100%;
+  min-height: 96px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  font-size: 13.5px;
+  color: #0f172a;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.crq-textarea:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.crq-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.crq-btn-cancel {
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.crq-btn-cancel:hover:not(:disabled) {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.crq-btn-confirm-reject {
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background-color: #dc2626;
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(220, 38, 38, 0.2);
+  transition: background-color 0.15s ease, transform 0.05s ease;
+}
+
+.crq-btn-confirm-reject:hover:not(:disabled) {
+  background-color: #b91c1c;
+}
+
+.crq-btn-confirm-reject:active:not(:disabled) {
+  background-color: #991b1b;
+  transform: translateY(1px);
+}
+
+.crq-btn-confirm-reject:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Responsive Breakpoints
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .crq-section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .crq-td,
+  .crq-th {
+    padding: 14px 14px;
+  }
+}

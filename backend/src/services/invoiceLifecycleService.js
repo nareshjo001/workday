@@ -7,6 +7,9 @@ const { buildPdf } = require('./invoicePdfService');
 const payments = require('./paymentService');
 const { submissionLifecycleKey } = require('../utils/notificationLifecycle');
 
+const PM_VISIBLE_INVOICE_STATUSES = Object.freeze(['SUBMITTED', 'APPROVED', 'REJECTED']);
+const placeholders = (values) => values.map(() => '?').join(',');
+
 const id = (value) => { const parsed = Number(value); if (!Number.isInteger(parsed) || parsed < 1) throw ApiError.badRequest('Validation failed', ['A positive id is required.']); return parsed; };
 const decimal = (value, field, { min = 0, max = 9999999999 } = {}) => { const parsed = Number(value); if (!Number.isFinite(parsed) || parsed < min || parsed > max || Math.round(parsed * 100) !== parsed * 100) throw ApiError.badRequest('Validation failed', [`${field} must be a valid amount with at most two decimal places.`]); return parsed.toFixed(2); };
 const isoDate = (value, field, required = false) => { if (!value && !required) return null; if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value)) || Number.isNaN(Date.parse(`${value}T00:00:00Z`))) throw ApiError.badRequest('Validation failed', [`${field} must be a valid date.`]); return value; };
@@ -67,6 +70,10 @@ async function listForActor(actor, query = {}) {
   const pmScope = actor.role === 'PM';
   const conditions = [pmScope ? 'p.pm_id=?' : 'i.vendor_id=?'];
   const values = [actor.userId];
+  if (pmScope) {
+    conditions.push(`i.status IN (${placeholders(PM_VISIBLE_INVOICE_STATUSES)})`);
+    values.push(...PM_VISIBLE_INVOICE_STATUSES);
+  }
   if (query.filters?.status) { conditions.push('i.status=?'); values.push(query.filters.status); }
   if (query.filters?.projectId) { conditions.push('i.project_id=?'); values.push(query.filters.projectId); }
   const join = pmScope ? 'JOIN projects p ON p.id=i.project_id' : '';
@@ -110,7 +117,25 @@ async function submit(vendorId, invoiceId, actor) { const conn = await pool.getC
 async function review(pmId, invoiceId, status, reason, actor) { if (!['APPROVED', 'REJECTED'].includes(status) || (status === 'REJECTED' && !reason)) throw ApiError.badRequest('Validation failed', ['A rejection reason is required.']); const conn = await pool.getConnection(); try { await conn.beginTransaction(); const [[invoice]] = await conn.query('SELECT i.* FROM invoices i JOIN projects p ON p.id=i.project_id WHERE i.id=? AND p.pm_id=? FOR UPDATE', [invoiceId, pmId]); if (!invoice) throw ApiError.notFound('Invoice not found.'); if (invoice.status !== 'SUBMITTED') throw ApiError.conflict('Invoice is not submitted.'); await conn.query("UPDATE invoices SET status=?,reviewed_by=?,reviewed_at=NOW(),rejection_reason=? WHERE id=? AND status='SUBMITTED'", [status, pmId, status === 'REJECTED' ? reason : null, invoiceId]); await audit.write(conn, actor, `INVOICE_${status}`, 'invoice', invoiceId, { status: 'SUBMITTED' }, { status }); await conn.commit(); await notifications.notify({ recipientId: invoice.vendor_id, eventType: status === 'APPROVED' ? 'INVOICE_APPROVED' : 'INVOICE_REJECTED', entityType: 'invoice', entityId: invoiceId, message: `Your invoice was ${status.toLowerCase()}.`, deepLink: '/vendor/invoices' }).catch((error) => console.error('[invoiceLifecycle] notification failed after review:', error.message)); return detail(invoiceId); } catch (error) { await conn.rollback().catch(() => {}); throw error; } finally { conn.release(); } }
 async function revise(vendorId, invoiceId, actor) { const conn = await pool.getConnection(); try { await conn.beginTransaction(); const [[invoice]] = await conn.query('SELECT * FROM invoices WHERE id=? AND vendor_id=? FOR UPDATE', [invoiceId, vendorId]); if (!invoice) throw ApiError.notFound('Invoice not found.'); if (invoice.status !== 'REJECTED') throw ApiError.conflict('Only rejected invoices can be revised.'); await conn.query("UPDATE invoices SET status='DRAFT',reviewed_by=NULL,reviewed_at=NULL,rejection_reason=NULL,document_frozen_at=NULL,pdf_storage_key=NULL,pdf_size_bytes=NULL,pdf_generated_at=NULL WHERE id=?", [invoiceId]); await audit.write(conn, actor, 'INVOICE_REVISED', 'invoice', invoiceId, { status: 'REJECTED' }, { status: 'DRAFT', invoice_number: invoice.invoice_number }); await conn.commit(); return detail(invoiceId); } catch (error) { await conn.rollback().catch(() => {}); throw error; } finally { conn.release(); } }
 async function cancel(vendorId, invoiceId, actor) { const conn = await pool.getConnection(); try { await conn.beginTransaction(); const [[invoice]] = await conn.query('SELECT * FROM invoices WHERE id=? AND vendor_id=? FOR UPDATE', [invoiceId, vendorId]); if (!invoice) throw ApiError.notFound('Invoice not found.'); if (!['DRAFT', 'REJECTED'].includes(invoice.status)) throw ApiError.conflict('Only draft or rejected invoices can be cancelled.'); await conn.query("UPDATE invoices SET status='CANCELLED',cancelled_at=NOW() WHERE id=?", [invoiceId]); await audit.write(conn, actor, 'INVOICE_CANCELLED', 'invoice', invoiceId, { status: invoice.status }, { status: 'CANCELLED' }); await conn.commit(); return detail(invoiceId); } catch (error) { await conn.rollback().catch(() => {}); throw error; } finally { conn.release(); } }
-async function ownedDetail(actor, invoiceId) { const invoice = await detail(invoiceId); if (!invoice) throw ApiError.notFound('Invoice not found.'); const owned = actor.role === 'VENDOR' ? invoice.vendor_id === actor.userId : actor.role === 'PM' && (await pool.query('SELECT 1 FROM projects WHERE id=? AND pm_id=?', [invoice.project_id, actor.userId]))[0].length; if (!owned) throw ApiError.notFound('Invoice not found.'); return invoice; }
+async function ownedDetail(actor, invoiceId) {
+  if (actor.role === 'PM') {
+    const [[visible]] = await pool.query(
+      `SELECT 1
+         FROM invoices i
+         JOIN projects p ON p.id=i.project_id
+        WHERE i.id=? AND p.pm_id=?
+          AND i.status IN (${placeholders(PM_VISIBLE_INVOICE_STATUSES)})
+        LIMIT 1`,
+      [invoiceId, actor.userId, ...PM_VISIBLE_INVOICE_STATUSES],
+    );
+    if (!visible) throw ApiError.notFound('Invoice not found.');
+    return detail(invoiceId);
+  }
+
+  const invoice = await detail(invoiceId);
+  if (!invoice || actor.role !== 'VENDOR' || invoice.vendor_id !== actor.userId) throw ApiError.notFound('Invoice not found.');
+  return invoice;
+}
 async function pdf(actor, invoiceId) { const invoice = await ownedDetail(actor, invoiceId); if (!invoice.pdf_storage_key) throw ApiError.notFound('Invoice document not found.'); return { invoice, data: await storage.read(invoice.pdf_storage_key) }; }
 async function regenerateDraftPdf(vendorId, invoiceId) { const conn = await pool.getConnection(); try { await conn.beginTransaction(); const [[invoice]] = await conn.query('SELECT * FROM invoices WHERE id=? AND vendor_id=? FOR UPDATE', [invoiceId, vendorId]); if (!invoice) throw ApiError.notFound('Invoice not found.'); if (invoice.status !== 'DRAFT') throw ApiError.conflict('Only draft documents can be regenerated.'); await persistPdf(conn, invoiceId); await conn.commit(); return detail(invoiceId); } catch (error) { await conn.rollback().catch(() => {}); throw error; } finally { conn.release(); } }
 module.exports = { queue, createDraft, addItem, removeItem, updateDraft, detail, listForActor, ownedDetail, pdf, regenerateDraftPdf, submit, review, revise, cancel };

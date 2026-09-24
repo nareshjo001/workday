@@ -34,3 +34,61 @@ test("M09 guards PM membership, scopes client data, and preserves history after 
   assert.equal((await request("DELETE", `/pm/vendor-access/${vendorAId}`, undefined, pm.token)).response.status, 204);
   assert.equal((await request("GET", `/vendor/projects/${scopedProject.id}/requirements`, undefined, vendorA.token)).response.status, 404, "revocation blocks future sourcing"); const [assignments] = await pool.query("SELECT id FROM project_assignments WHERE project_id=?", [scopedProject.id]); assert.equal(assignments.length, 1, "revocation retains historical assignment records"); assert.equal((await request("GET", "/vendor/clients", undefined, vendorA.token)).data.items.length, 0, "directory only includes active relationships");
 });
+
+test("M09 lists connected vendors with client access and authoritative project grants", async () => {
+  const company = `M09 Clarify Company ${Date.now()}`;
+  const pm = await signup("PM", company);
+  const vendorClientOnly = await signup("VENDOR");
+  const vendorWithProject = await signup("VENDOR");
+  const vendorClientOnlyId = await userId(vendorClientOnly.email);
+  const vendorWithProjectId = await userId(vendorWithProject.email);
+
+  const project1 = await project(pm);
+  const project2 = (await request("POST", "/pm/projects", { name: "Second Project", start_date: new Date().toISOString().slice(0, 10), expected_hours: 8, requirements: [{ skill: "BACKEND", required_count: 1 }] }, pm.token)).data;
+
+  // 1. Connect vendorClientOnly with client-only (no project)
+  const resClientOnly = await request("POST", "/pm/vendor-access", { vendorId: vendorClientOnlyId }, pm.token);
+  assert.equal(resClientOnly.response.status, 201);
+
+  // 2. Connect vendorWithProject with project1
+  const resWithProject = await request("POST", "/pm/vendor-access", { vendorId: vendorWithProjectId, projectId: project1.id }, pm.token);
+  assert.equal(resWithProject.response.status, 201);
+
+  // 3. Query GET /pm/vendor-access
+  let list = await request("GET", "/pm/vendor-access", undefined, pm.token);
+  assert.equal(list.response.status, 200);
+  assert.equal(list.data.items.length, 2);
+
+  const v1 = list.data.items.find(i => i.id === vendorClientOnlyId);
+  assert.ok(v1);
+  assert.equal(v1.status, "ACTIVE");
+  assert.deepEqual(v1.projects, []);
+
+  const v2 = list.data.items.find(i => i.id === vendorWithProjectId);
+  assert.ok(v2);
+  assert.equal(v2.status, "ACTIVE");
+  assert.equal(v2.projects.length, 1);
+  assert.equal(v2.projects[0].id, project1.id);
+  assert.equal(v2.projects[0].name, "Scoped Project");
+
+  // 4. Grant project2 to vendorWithProject as well (multiple projects)
+  const grantRes = await request("POST", `/pm/projects/${project2.id}/vendors`, { vendorId: vendorWithProjectId }, pm.token);
+  assert.equal(grantRes.response.status, 201);
+
+  list = await request("GET", "/pm/vendor-access", undefined, pm.token);
+  const v2Multi = list.data.items.find(i => i.id === vendorWithProjectId);
+  assert.equal(v2Multi.projects.length, 2);
+  assert.deepEqual(v2Multi.projects.map(p => p.id).sort(), [project1.id, project2.id].sort());
+
+  // 5. Revoke vendorWithProject access
+  const delRes = await request("DELETE", `/pm/vendor-access/${vendorWithProjectId}`, undefined, pm.token);
+  assert.equal(delRes.response.status, 204);
+
+  list = await request("GET", "/pm/vendor-access", undefined, pm.token);
+  const activeItems = list.data.items.filter(i => i.status === "ACTIVE");
+  assert.equal(activeItems.length, 1);
+  assert.equal(activeItems[0].id, vendorClientOnlyId);
+  const revoked = list.data.items.find(i => i.id === vendorWithProjectId);
+  assert.equal(revoked.status, "REVOKED");
+  assert.deepEqual(revoked.projects, []);
+});

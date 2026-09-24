@@ -76,6 +76,8 @@ export default function App() {
           <Route path="/pm/invoices" element={<PmInvoicesPage />} />
           <Route path="/pm/vendor-access" element={<PmVendorAccessPage />} />
           <Route path="/pm/staffing-pipeline" element={<PmStaffingPipelinePage />} />
+          <Route path="/pm/staffing-candidates" element={<PmStaffingPipelinePage />} />
+          <Route path="/pm/activity" element={<ActivityPage role="pm" />} />
           <Route path="/pm/notifications" element={<NotificationsPage role="pm" />} />
         </Route>
 

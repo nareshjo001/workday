@@ -4,19 +4,19 @@ import DashboardLayout from "../layouts/DashboardLayout";
 import Spinner from "../components/Spinner";
 import AlertBanner from "../components/AlertBanner";
 import PrimaryButton from "../components/PrimaryButton";
-import ProjectTable from "../components/projects/ProjectTable";
-import ProjectCardList from "../components/projects/ProjectCardList";
+import PmProjectPreview from "../components/dashboard/PmProjectPreview";
 import CreateProjectModal from "../components/projects/CreateProjectModal";
 import pmProjectService from "../services/pmProjectService";
-import ListControls from "../components/ListControls";
+import ListControls, { ListSearch } from "../components/ListControls";
 import useDebouncedValue from "../hooks/useDebouncedValue";
 import ProjectSettingsModal from "../components/projects/ProjectSettingsModal";
 import RequirementManagerModal from "../components/projects/RequirementManagerModal";
-import PMProjectControlPanel from "../components/projects/PMProjectControlPanel";
+import PMProjectControlModal from "../components/projects/PMProjectControlModal";
 import intelligenceService from "../services/intelligenceService";
 import pmProjectControlService from "../services/pmProjectControlService";
 import auditActivityService from "../services/auditActivityService";
-import ActivityList from "../components/activity/ActivityList";
+import PMProjectActivityModal from "../components/projects/PMProjectActivityModal";
+import Modal from "../components/Modal";
 
 /**
  * PM's project-management screen: list + create. All data comes from
@@ -27,13 +27,16 @@ export default function PMProjectsPage() {
   const [projects, setProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [completingId, setCompletingId] = useState(null);
-  const [settingsProject, setSettingsProject] = useState(null);
-  const [requirementsProject, setRequirementsProject] = useState(null);
-  const [controlProject, setControlProject] = useState(null);
+
+  // Single active dialog state: null | "create" | "settings" | "requirements" | "control" | "activity" | "completion"
+  const [activeProjectDialog, setActiveProjectDialog] = useState(null);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [completionWarnings, setCompletionWarnings] = useState([]);
+  const modalTriggerRef = useRef(null);
+
   const [control, setControl] = useState(null);
   const [controlLoading, setControlLoading] = useState(false);
   const [controlError, setControlError] = useState(null);
@@ -43,11 +46,12 @@ export default function PMProjectsPage() {
   const explanationContextVersion = useRef(0);
   const explanationRequestSequence = useRef(0);
   const activeExplanationRequests = useRef(new Map());
-  const [activityProject, setActivityProject] = useState(null);
+
   const [activity, setActivity] = useState(null);
   const [activityLoading, setActivityLoading] = useState(false);
   const [activityError, setActivityError] = useState(null);
   const [activityPage, setActivityPage] = useState(1);
+
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [pageInfo, setPageInfo] = useState({ total_pages: 1, total: 0 });
@@ -57,7 +61,7 @@ export default function PMProjectsPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const data = await pmProjectService.listProjects({ page, pageSize: 25, sort: "created_at", order: "desc", ...(debouncedSearch ? { search: debouncedSearch } : {}) });
+      const data = await pmProjectService.listProjects({ page, pageSize: 12, sort: "created_at", order: "desc", ...(debouncedSearch ? { search: debouncedSearch } : {}) });
       setProjects(data.items);
       setPageInfo(data);
     } catch (err) {
@@ -88,21 +92,85 @@ export default function PMProjectsPage() {
     setExplanations({});
   }, []);
 
-  const loadControl = useCallback(async (project) => {
+  const restoreTriggerFocus = useCallback(() => {
+    const trigger = modalTriggerRef.current;
+    modalTriggerRef.current = null;
+    const restore = () => trigger?.focus();
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(restore);
+    else restore();
+  }, []);
+
+  const closeActiveDialog = useCallback(() => {
+    setActiveProjectDialog(null);
+    setSelectedProject(null);
+    setCompletionWarnings([]);
+    setControl(null);
+    setControlError(null);
+    setControlLoading(false);
+    setActivity(null);
+    setActivityError(null);
+    setActivityLoading(false);
+    invalidateExplanations();
+    restoreTriggerFocus();
+  }, [invalidateExplanations, restoreTriggerFocus]);
+
+  const openCreate = useCallback(() => {
+    modalTriggerRef.current = null;
+    setSelectedProject(null);
+    setActiveProjectDialog("create");
+  }, []);
+
+  const openSettings = useCallback((project, triggerElement) => {
+    modalTriggerRef.current = triggerElement || (project?.name ? document.querySelector(`button[aria-label="Project actions for ${project.name}"]`) : null);
+    setSelectedProject(project);
+    setActiveProjectDialog("settings");
+  }, []);
+
+  const openRequirements = useCallback((project, triggerElement) => {
+    modalTriggerRef.current = triggerElement || (project?.name ? document.querySelector(`button[aria-label="Project actions for ${project.name}"]`) : null);
+    const fullProject = projects.find((p) => p.id === project?.id) || project;
+    setSelectedProject(fullProject);
+    setActiveProjectDialog("requirements");
+  }, [projects]);
+
+  const loadControl = useCallback(async (project, triggerElement) => {
     if (!controlEnabled || !project) return;
-    setControlProject(project);
+    modalTriggerRef.current = triggerElement || (project?.name ? document.querySelector(`button[aria-label="Project actions for ${project.name}"]`) : null);
+    setSelectedProject(project);
+    setActiveProjectDialog("control");
     setControl(null);
     invalidateExplanations();
     setControlError(null);
     setControlLoading(true);
-    try { setControl(await pmProjectControlService.getProjectControl(project.id)); }
-    catch { setControlError(true); }
-    finally { setControlLoading(false); }
+    try {
+      setControl(await pmProjectControlService.getProjectControl(project.id));
+    } catch {
+      setControlError(true);
+    } finally {
+      setControlLoading(false);
+    }
   }, [controlEnabled, invalidateExplanations]);
 
+  const openRequirementsFromControl = useCallback((projectFromControl) => {
+    const targetId = projectFromControl?.id || selectedProject?.id;
+    const targetProject = projects.find((p) => p.id === targetId) || projectFromControl || selectedProject;
+    if (!targetProject) return;
+
+    // Preserve modalTriggerRef.current so closing Requirements restores focus to the original project actions trigger.
+    // Clean up Project Control state:
+    setControl(null);
+    setControlError(null);
+    setControlLoading(false);
+    invalidateExplanations();
+
+    // Modal replacement: unmounts Project Control and mounts Staffing Requirements for the same project
+    setSelectedProject(targetProject);
+    setActiveProjectDialog("requirements");
+  }, [projects, selectedProject, invalidateExplanations]);
+
   const explainFinding = useCallback(async (finding) => {
-    if (!aiExplanationsEnabled || !controlProject || !control) return;
-    const projectId = controlProject.id;
+    if (!aiExplanationsEnabled || !selectedProject || !control) return;
+    const projectId = selectedProject.id;
     const contextVersion = explanationContextVersion.current;
     const requestKey = `${projectId}:${finding.code}`;
     const requestId = ++explanationRequestSequence.current;
@@ -118,14 +186,42 @@ export default function PMProjectsPage() {
       activeExplanationRequests.current.delete(requestKey);
       setExplanations((current) => ({ ...current, [requestKey]: { error: true } }));
     }
-  }, [aiExplanationsEnabled, control, controlProject]);
+  }, [aiExplanationsEnabled, control, selectedProject]);
 
-  const loadActivity = useCallback(async (project, requestedPage = 1) => {
+  const loadActivity = useCallback(async (project, triggerOrPage = 1, pageIfTrigger = 1) => {
     if (!project) return;
-    setActivityProject(project); setActivity(null); setActivityError(null); setActivityLoading(true); setActivityPage(requestedPage);
-    try { setActivity(await auditActivityService.project(project.id, requestedPage)); }
-    catch { setActivityError(true); }
-    finally { setActivityLoading(false); }
+
+    let requestedPage = 1;
+    let triggerElement = null;
+
+    if (typeof triggerOrPage === "number") {
+      requestedPage = triggerOrPage;
+    } else {
+      triggerElement = triggerOrPage;
+      if (typeof pageIfTrigger === "number") {
+        requestedPage = pageIfTrigger;
+      }
+    }
+
+    if (triggerElement && typeof triggerElement.focus === "function") {
+      modalTriggerRef.current = triggerElement;
+    } else if (!modalTriggerRef.current) {
+      modalTriggerRef.current = document.activeElement || (project.name ? document.querySelector(`button[aria-label="Project actions for ${project.name}"]`) : null);
+    }
+
+    setSelectedProject(project);
+    setActiveProjectDialog("activity");
+    setActivity(null);
+    setActivityError(null);
+    setActivityLoading(true);
+    setActivityPage(requestedPage);
+    try {
+      setActivity(await auditActivityService.project(project.id, requestedPage));
+    } catch {
+      setActivityError(true);
+    } finally {
+      setActivityLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -137,28 +233,39 @@ export default function PMProjectsPage() {
   const handleCreate = async (payload) => {
     const created = await pmProjectService.createProject(payload);
     setProjects((prev) => [created, ...prev]);
-    setIsCreateOpen(false);
+    closeActiveDialog();
     setSuccessMessage(
       `Project "${created.name}" created — it's now visible to Vendors for staffing.`
     );
   };
 
-  // Project hours/allocation redesign: marks a project COMPLETED and
-  // auto-releases every active assignment on it (see
-  // pmProjectService.completeProject on the backend) — a released
-  // contractor becomes reassignable elsewhere immediately. Re-fetches the
-  // whole list afterward rather than patching one row in place, since
-  // completion also changes every released assignment's staffing/hours
-  // figures that this list may be showing.
-  const handleComplete = async (project) => {
-    setActionError(null);
+  const handleSettings = async (id, payload) => {
+    await pmProjectService.updateProject(id, payload);
+    await loadProjects();
+    closeActiveDialog();
+    setSuccessMessage("Project settings updated.");
+  };
+
+  const handleRequirement = async (projectId, requirementId, payload) => {
+    const updated = await pmProjectService.updateRequirement(projectId, requirementId, payload);
+    await loadProjects();
+    setSuccessMessage("Staffing requirement updated.");
+    setSelectedProject((prev) => {
+      if (!prev || prev.id !== projectId) return prev;
+      return {
+        ...prev,
+        requirements: (prev.requirements || []).map((r) => (r.id === requirementId ? { ...r, ...updated } : r)),
+      };
+    });
+    return updated;
+  };
+
+  const completeProject = async (project) => {
     setCompletingId(project.id);
     try {
-      const readiness = await pmProjectService.getCloseReadiness(project.id);
-      if (!readiness.can_complete) { setActionError(readiness.blockers.map((item) => item.message).join(" ")); return; }
-      if (readiness.warnings.length && !window.confirm(`Close warnings:\n${readiness.warnings.map((item) => `• ${item.message}`).join("\n")}\n\nComplete this project?`)) return;
       const { released_assignment_count } = await pmProjectService.completeProject(project.id);
       await loadProjects();
+      closeActiveDialog();
       setSuccessMessage(
         `Project "${project.name}" marked complete — ${released_assignment_count} contractor` +
           `${released_assignment_count === 1 ? "" : "s"} released and now reassignable.`
@@ -169,45 +276,141 @@ export default function PMProjectsPage() {
       setCompletingId(null);
     }
   };
-  const handleSettings = async (id, payload) => { await pmProjectService.updateProject(id,payload); await loadProjects(); setSuccessMessage("Project settings updated."); };
-  const handleRequirement = async (projectId, requirementId, payload) => { const updated = await pmProjectService.updateRequirement(projectId, requirementId, payload); await loadProjects(); setSuccessMessage("Staffing requirement updated."); return updated; };
+
+  const startCompletion = async (project) => {
+    setActionError(null);
+    setCompletingId(project.id);
+    try {
+      const readiness = await pmProjectService.getCloseReadiness(project.id);
+      if (!readiness.can_complete) {
+        setActionError(readiness.blockers.map((item) => item.message).join(" "));
+        return;
+      }
+      if (readiness.warnings.length) {
+        setSelectedProject(project);
+        setCompletionWarnings(readiness.warnings);
+        setActiveProjectDialog("completion");
+        return;
+      }
+      await completeProject(project);
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setCompletingId(null);
+    }
+  };
 
   return (
     <DashboardLayout title="Projects">
       <div className="mx-auto flex max-w-4xl flex-col gap-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold text-text">Projects</h1>
-          <div className="flex flex-wrap gap-2"><Link to="/pm/staffing-pipeline" className="rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary transition hover:bg-surface-muted">Staffing Pipeline</Link><Link to="/pm/vendor-access" className="rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary transition hover:bg-surface-muted">Manage Vendor Access</Link><PrimaryButton type="button" fullWidth={false} onClick={() => setIsCreateOpen(true)}>+ Create Project</PrimaryButton></div>
+          <div className="flex flex-wrap gap-2">
+            <Link to="/pm/staffing-pipeline" className="rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary transition hover:bg-surface-muted">Staffing Pipeline</Link>
+            <Link to="/pm/vendor-access" className="rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary transition hover:bg-surface-muted">Manage Vendor Access</Link>
+            <PrimaryButton type="button" fullWidth={false} onClick={openCreate}>+ Create Project</PrimaryButton>
+          </div>
         </div>
 
         <AlertBanner message={successMessage} variant="success" />
-        <AlertBanner message={actionError || loadError} />
+        <AlertBanner message={actionError} />
+        <AlertBanner message={loadError} />
 
         {isLoading ? (
           <Spinner label="Loading projects…" />
         ) : projects.length === 0 ? (
-          <EmptyState onAdd={() => setIsCreateOpen(true)} />
+          <EmptyState onAdd={openCreate} />
         ) : (
-          <div className="rounded-lg bg-surface p-4 shadow-panel ring-1 ring-border sm:p-6">
-            <ProjectTable projects={projects} onComplete={handleComplete} completingId={completingId} onSettings={setSettingsProject} onRequirements={setRequirementsProject} onControl={controlEnabled ? loadControl : undefined} onActivity={loadActivity} />
-            <ProjectCardList projects={projects} onComplete={handleComplete} completingId={completingId} onSettings={setSettingsProject} onRequirements={setRequirementsProject} onControl={controlEnabled ? loadControl : undefined} onActivity={loadActivity} />
-            <ListControls page={page} totalPages={pageInfo.total_pages} total={pageInfo.total} search={search} onSearchChange={(value) => { setPage(1); setSearch(value); }} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
-          </div>
+          <>
+            <div className="flex justify-end">
+              <ListSearch id="project-search" search={search} onSearchChange={(value) => { setPage(1); setSearch(value); }} />
+            </div>
+            <PmProjectPreview
+              projects={projects}
+              onSettings={openSettings}
+              onRequirements={openRequirements}
+              onControl={controlEnabled ? loadControl : undefined}
+              onActivity={loadActivity}
+            />
+            <div className="[&>div]:sm:justify-end">
+              <ListControls page={page} totalPages={pageInfo.total_pages} total={pageInfo.total} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
+            </div>
+          </>
         )}
-        {controlEnabled && controlProject && <PMProjectControlPanel control={control} isLoading={controlLoading} error={controlError} onRefresh={() => loadControl(controlProject)} onOpenRequirements={() => setRequirementsProject(controlProject)} aiEnabled={aiExplanationsEnabled} explanations={explanations} onExplain={explainFinding} />}
-        {activityProject && <ActivityList activity={activity} isLoading={activityLoading} error={activityError} onRetry={() => loadActivity(activityProject, activityPage)} onPrevious={() => loadActivity(activityProject, activityPage - 1)} onNext={() => loadActivity(activityProject, activityPage + 1)} />}
       </div>
 
-      {isCreateOpen && (
-        <CreateProjectModal onClose={() => setIsCreateOpen(false)} onCreate={handleCreate} />
+      {activeProjectDialog === "create" && (
+        <CreateProjectModal onClose={closeActiveDialog} onCreate={handleCreate} />
       )}
-      {settingsProject && (
-        <ProjectSettingsModal project={settingsProject} onClose={() => setSettingsProject(null)} onSave={handleSettings} />
+      {activeProjectDialog === "settings" && selectedProject && (
+        <ProjectSettingsModal
+          project={selectedProject}
+          onClose={closeActiveDialog}
+          onSave={handleSettings}
+          onComplete={selectedProject.status === "ACTIVE" ? startCompletion : undefined}
+          isCompleting={completingId === selectedProject.id}
+        />
       )}
-      {requirementsProject && (
-        <RequirementManagerModal project={requirementsProject} onClose={() => setRequirementsProject(null)} onSave={handleRequirement} />
+      {activeProjectDialog === "requirements" && selectedProject && (
+        <RequirementManagerModal
+          project={selectedProject}
+          onClose={closeActiveDialog}
+          onSave={handleRequirement}
+        />
+      )}
+      {activeProjectDialog === "control" && controlEnabled && selectedProject && (
+        <PMProjectControlModal
+          project={selectedProject}
+          control={control}
+          isLoading={controlLoading}
+          error={controlError}
+          onClose={closeActiveDialog}
+          onRefresh={() => loadControl(selectedProject)}
+          onOpenRequirements={openRequirementsFromControl}
+          aiEnabled={aiExplanationsEnabled}
+          explanations={explanations}
+          onExplain={explainFinding}
+        />
+      )}
+      {activeProjectDialog === "activity" && selectedProject && (
+        <PMProjectActivityModal
+          project={selectedProject}
+          activity={activity}
+          isLoading={activityLoading}
+          error={activityError}
+          onClose={closeActiveDialog}
+          onRetry={() => loadActivity(selectedProject, activityPage)}
+          onPrevious={() => loadActivity(selectedProject, activityPage - 1)}
+          onNext={() => loadActivity(selectedProject, activityPage + 1)}
+        />
+      )}
+      {activeProjectDialog === "completion" && selectedProject && (
+        <CompletionConfirmationModal
+          project={selectedProject}
+          warnings={completionWarnings}
+          isCompleting={completingId === selectedProject.id}
+          onCancel={closeActiveDialog}
+          onConfirm={() => completeProject(selectedProject)}
+        />
       )}
     </DashboardLayout>
+  );
+}
+
+function CompletionConfirmationModal({ project, warnings, isCompleting, onCancel, onConfirm }) {
+  return (
+    <Modal title={`Complete project: ${project.name}`} onClose={onCancel}>
+      <div className="flex flex-col gap-4">
+        <p className="text-sm text-text-secondary">Review these close-out warnings before completing this project.</p>
+        <ul className="list-disc space-y-1 pl-5 text-sm text-text-secondary">
+          {warnings.map((warning) => <li key={warning.code || warning.message}>{warning.message}</li>)}
+        </ul>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" onClick={onCancel} disabled={isCompleting} className="rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary transition hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-60">Cancel</button>
+          <PrimaryButton type="button" fullWidth={false} onClick={onConfirm} isLoading={isCompleting} loadingText="Completing…">Complete project</PrimaryButton>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
