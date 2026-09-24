@@ -53,11 +53,11 @@ async function record(vendorId, rawInvoiceId, body, actor) {
     await conn.beginTransaction();
     const [[invoice]] = await conn.query('SELECT * FROM invoices WHERE id=? AND vendor_id=? FOR UPDATE', [id, vendorId]);
     if (!invoice) throw ApiError.notFound('Invoice not found.');
-    if (invoice.status !== 'APPROVED') throw ApiError.conflict('Payments can only be recorded for approved invoices.');
+    if (!['APPROVED', 'AUTO_APPROVED'].includes(invoice.status)) throw ApiError.conflict('Payments can only be recorded for approved invoices.');
     if (currency && currency !== invoice.currency) throw ApiError.conflict('Payment currency must match the invoice currency.');
     const [[totals]] = await conn.query('SELECT COALESCE(SUM(amount),0.00) paid_amount FROM payments WHERE invoice_id=? FOR UPDATE', [id]);
     // Decimal comparison is intentionally performed by MySQL, not JS floats.
-    const [[check]] = await conn.query('SELECT (? + ?) <= ? allowed', [totals.paid_amount, amount, invoice.total_amount]);
+    const [[check]] = await conn.query('SELECT (? + ?) <= ? allowed', [totals.paid_amount, amount, invoice.total_amount ?? invoice.amount]);
     if (!check.allowed) throw ApiError.conflict('Payment exceeds the outstanding invoice amount.');
     const [created] = await conn.query('INSERT INTO payments(invoice_id,amount,currency,paid_at,reference,method,notes,recorded_by) VALUES(?,?,?,?,?,?,?,?)', [id, amount, invoice.currency, paidAt, reference, method, notes, actor.userId]);
     const [[afterTotals]] = await conn.query('SELECT COALESCE(SUM(amount),0.00) paid_amount FROM payments WHERE invoice_id=?', [id]);

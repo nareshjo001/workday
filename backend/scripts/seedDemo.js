@@ -7,6 +7,7 @@ const storage = require('../src/services/documentStorageService');
 const { buildPdf } = require('../src/services/invoicePdfService');
 const analytics = require('../src/services/dashboardAnalyticsService');
 const { connectWithRetry } = require('../src/utils/connectWithRetry');
+const { ensureActiveRateCard } = require('./rateCardSeed');
 
 const PASSWORD = 'DemoPassword!2026';
 const EMAIL = { vendor: 'demo.vendor@workday.local', atlasPm: 'demo.pm@workday.local', novaPm: 'demo.pm.nova@workday.local', primary: 'demo.contractor@workday.local', candidate: 'demo.candidate@workday.local' };
@@ -38,9 +39,7 @@ async function ensureRequirement(c, projectId, skillId, skill, count, status) {
   return firstId(c, 'SELECT id FROM project_requirements WHERE project_id=? AND skill=?', [projectId, skill]);
 }
 async function ensureRate(c, companyId, vendorId, skillId, bill, cost) {
-  const [rows] = await c.query(`SELECT id FROM rate_cards WHERE client_company_id=? AND vendor_id=? AND skill_id=? AND status='ACTIVE' AND effective_from<='2026-07-01' AND (effective_to IS NULL OR effective_to>='2026-07-01') ORDER BY effective_from DESC,id DESC LIMIT 1`, [companyId, vendorId, skillId]);
-  if (rows.length) return rows[0].id;
-  const [result] = await c.query(`INSERT INTO rate_cards(client_company_id,vendor_id,skill_id,effective_from,effective_to,bill_rate,cost_rate,currency,status) VALUES(?,?,?,'2026-01-01',NULL,?,?,'USD','ACTIVE')`, [companyId, vendorId, skillId, bill, cost]); return result.insertId;
+  return ensureActiveRateCard(c, { clientCompanyId: companyId, vendorId, skillId, billRate: bill, costRate: cost });
 }
 async function ensureAssignment(c, d) {
   const [rows] = await c.query('SELECT id FROM project_assignments WHERE contractor_id=? AND project_id=? ORDER BY id LIMIT 1', [d.contractor, d.project]); if (rows.length) return rows[0].id;

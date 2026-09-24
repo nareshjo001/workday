@@ -34,7 +34,7 @@ export default function VendorAssignmentsPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const data = await vendorProjectService.listAvailableProjects({ page, pageSize: 25, sort: "created_at", order: "desc" });
+      const data = await vendorProjectService.listAvailableProjects({ page, pageSize: 12, sort: "created_at", order: "desc" });
       setProjects(data.items);
       setPageInfo(data);
       return data;
@@ -110,8 +110,18 @@ export default function VendorAssignmentsPage() {
 
   return (
     <DashboardLayout title="Source Candidates for Projects">
-      <div className="mx-auto flex max-w-3xl flex-col gap-5">
-        <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-xl font-semibold text-text">Projects Open for Staffing</h1><Link to="/vendor/staffing-pipeline" className="rounded-md border border-border px-3 py-2 text-sm font-medium text-text-secondary transition hover:bg-surface-muted">Staffing Pipeline</Link></div>
+      <div className="vendor-projects-container mx-auto flex w-full max-w-7xl flex-col gap-6">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-4 sm:pb-5">
+          <h1 className="text-xl sm:text-2xl font-medium text-slate-900 tracking-tight">
+            Projects Open for Staffing
+          </h1>
+          <Link
+            to="/vendor/staffing-pipeline"
+            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2.5 text-base font-medium text-primary-foreground shadow-panel transition-colors duration-150 hover:bg-primary-hover active:bg-primary-active"
+          >
+            Staffing Pipeline
+          </Link>
+        </div>
 
         <AlertBanner message={successMessage} variant="success" />
         <AlertBanner message={loadError} />
@@ -119,18 +129,33 @@ export default function VendorAssignmentsPage() {
         {isLoading ? (
           <Spinner label="Loading projects…" />
         ) : projects.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border bg-surface px-6 py-12 text-center">
-            <p className="text-text-secondary">No projects are currently open for staffing.</p>
-            <p className="mt-1 max-w-sm text-sm text-muted">
+          <div className="rounded-2xl border border-dashed border-border bg-surface px-6 py-12 text-center shadow-sm">
+            <p className="font-medium text-text-secondary">No projects are currently open for staffing.</p>
+            <p className="mt-1.5 max-w-sm mx-auto text-sm text-muted">
               Check back once a Project Manager creates a new project, or once one reopens.
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
-            {projects.map((project) => (
-              <ProjectStaffingCard key={project.id} project={project} onViewTeam={handleViewTeam} />
-            ))}
-            <ListControls page={page} totalPages={pageInfo.total_pages} total={pageInfo.total} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
+          <div className="flex flex-col gap-6">
+            <div
+              className="vendor-projects-grid grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6"
+              data-testid="vendor-projects-grid"
+            >
+              {projects.map((project) => (
+                <ProjectStaffingCard
+                  key={project.id}
+                  project={project}
+                  onViewTeam={handleViewTeam}
+                />
+              ))}
+            </div>
+            <ListControls
+              page={page}
+              totalPages={pageInfo.total_pages}
+              total={pageInfo.total}
+              onPrevious={() => setPage((value) => value - 1)}
+              onNext={() => setPage((value) => value + 1)}
+            />
           </div>
         )}
       </div>

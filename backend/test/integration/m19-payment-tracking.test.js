@@ -51,3 +51,70 @@ test('M19 payment ledger is audited and audit failure rolls back the payment', {
   const details = typeof audit.after_json === 'string' ? JSON.parse(audit.after_json) : audit.after_json;
   assert.equal(details.invoice_id, invoice.id); assert.equal(details.reference, 'M19-AUDIT');
 });
+
+test('M19 payment eligibility: APPROVED, AUTO_APPROVED, non-payable rejection, and overpayment protection', async () => {
+  const [[sample]] = await pool.query('SELECT project_id, contractor_id, vendor_id, client_company_id, currency FROM invoices LIMIT 1');
+  const actor = { userId: sample.vendor_id, role: 'VENDOR', requestId: 'm19_eligibility' };
+
+  async function insertInvoice(status, amount) {
+    const [res] = await pool.query(
+      `INSERT INTO invoices (project_id, contractor_id, vendor_id, client_company_id, currency, amount, total_amount, subtotal_amount, status, generated_at, invoice_date, due_date)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), CURDATE(), DATE_ADD(CURDATE(), INTERVAL 30 DAY))`,
+      [sample.project_id, sample.contractor_id, sample.vendor_id, sample.client_company_id, sample.currency, amount, amount, amount, status]
+    );
+    return res.insertId;
+  }
+
+  // 1. Unpaid APPROVED can record payment
+  const approvedId = await insertInvoice('APPROVED', 100.00);
+  const pay1 = await paymentService.record(sample.vendor_id, approvedId, { amount: '40.00', reference: 'PARTIAL-APP' }, actor);
+  assert.equal(pay1.payment_state, 'PARTIALLY_PAID');
+  assert.equal(pay1.paid_amount, 40.00);
+  assert.equal(pay1.outstanding_amount, 60.00);
+
+  // 2. Partially paid APPROVED can record payment and transitions to PAID
+  const pay2 = await paymentService.record(sample.vendor_id, approvedId, { amount: '60.00', reference: 'FINAL-APP' }, actor);
+  assert.equal(pay2.payment_state, 'PAID');
+  assert.equal(pay2.paid_amount, 100.00);
+  assert.equal(pay2.outstanding_amount, 0.00);
+
+  // 3. Fully paid invoice cannot record again (exceeds outstanding)
+  await assert.rejects(
+    () => paymentService.record(sample.vendor_id, approvedId, { amount: '0.01' }, actor),
+    (err) => err.statusCode === 409 && /Payment exceeds the outstanding invoice amount/i.test(err.message)
+  );
+
+  // 4. AUTO_APPROVED behavior matches authoritative status model (unpaid, partially paid, fully paid)
+  const autoApprovedId = await insertInvoice('AUTO_APPROVED', 200.00);
+  const autoPay1 = await paymentService.record(sample.vendor_id, autoApprovedId, { amount: '50.00', reference: 'AUTO-PARTIAL' }, actor);
+  assert.equal(autoPay1.payment_state, 'PARTIALLY_PAID');
+  assert.equal(autoPay1.paid_amount, 50.00);
+  assert.equal(autoPay1.outstanding_amount, 150.00);
+
+  const autoPay2 = await paymentService.record(sample.vendor_id, autoApprovedId, { amount: '150.00', reference: 'AUTO-FINAL' }, actor);
+  assert.equal(autoPay2.payment_state, 'PAID');
+  assert.equal(autoPay2.paid_amount, 200.00);
+  assert.equal(autoPay2.outstanding_amount, 0.00);
+
+  await assert.rejects(
+    () => paymentService.record(sample.vendor_id, autoApprovedId, { amount: '1.00' }, actor),
+    (err) => err.statusCode === 409 && /Payment exceeds the outstanding invoice amount/i.test(err.message)
+  );
+
+  // 5. Non-payable statuses rejected
+  for (const nonPayableStatus of ['DRAFT', 'SUBMITTED', 'REJECTED', 'CANCELLED']) {
+    const invId = await insertInvoice(nonPayableStatus, 50.00);
+    await assert.rejects(
+      () => paymentService.record(sample.vendor_id, invId, { amount: '10.00' }, actor),
+      (err) => err.statusCode === 409 && /Payments can only be recorded for approved invoices/i.test(err.message),
+      `Status ${nonPayableStatus} must be rejected for payment recording`
+    );
+  }
+
+  // 6. Overpayment remains rejected
+  const overpayInvoiceId = await insertInvoice('APPROVED', 50.00);
+  await assert.rejects(
+    () => paymentService.record(sample.vendor_id, overpayInvoiceId, { amount: '50.01' }, actor),
+    (err) => err.statusCode === 409 && /Payment exceeds the outstanding invoice amount/i.test(err.message)
+  );
+});

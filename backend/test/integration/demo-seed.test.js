@@ -90,10 +90,15 @@ test('expanded demo seed is lifecycle-rich and idempotent on a fresh demo databa
   assert.deepEqual(novaView.earnings_by_company.map((row) => row.company_name), ['Nova Digital']);
   assert.ok(atlasView.project_progress.every((row) => row.company_name === 'Atlas Commerce'));
   assert.ok(novaView.project_progress.every((row) => row.company_name === 'Nova Digital'));
+  assert.deepEqual(
+    unfiltered.project_progress.map((row) => row.name),
+    ['Nova Analytics Platform', 'Atlas Commerce Modernization', 'Demo Platform Upgrade']
+  );
+  assert.ok(unfiltered.project_progress.every((row) => row.status === 'ACTIVE'));
   assert.ok(atlasView.recent_activity.every((row) => !row.message.includes('Nova')));
   assert.ok(novaView.recent_activity.every((row) => !row.message.includes('Atlas')));
   assert.ok(activeView.project_progress.length > 0 && activeView.project_progress.every((row) => row.status === 'ACTIVE'));
-  assert.ok(completedView.project_progress.length > 0 && completedView.project_progress.every((row) => row.status === 'COMPLETED'));
+  assert.deepEqual(completedView.project_progress, []);
   assert.ok(activeView.recent_activity.every((row) => !/Legacy Migration|Customer Portal|Internal Prototype|Mobile Expansion/.test(row.message)));
   assert.ok(completedView.recent_activity.every((row) => !/Commerce Modernization|Analytics Platform|Platform Upgrade|Mobile Expansion/.test(row.message)));
   assert.deepEqual(projectView.project_progress.map((row) => row.name), ['Atlas Commerce Modernization']);

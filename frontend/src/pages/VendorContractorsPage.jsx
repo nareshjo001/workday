@@ -3,15 +3,22 @@ import DashboardLayout from "../layouts/DashboardLayout";
 import Spinner from "../components/Spinner";
 import AlertBanner from "../components/AlertBanner";
 import PrimaryButton from "../components/PrimaryButton";
-import ContractorTable from "../components/contractors/ContractorTable";
 import ContractorCardList from "../components/contractors/ContractorCardList";
 import AddContractorModal from "../components/contractors/AddContractorModal";
 import EditContractorModal from "../components/contractors/EditContractorModal";
 import ContractorHistoryModal from "../components/contractors/ContractorHistoryModal";
 import vendorContractorService from "../services/vendorContractorService";
-import ListControls from "../components/ListControls";
 import useDebouncedValue from "../hooks/useDebouncedValue";
 import { SKILLS, SKILL_LABELS } from "../constants/skills";
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 text-muted fill-none stroke-current stroke-[1.8] stroke-linecap-round stroke-linejoin-round">
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+  );
+}
 
 /**
  * Vendor's contractor-management screen: list + add + edit (rate/status).
@@ -37,7 +44,14 @@ export default function VendorContractorsPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const data = await vendorContractorService.listContractors({ page, pageSize: 25, sort: "name", order: "asc", ...(debouncedSearch ? { search: debouncedSearch } : {}), ...(skill ? { skill } : {}) });
+      const data = await vendorContractorService.listContractors({
+        page,
+        pageSize: 15,
+        sort: "name",
+        order: "asc",
+        ...(debouncedSearch ? { search: debouncedSearch } : {}),
+        ...(skill ? { skill } : {}),
+      });
       setContractors(data.items);
       setPageInfo(data);
     } catch (err) {
@@ -78,28 +92,104 @@ export default function VendorContractorsPage() {
     setSuccessMessage("Contractor updated successfully.");
   };
 
+  const hasActiveFilters = Boolean(debouncedSearch || skill);
+
   return (
     <DashboardLayout title="Contractors">
-      <div className="mx-auto flex max-w-4xl flex-col gap-5">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+        {/* Page Header: Title, Result Count, Add Contractor */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold text-text">Contractors</h1>
+          <div>
+            <h1 className="text-xl font-semibold text-text">Contractors</h1>
+            <p className="text-sm text-muted" data-testid="contractor-result-count">
+              {pageInfo.total} result{pageInfo.total === 1 ? "" : "s"}
+            </p>
+          </div>
           <PrimaryButton type="button" fullWidth={false} onClick={() => setIsAddOpen(true)}>
             + Add Contractor
           </PrimaryButton>
         </div>
 
+        {/* Filter & Search Controls */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative flex-1">
+            <label htmlFor="contractor-search" className="sr-only">Search by name or email</label>
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+              <SearchIcon />
+            </div>
+            <input
+              id="contractor-search"
+              type="search"
+              value={search}
+              onChange={(e) => { setPage(1); setSearch(e.target.value); }}
+              placeholder="Search by name or email..."
+              className="w-full rounded-lg border border-border bg-surface pl-9 pr-3 py-2 text-sm text-text placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
+            />
+          </div>
+          <div className="w-full sm:w-auto">
+            <label htmlFor="skill-filter" className="sr-only">Filter by skill</label>
+            <select
+              id="skill-filter"
+              aria-label="Filter by skill"
+              value={skill}
+              onChange={(e) => { setPage(1); setSkill(e.target.value); }}
+              className="w-full sm:w-48 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
+            >
+              <option value="">All skills</option>
+              {SKILLS.map((code) => (
+                <option key={code} value={code}>{SKILL_LABELS[code]}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         <AlertBanner message={successMessage} variant="success" />
         <AlertBanner message={loadError} />
 
+        {/* Content Area: Loading, Empty, or Cards */}
         {isLoading ? (
           <Spinner label="Loading contractors…" />
         ) : contractors.length === 0 ? (
-          <EmptyState onAdd={() => setIsAddOpen(true)} />
+          hasActiveFilters ? (
+            <div className="rounded-xl border border-dashed border-border bg-surface p-8 text-center" data-testid="contractor-empty-filter">
+              <p className="text-sm font-medium text-text">No contractors found.</p>
+              <p className="mt-1 text-xs text-muted">Try adjusting your search query or skill filter.</p>
+            </div>
+          ) : (
+            <EmptyState onAdd={() => setIsAddOpen(true)} />
+          )
         ) : (
-          <div className="rounded-lg bg-surface p-4 shadow-panel ring-1 ring-border sm:p-6">
-            <ContractorTable contractors={contractors} onEdit={setEditingContractor} onHistory={setHistoryContractor} />
-            <ContractorCardList contractors={contractors} onEdit={setEditingContractor} onHistory={setHistoryContractor} />
-            <div className="mb-3 flex justify-end"><select aria-label="Filter by skill" value={skill} onChange={(e) => { setPage(1); setSkill(e.target.value); }} className="rounded-md border border-border bg-surface px-3 py-2 text-sm"><option value="">All skills</option>{SKILLS.map((code) => <option key={code} value={code}>{SKILL_LABELS[code]}</option>)}</select></div><ListControls page={page} totalPages={pageInfo.total_pages} total={pageInfo.total} search={search} onSearchChange={(value) => { setPage(1); setSearch(value); }} onPrevious={() => setPage((value) => value - 1)} onNext={() => setPage((value) => value + 1)} />
+          <div className="flex flex-col gap-4">
+            <ContractorCardList
+              contractors={contractors}
+              onEdit={setEditingContractor}
+              onHistory={setHistoryContractor}
+            />
+
+            {/* Bottom Pagination Info */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 text-xs text-muted" data-testid="contractor-pagination">
+              <span>
+                {pageInfo.total} result{pageInfo.total === 1 ? "" : "s"} · Page {page} of {Math.max(pageInfo.total_pages, 1)}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => setPage((value) => value - 1)}
+                  className="rounded-md border border-border bg-surface px-3 py-1.5 font-medium text-text-secondary disabled:opacity-40 transition hover:bg-surface-muted"
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  disabled={page >= pageInfo.total_pages}
+                  onClick={() => setPage((value) => value + 1)}
+                  className="rounded-md border border-border bg-surface px-3 py-1.5 font-medium text-text-secondary disabled:opacity-40 transition hover:bg-surface-muted"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
