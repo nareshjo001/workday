@@ -1,5 +1,5 @@
 const asyncHandler=require("../utils/asyncHandler"),service=require("../services/notificationService"),ApiError=require("../utils/ApiError");
-const list=asyncHandler(async(req,res)=>{const items=await service.list(req.user.userId);res.json({items,unread_count:items.filter(x=>!x.read_at).length});});
+const list=asyncHandler(async(req,res)=>{const page=Number(req.query.page||1);const limit=Number(req.query.limit||10);const data=await service.list(req.user.userId,{page,limit});res.json(data);});
 const read=asyncHandler(async(req,res)=>{const id=Number(req.params.id);if(!Number.isInteger(id)||id<1)throw ApiError.badRequest("Invalid notification id.");if(!await service.markRead(req.user.userId,id))throw ApiError.notFound("Notification not found.");res.status(204).end();});
 const readAll=asyncHandler(async(req,res)=>{await service.markAllRead(req.user.userId);res.status(204).end();});
 const preferences=asyncHandler(async(req,res)=>res.json({items:await service.preferences(req.user.userId)}));

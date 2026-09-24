@@ -1,5 +1,6 @@
 const dashboardRepository = require("../repositories/dashboardRepository");
 const pmProjectService = require("./pmProjectService");
+const auditActivityService = require("./auditActivityService");
 
 /**
  * PM dashboard/analytics (UI + analytics redesign). Read-only. `pmId` is
@@ -42,7 +43,7 @@ async function getPmDashboard(pmId) {
       dashboardRepository.milestoneStatusCountsForPm(pmId),
       dashboardRepository.milestonesWithBillingCountForPm(pmId),
       dashboardRepository.invoiceStatusCountsForPm(pmId),
-      dashboardRepository.listRecentActivityForPm(pmId, 15),
+      auditActivityService.pm(pmId, { page: 1, limit: 5 }),
     ]);
 
   const activeProjects = projects.filter((p) => p.status === "ACTIVE");
@@ -128,7 +129,7 @@ async function getPmDashboard(pmId) {
       past_end_date_still_active_count: pastEndDateStillActive.length,
       past_end_date_still_active: pastEndDateStillActive.map((p) => ({ id: p.id, name: p.name, end_date: p.end_date })),
     },
-    recent_activity: recentActivity,
+    recent_activity: recentActivity.items,
   };
 }
 

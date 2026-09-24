@@ -113,7 +113,8 @@ async function listProjectsForVendorScope(scope) {
      INNER JOIN project_managers pm ON pm.user_id = p.pm_id
      LEFT JOIN client_companies cc ON cc.id = pm.company_id
      WHERE ${scope.where}
-     ORDER BY p.created_at DESC`,
+       AND p.status = 'ACTIVE'
+     ORDER BY p.created_at DESC, p.id DESC`,
     scope.values
   );
   return rows.map((r) => ({ ...r, expected_hours: r.expected_hours === null ? null : Number(r.expected_hours) }));
@@ -340,63 +341,6 @@ async function invoiceStatusCountsForPm(pmId) {
   return rows.map((r) => ({ status: r.status, count: Number(r.count), total: Number(r.total) }));
 }
 
-/**
- * Same shape/reasoning as listRecentActivityForVendor above, scoped to
- * projects owned by this PM instead of a vendor's contractors — the PM
- * spec's example list additionally calls out "Timesheet submitted" (not
- * just approved/rejected), so that event type is included here but not
- * in the vendor version, matching each role's own stated examples.
- */
-async function listRecentActivityForPm(pmId, limit) {
-  const [rows] = await pool.query(
-    `(SELECT 'ASSIGNED' AS type, CONCAT(u.name, ' assigned to ', p.name) AS message, pa.created_at AS occurred_at
-      FROM project_assignments pa
-      INNER JOIN projects p ON p.id = pa.project_id
-      INNER JOIN contractors c ON c.id = pa.contractor_id
-      INNER JOIN users u ON u.id = c.user_id
-      WHERE p.pm_id = ?)
-     UNION ALL
-     (SELECT 'TIMESHEET_SUBMITTED', CONCAT(u.name, ' submitted ', t.hours_logged, 'h on ', p.name), t.submitted_at
-      FROM timesheets t
-      INNER JOIN projects p ON p.id = t.project_id
-      INNER JOIN contractors c ON c.id = t.contractor_id
-      INNER JOIN users u ON u.id = c.user_id
-      WHERE p.pm_id = ?)
-     UNION ALL
-     (SELECT IF(t.status = 'REJECTED', 'TIMESHEET_REJECTED', 'TIMESHEET_APPROVED'),
-             CONCAT(u.name, ' — ', t.hours_logged, 'h ', LOWER(t.status), ' on ', p.name), t.reviewed_at
-      FROM timesheets t
-      INNER JOIN projects p ON p.id = t.project_id
-      INNER JOIN contractors c ON c.id = t.contractor_id
-      INNER JOIN users u ON u.id = c.user_id
-      WHERE p.pm_id = ? AND t.status IN ('APPROVED', 'REJECTED') AND t.reviewed_at IS NOT NULL)
-     UNION ALL
-     (SELECT 'MILESTONE_MET', CONCAT('Milestone "', m.name, '" reached on ', p.name), m.met_at
-      FROM milestones m
-      INNER JOIN projects p ON p.id = m.project_id
-      WHERE p.pm_id = ? AND m.status = 'MET' AND m.met_at IS NOT NULL)
-     UNION ALL
-     (SELECT 'INVOICE_GENERATED', CONCAT('Invoice generated for ', u.name, ' — ', p.name), i.generated_at
-      FROM invoices i
-      INNER JOIN projects p ON p.id = i.project_id
-      INNER JOIN contractors c ON c.id = i.contractor_id
-      INNER JOIN users u ON u.id = c.user_id
-      WHERE p.pm_id = ?)
-     UNION ALL
-     (SELECT IF(i.status = 'REJECTED', 'INVOICE_REJECTED', 'INVOICE_APPROVED'),
-             CONCAT('Invoice ', LOWER(i.status), ' for ', u.name, ' — ', p.name), i.reviewed_at
-      FROM invoices i
-      INNER JOIN projects p ON p.id = i.project_id
-      INNER JOIN contractors c ON c.id = i.contractor_id
-      INNER JOIN users u ON u.id = c.user_id
-      WHERE p.pm_id = ? AND i.reviewed_at IS NOT NULL AND i.status IN ('APPROVED', 'REJECTED'))
-     ORDER BY occurred_at DESC
-     LIMIT ?`,
-    [pmId, pmId, pmId, pmId, pmId, pmId, Number(limit)]
-  );
-  return rows;
-}
-
 // ============================================================
 // CONTRACTOR
 // ============================================================
@@ -517,7 +461,6 @@ module.exports = {
   milestoneStatusCountsForPm,
   milestonesWithBillingCountForPm,
   invoiceStatusCountsForPm,
-  listRecentActivityForPm,
   // Contractor
   listActiveProjectsForContractor,
   revenueByProjectForContractor,

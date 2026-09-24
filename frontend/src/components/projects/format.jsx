@@ -1,4 +1,5 @@
 import ProgressBar from "../dashboard/ProgressBar";
+import { resolveProjectStatusTheme } from "../../utils/projectStatusTheme";
 
 export function formatDate(dateStr) {
   if (!dateStr) return "—";
@@ -31,6 +32,24 @@ export function StatusBadge({ status }) {
 }
 
 /**
+ * Modern semantic status pill with dot indicator and zero emoji.
+ * Uses centralized resolveProjectStatusTheme for consistent colors and labels.
+ */
+export function ProjectStatusBadge({ status, className = "" }) {
+  const theme = resolveProjectStatusTheme(status);
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11.5px] font-semibold leading-tight ${theme.badgeClass} ${className}`}
+      data-testid="project-status-badge"
+      data-status={theme.key}
+    >
+      <span className={`inline-block h-1.5 w-1.5 rounded-full ${theme.dotClass}`} aria-hidden="true" />
+      <span>{theme.label}</span>
+    </span>
+  );
+}
+
+/**
  * Staffing status is DERIVED server-side from requirements vs.
  * assignments (never stored) — this just renders whatever the API
  * already computed. See pmProjectService.deriveStaffingStatus /
@@ -40,11 +59,19 @@ export function StaffingBadge({ status }) {
   const isFullyStaffed = status === "FULLY_STAFFED";
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
-        isFullyStaffed ? "bg-success-bg text-success" : "bg-warning-bg text-warning"
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+        isFullyStaffed
+          ? "bg-emerald-50 text-emerald-800 border-emerald-200/80"
+          : "bg-amber-50 text-amber-800 border-amber-200/80"
       }`}
     >
-      {isFullyStaffed ? "✓ Fully Staffed" : "⚠ Pending"}
+      <span
+        className={`inline-block h-1.5 w-1.5 rounded-full ${
+          isFullyStaffed ? "bg-emerald-500" : "bg-amber-500"
+        }`}
+        aria-hidden="true"
+      />
+      <span>{isFullyStaffed ? "Fully Staffed" : "Pending"}</span>
     </span>
   );
 }
@@ -77,11 +104,19 @@ export function HoursStaffingBadge({ status }) {
   const isFullyStaffed = status === "FULLY_STAFFED";
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
-        isFullyStaffed ? "bg-success-bg text-success" : "bg-warning-bg text-warning"
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+        isFullyStaffed
+          ? "bg-emerald-50 text-emerald-800 border-emerald-200/80"
+          : "bg-amber-50 text-amber-800 border-amber-200/80"
       }`}
     >
-      {isFullyStaffed ? "✓ Fully Staffed" : "⚠ Pending Staffing"}
+      <span
+        className={`inline-block h-1.5 w-1.5 rounded-full ${
+          isFullyStaffed ? "bg-emerald-500" : "bg-amber-500"
+        }`}
+        aria-hidden="true"
+      />
+      <span>{isFullyStaffed ? "Fully Staffed" : "Pending Staffing"}</span>
     </span>
   );
 }

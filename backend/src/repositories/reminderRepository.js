@@ -40,7 +40,7 @@ async function submittedInvoices() {
 }
 
 async function expiringVerifiedDocuments(days = 30) {
-  const [rows] = await pool.query(`SELECT d.id, c.vendor_id AS recipient_id
+  const [rows] = await pool.query(`SELECT d.id, d.contractor_id, c.vendor_id AS recipient_id
     FROM contractor_documents d
     INNER JOIN contractors c ON c.id = d.contractor_id
     WHERE d.status = 'VERIFIED'

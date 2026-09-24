@@ -4,7 +4,7 @@ import apiClient from "../../services/apiClient";
 const DATASETS = [
   ["assignments", "Assignments"], ["approved-timesheets", "Approved timesheets"],
   ["invoices", "Invoices"], ["invoice-items", "Invoice items"],
-  ["payments", "Payments"], ["project-financials", "Project financials"],
+  ["payments", "Payments"], ["project-financials", "financials"],
 ];
 
 export default function DashboardExports({ role, filters = {} }) {
@@ -20,5 +20,22 @@ export default function DashboardExports({ role, filters = {} }) {
     } catch (err) { setError(err.message || "The export could not be created."); }
     finally { setLoading(null); }
   }
-  return <div className="flex flex-col gap-2"><div className="flex flex-wrap gap-2">{DATASETS.map(([id, label]) => <button type="button" key={id} disabled={Boolean(loading)} onClick={() => download(id)} className="rounded-md border border-border px-3 py-2 text-xs font-medium text-text-secondary hover:bg-surface-muted disabled:opacity-60">{loading === id ? "Preparing…" : `Export ${label}`}</button>)}</div>{error && <p className="text-xs text-error">{error}</p>}</div>;
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-2">
+        {DATASETS.map(([id, label]) => (
+          <button
+            type="button"
+            key={id}
+            disabled={Boolean(loading)}
+            onClick={() => download(id)}
+            className="dashboard-export-btn disabled:opacity-60"
+          >
+            {loading === id ? "Preparing…" : `Export ${label}`}
+          </button>
+        ))}
+      </div>
+      {error && <p className="text-xs text-error">{error}</p>}
+    </div>
+  );
 }

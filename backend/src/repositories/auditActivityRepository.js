@@ -29,7 +29,22 @@ function projectActivity(projectId, paging) {
   return page(`SELECT ${actorSelect} ${actorJoin} WHERE ${projectClause}`, Array(8).fill(projectId), paging);
 }
 
-function vendorActivity(vendorId, paging) {
+function pmActivity(pmId, paging) {
+  const projectLink = `(
+    (a.entity_type='project' AND a.entity_id=p.id)
+    OR (a.entity_type='project_requirement' AND EXISTS (SELECT 1 FROM project_requirements r WHERE r.id=CAST(a.entity_id AS UNSIGNED) AND r.project_id=p.id))
+    OR (a.entity_type='candidate_submission' AND EXISTS (SELECT 1 FROM candidate_submissions c WHERE c.id=CAST(a.entity_id AS UNSIGNED) AND c.project_id=p.id))
+    OR (a.entity_type='project_assignment' AND EXISTS (SELECT 1 FROM project_assignments pa WHERE pa.id=CAST(a.entity_id AS UNSIGNED) AND pa.project_id=p.id))
+    OR (a.entity_type='timesheet' AND EXISTS (SELECT 1 FROM timesheets t WHERE t.id=CAST(a.entity_id AS UNSIGNED) AND t.project_id=p.id))
+    OR (a.entity_type='invoice' AND EXISTS (SELECT 1 FROM invoices i WHERE i.id=CAST(a.entity_id AS UNSIGNED) AND i.project_id=p.id))
+    OR (a.entity_type='payment' AND EXISTS (SELECT 1 FROM payments pay JOIN invoices i ON i.id=pay.invoice_id WHERE pay.id=CAST(a.entity_id AS UNSIGNED) AND i.project_id=p.id))
+    OR (a.entity_type='milestone' AND EXISTS (SELECT 1 FROM milestones m WHERE m.id=CAST(a.entity_id AS UNSIGNED) AND m.project_id=p.id))
+  )`;
+  const scope = `EXISTS (SELECT 1 FROM projects p WHERE p.pm_id=? AND ${projectLink})`;
+  return page(`SELECT ${actorSelect} ${actorJoin} WHERE ${scope}`, [pmId], paging);
+}
+
+function vendorActivity(vendorId, paging, filters = {}) {
   const scope = `(
     (a.entity_type='contractor' AND EXISTS (SELECT 1 FROM contractors c WHERE c.id=CAST(a.entity_id AS UNSIGNED) AND c.vendor_id=?))
     OR (a.entity_type='candidate_submission' AND EXISTS (SELECT 1 FROM candidate_submissions c WHERE c.id=CAST(a.entity_id AS UNSIGNED) AND c.vendor_id=?))
@@ -40,7 +55,39 @@ function vendorActivity(vendorId, paging) {
     OR (a.entity_type='payment' AND EXISTS (SELECT 1 FROM payments pay JOIN invoices i ON i.id=pay.invoice_id WHERE pay.id=CAST(a.entity_id AS UNSIGNED) AND i.vendor_id=?))
     OR (a.entity_type='rate_card' AND EXISTS (SELECT 1 FROM rate_cards rc WHERE rc.id=CAST(a.entity_id AS UNSIGNED) AND rc.vendor_id=?))
   )`;
-  return page(`SELECT ${actorSelect} ${actorJoin} WHERE ${scope}`, Array(8).fill(vendorId), paging);
+  const params = Array(8).fill(vendorId);
+
+  let filterClauses = "";
+  const projectLink = `(
+    (a.entity_type='project' AND a.entity_id=p.id)
+    OR (a.entity_type='project_requirement' AND EXISTS (SELECT 1 FROM project_requirements r WHERE r.id=CAST(a.entity_id AS UNSIGNED) AND r.project_id=p.id))
+    OR (a.entity_type='candidate_submission' AND EXISTS (SELECT 1 FROM candidate_submissions c WHERE c.id=CAST(a.entity_id AS UNSIGNED) AND c.project_id=p.id))
+    OR (a.entity_type='project_assignment' AND EXISTS (SELECT 1 FROM project_assignments pa WHERE pa.id=CAST(a.entity_id AS UNSIGNED) AND pa.project_id=p.id))
+    OR (a.entity_type='timesheet' AND EXISTS (SELECT 1 FROM timesheets t WHERE t.id=CAST(a.entity_id AS UNSIGNED) AND t.project_id=p.id))
+    OR (a.entity_type='invoice' AND EXISTS (SELECT 1 FROM invoices i WHERE i.id=CAST(a.entity_id AS UNSIGNED) AND i.project_id=p.id))
+    OR (a.entity_type='payment' AND EXISTS (SELECT 1 FROM payments pay JOIN invoices i ON i.id=pay.invoice_id WHERE pay.id=CAST(a.entity_id AS UNSIGNED) AND i.project_id=p.id))
+    OR (a.entity_type='milestone' AND EXISTS (SELECT 1 FROM milestones m WHERE m.id=CAST(a.entity_id AS UNSIGNED) AND m.project_id=p.id))
+  )`;
+
+  if (filters?.projectId) {
+    filterClauses += ` AND EXISTS (SELECT 1 FROM projects p WHERE p.id=? AND ${projectLink})`;
+    params.push(filters.projectId);
+  }
+
+  if (filters?.clientId) {
+    filterClauses += ` AND (
+      EXISTS (SELECT 1 FROM projects p JOIN project_managers pm ON pm.user_id=p.pm_id WHERE pm.company_id=? AND ${projectLink})
+      OR (a.entity_type='rate_card' AND EXISTS (SELECT 1 FROM rate_cards rc WHERE rc.id=CAST(a.entity_id AS UNSIGNED) AND rc.client_company_id=?))
+    )`;
+    params.push(filters.clientId, filters.clientId);
+  }
+
+  if (filters?.status) {
+    filterClauses += ` AND EXISTS (SELECT 1 FROM projects p WHERE p.status=? AND ${projectLink})`;
+    params.push(filters.status);
+  }
+
+  return page(`SELECT ${actorSelect} ${actorJoin} WHERE ${scope}${filterClauses}`, params, paging);
 }
 
 async function contractorIdForUser(userId) {
@@ -60,4 +107,4 @@ function contractorActivity(contractorId, paging) {
   return page(`SELECT ${actorSelect} ${actorJoin} WHERE ${scope}`, Array(6).fill(contractorId), paging);
 }
 
-module.exports = { ownedProject, projectActivity, vendorActivity, contractorIdForUser, contractorActivity };
+module.exports = { ownedProject, projectActivity, pmActivity, vendorActivity, contractorIdForUser, contractorActivity };

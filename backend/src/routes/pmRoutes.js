@@ -54,6 +54,7 @@ router.get("/projects/:id/close-readiness", pmProjectController.closeReadiness);
 router.get("/projects/:id/control-intelligence", pmProjectControlController.analyze);
 router.post("/projects/:projectId/control-intelligence/:findingCode/explanation", explanationLimiter, pmFindingExplanationController.explain);
 router.get("/projects/:projectId/activity", auditActivityController.pmProject);
+router.get("/activity", auditActivityController.pm);
 // MVP fix 1: the PM (never the Vendor) sets/changes a specific,
 // already-assigned contractor's work-hour allocation on this project.
 router.patch(

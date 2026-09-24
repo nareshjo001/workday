@@ -9,17 +9,17 @@ export { formatDate };
  * overloading that one with an unrelated status vocabulary.
  */
 const STATUS_STYLES = {
-  DRAFT: "bg-surface-muted text-muted",
-  SUBMITTED: "bg-warning-bg text-warning",
-  APPROVED: "bg-success-bg text-success",
-  REJECTED: "bg-error-bg text-error",
+  DRAFT: "bg-slate-100 text-slate-700 border-slate-200",
+  SUBMITTED: "bg-amber-50 text-amber-700 border-amber-200",
+  APPROVED: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  REJECTED: "bg-rose-50 text-rose-700 border-rose-200",
 };
 
 export function TimesheetStatusBadge({ status }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-        STATUS_STYLES[status] || "bg-surface-muted text-muted"
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border ${
+        STATUS_STYLES[status] || "bg-slate-100 text-slate-700 border-slate-200"
       }`}
     >
       {status}
@@ -63,4 +63,21 @@ export function formatDateTime(value) {
   const period = hour >= 12 ? "PM" : "AM";
   const hour12 = hour % 12 === 0 ? 12 : hour % 12;
   return `${dateLabel}, ${hour12}:${minuteStr} ${period}`;
+}
+
+export function formatDateTimeSplit(value) {
+  if (!value) return null;
+  const [datePart, timePart] = value.split(" ");
+  const dateLabel = formatDate(datePart);
+  if (!timePart) return { date: dateLabel, time: "" };
+
+  const [hourStr, minuteStr] = timePart.split(":");
+  const hour = Number(hourStr);
+  if (!Number.isFinite(hour)) return { date: dateLabel, time: "" };
+  const period = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  return {
+    date: dateLabel,
+    time: `${hour12}:${minuteStr} ${period}`,
+  };
 }

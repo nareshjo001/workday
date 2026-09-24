@@ -12,6 +12,7 @@ const analytics = require('../../src/services/dashboardAnalyticsService');
 const exportsService = require('../../src/services/dashboardExportService');
 const contractorDashboard = require('../../src/services/contractorDashboardService');
 const vendorDashboard = require('../../src/services/vendorDashboardService');
+const auditActivityService = require('../../src/services/auditActivityService');
 const app = require('../../src/app');
 
 let server; let baseUrl;
@@ -91,6 +92,30 @@ test('M20 dashboards and CSV exports preserve lifecycle distinctions and tenant 
   assert.deepEqual(crossVendorLegacy.project_progress, []);
   assert.deepEqual(crossVendorLegacy.invoices.by_status, []);
   assert.deepEqual(crossVendorLegacy.recent_activity, []);
+
+  const vendorOverview = await vendorDashboard.getVendorDashboard(vendor.id);
+  const authoritativeFeed = await auditActivityService.vendor(vendor.id, { page: 1, limit: 5 });
+  assert.ok(vendorOverview.recent_activity.length <= 5, 'Overview recent_activity returns at most 5 items');
+  assert.deepEqual(
+    vendorOverview.recent_activity.map((a) => a.id),
+    authoritativeFeed.items.map((a) => a.id),
+    'Overview recent_activity ids match authoritative activity feed'
+  );
+  assert.deepEqual(
+    vendorOverview.recent_activity.map((a) => a.event),
+    authoritativeFeed.items.map((a) => a.event),
+    'Overview recent_activity events match authoritative activity feed'
+  );
+  assert.deepEqual(
+    vendorOverview.recent_activity.map((a) => a.title),
+    authoritativeFeed.items.map((a) => a.title),
+    'Overview recent_activity titles match authoritative activity feed'
+  );
+  assert.deepEqual(
+    vendorOverview.recent_activity.map((a) => a.summary),
+    authoritativeFeed.items.map((a) => a.summary),
+    'Overview recent_activity summaries match authoritative activity feed'
+  );
   await assert.rejects(() => analytics.dashboard('VENDOR', vendor.id, { clientId: '0' }), /clientId must be a positive integer/);
   await assert.rejects(() => analytics.dashboard('VENDOR', vendor.id, { projectId: 'not-an-id' }), /projectId must be a positive integer/);
   await assert.rejects(() => analytics.dashboard('VENDOR', vendor.id, { status: '7' }), /Unsupported project status/);

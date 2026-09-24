@@ -78,70 +78,84 @@ export default function SignupPage() {
     <AuthLayout
       title="Create your account"
       description="Set up access to manage your projects and workforce."
+      variant="signup"
+      footer={(
+        <p className="signup-login-link">
+          Already have an account?{" "}
+          <Link to="/login">Log in</Link>
+        </p>
+      )}
     >
-      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} noValidate className="login-form signup-form">
         <AlertBanner message={formError} />
         <AlertBanner message={successMessage} variant="success" />
 
         <RoleSelector value={form.role} onChange={handleChange} error={fieldErrors.role} />
 
-        <FormField
-          id="name"
-          label="Full name"
-          autoComplete="name"
-          value={form.name}
-          onChange={handleChange}
-          error={fieldErrors.name}
-        />
-        <FormField
-          id="email"
-          label="Email"
-          type="email"
-          autoComplete="email"
-          value={form.email}
-          onChange={handleChange}
-          error={fieldErrors.email}
-        />
-        {form.role === ROLES.PM && (
-          <><FormField
+        <div className="signup-field-grid">
+          <FormField
+            id="name"
+            label="Full name"
+            autoComplete="name"
+            value={form.name}
+            onChange={handleChange}
+            error={fieldErrors.name}
+            placeholder="Your full name"
+          />
+          <FormField
+            id="email"
+            label="Work email"
+            type="email"
+            autoComplete="email"
+            value={form.email}
+            onChange={handleChange}
+            error={fieldErrors.email}
+            placeholder="you@company.com"
+          />
+          <PasswordField
+            id="password"
+            label="Password"
+            autoComplete="new-password"
+            value={form.password}
+            onChange={handleChange}
+            error={fieldErrors.password}
+            placeholder="Min. 8 characters"
+          />
+          <PasswordField
+            id="confirmPassword"
+            label="Confirm password"
+            autoComplete="new-password"
+            value={form.confirmPassword}
+            onChange={handleChange}
+            error={fieldErrors.confirmPassword}
+            placeholder="Re-enter password"
+          />
+          {form.role === ROLES.PM && (
+            <div className="signup-field-wide">
+              <FormField
               id="companyName"
-              label="Company Name"
+              label="Client company"
               autoComplete="organization"
               value={form.companyName}
               onChange={handleChange}
               error={fieldErrors.companyName}
               placeholder="e.g. Acme Technologies"
             />
-            {searchParams.get("companyInvitationToken") && <p className="text-sm text-muted">Your company invitation will be verified when you create the account.</p>}
-          </>
-        )}
-        <PasswordField
-          id="password"
-          label="Password"
-          autoComplete="new-password"
-          value={form.password}
-          onChange={handleChange}
-          error={fieldErrors.password}
-        />
-        <PasswordField
-          id="confirmPassword"
-          label="Confirm password"
-          autoComplete="new-password"
-          value={form.confirmPassword}
-          onChange={handleChange}
-          error={fieldErrors.confirmPassword}
-        />
+            </div>
+          )}
+        </div>
 
-        <PrimaryButton isLoading={isSubmitting} loadingText="Creating account…" className="mt-2">
+        {form.role === ROLES.PM && searchParams.get("companyInvitationToken") && (
+          <p className="signup-invitation-note">Your company invitation will be verified when you create the account.</p>
+        )}
+
+        <p className="signup-terms">
+          By creating an account you agree to our <a href="#terms">Terms of Service</a> and <a href="#privacy">Privacy Policy</a>.
+        </p>
+
+        <PrimaryButton isLoading={isSubmitting} loadingText="Creating account…" className="login-submit signup-submit">
           Create account
         </PrimaryButton>
-
-        <p className="text-center text-sm text-muted">
-          Already have an account?{" "}
-          <Link to="/login" className="font-medium text-accent hover:underline">
-            Log in
-          </Link>
-        </p>
       </form>
     </AuthLayout>
   );

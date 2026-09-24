@@ -29,15 +29,17 @@ function safeDetails(before, after) {
 function projectItem(row) {
   const title = titles[row.action] || "Business activity recorded";
   const actor = { display_name: row.actor_name || "System", role: row.actor_role || "SYSTEM" };
-  return { id: Number(row.id), occurred_at: row.created_at, event: row.action, actor, entity: { type: row.entity_type.toUpperCase(), id: String(row.entity_id) }, title, summary: `${actor.display_name} recorded ${title.toLowerCase()}.`, details: safeDetails(row.before_json, row.after_json) };
+  const summary = `${actor.display_name} recorded ${title.toLowerCase()}.`;
+  return { id: Number(row.id), occurred_at: row.created_at, event: row.action, actor, entity: { type: row.entity_type.toUpperCase(), id: String(row.entity_id) }, title, summary, message: summary, details: safeDetails(row.before_json, row.after_json) };
 }
 function paging(query) {
-  const page = Number(query.page || 1); const limit = Number(query.limit || 25);
+  const page = Number(query.page || 1); const limit = Number(query.limit || 10);
   if (!Number.isInteger(page) || page < 1 || !Number.isInteger(limit) || limit < 1 || limit > 50) throw ApiError.badRequest("Invalid pagination parameters.");
   return { page, limit };
 }
 function response(result, page, limit) { return { items: result.rows.map(projectItem), pagination: { page, limit, total: result.total, total_pages: Math.max(1, Math.ceil(result.total / limit)) } }; }
 async function pmProject(userId, projectId, query) { const project = await repository.ownedProject(userId, projectId); if (!project) throw ApiError.notFound("Project not found."); const p = paging(query); return { project, ...response(await repository.projectActivity(projectId, p), p.page, p.limit) }; }
-async function vendor(userId, query) { const p = paging(query); return response(await repository.vendorActivity(userId, p), p.page, p.limit); }
+async function pm(userId, query) { const p = paging(query); return response(await repository.pmActivity(userId, p), p.page, p.limit); }
+async function vendor(userId, query, filters = {}) { const p = paging(query); return response(await repository.vendorActivity(userId, p, filters), p.page, p.limit); }
 async function contractor(userId, query) { const contractorId = await repository.contractorIdForUser(userId); if (!contractorId) throw ApiError.notFound("Contractor profile not found."); const p = paging(query); return response(await repository.contractorActivity(contractorId, p), p.page, p.limit); }
-module.exports = { pmProject, vendor, contractor };
+module.exports = { pmProject, pm, vendor, contractor, projectItem };

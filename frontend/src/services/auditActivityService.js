@@ -19,6 +19,7 @@ export function parseActivity(payload, { project = false } = {}) {
 async function get(path, params, project = false) { const { data } = await apiClient.get(path, { params }); return parseActivity(data, project ? { project: true } : undefined); }
 export default {
   project: (projectId, page = 1) => get(`/pm/projects/${projectId}/activity`, { page, limit: 25 }, true),
-  vendor: (page = 1) => get("/vendor/activity", { page, limit: 25 }),
+  pm: (page = 1) => get("/pm/activity", { page, limit: 10 }),
+  vendor: (page = 1) => get("/vendor/activity", { page, limit: 10 }),
   contractor: (page = 1) => get("/contractor/activity", { page, limit: 25 }),
 };

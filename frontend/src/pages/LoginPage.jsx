@@ -50,37 +50,40 @@ export default function LoginPage() {
   };
 
   return (
-    <AuthLayout title="Welcome back" description="Sign in to manage your workforce and projects.">
-      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+    <AuthLayout title="Welcome back" description="Sign in to manage your workforce and projects." variant="login">
+      <form onSubmit={handleSubmit} noValidate className="login-form">
         <AlertBanner message={formError} />
 
         <FormField
           id="email"
-          label="Email"
+          label="Email address"
           type="email"
           autoComplete="email"
           value={form.email}
           onChange={handleChange}
           error={fieldErrors.email}
+          placeholder="you@company.com"
         />
-        <PasswordField
-          id="password"
-          label="Password"
-          autoComplete="current-password"
-          value={form.password}
-          onChange={handleChange}
-          error={fieldErrors.password}
-        />
+        <div className="login-password-group">
+          <Link to="/forgot-password" className="login-forgot-link">Forgot password?</Link>
+          <PasswordField
+            id="password"
+            label="Password"
+            autoComplete="current-password"
+            value={form.password}
+            onChange={handleChange}
+            error={fieldErrors.password}
+          />
+        </div>
 
-        <PrimaryButton isLoading={isSubmitting} loadingText="Signing in…" className="mt-2">
+        <PrimaryButton isLoading={isSubmitting} loadingText="Signing in…" className="login-submit">
           Sign in
         </PrimaryButton>
-        <p className="text-center text-sm text-muted"><Link to="/forgot-password" className="font-medium text-accent hover:underline">Forgot your password?</Link></p>
 
-        <p className="text-center text-sm text-muted">
+        <p className="login-request-access">
           Don't have an account?{" "}
-          <Link to="/signup" className="font-medium text-accent hover:underline">
-            Create one
+          <Link to="/signup">
+            Request access
           </Link>
         </p>
       </form>

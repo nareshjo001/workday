@@ -14,6 +14,7 @@ export default function PasswordField({
   autoComplete = "current-password",
   error,
   required = true,
+  placeholder,
 }) {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -31,9 +32,10 @@ export default function PasswordField({
           onChange={onChange}
           autoComplete={autoComplete}
           required={required}
+          placeholder={placeholder}
           aria-invalid={!!error}
           aria-describedby={error ? `${id}-error` : undefined}
-          className={`${inputClassName(error)} pr-11`}
+          className={`${inputClassName(error)} pr-11 password-input auth-password-input`}
         />
         <button
           type="button"

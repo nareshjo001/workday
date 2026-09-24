@@ -2,6 +2,7 @@ const dashboardRepository = require("../repositories/dashboardRepository");
 const assignmentRepository = require("../repositories/assignmentRepository");
 const timesheetRepository = require("../repositories/timesheetRepository");
 const dashboardAnalyticsService = require("./dashboardAnalyticsService");
+const auditActivityService = require("./auditActivityService");
 
 /**
  * Vendor dashboard/analytics (UI + analytics redesign). Read-only —
@@ -50,7 +51,7 @@ async function getVendorDashboard(vendorId, rawFilters = {}, analyticsView = nul
     dashboardRepository.earningsByContractorForVendor(vendorId, scope),
     dashboardRepository.invoiceStatusCountsForVendor(vendorId, scope),
     dashboardRepository.listProjectsForVendorScope(scope),
-    dashboardRepository.listRecentActivityForVendor(vendorId, scope, 15),
+    auditActivityService.vendor(vendorId, { page: 1, limit: 5 }, filters),
   ]);
 
   // Second pass: attach the same server-computed allocated/approved/
@@ -116,7 +117,7 @@ async function getVendorDashboard(vendorId, rawFilters = {}, analyticsView = nul
       total_invoiced_amount: totalInvoicedAmount,
       by_status: invoiceStatusCounts,
     },
-    recent_activity: recentActivity,
+    recent_activity: recentActivity?.items || [],
   };
 }
 

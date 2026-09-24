@@ -8,12 +8,13 @@ import { SELF_SIGNUP_ROLES, ROLE_META } from "../constants/roles";
  */
 export default function RoleSelector({ value, onChange, error }) {
   return (
-    <fieldset className="flex flex-col gap-1.5">
-      <legend className="text-sm font-medium text-text-secondary">I am a</legend>
+    <fieldset className="signup-role-selector">
+      <legend>I am a</legend>
       <div
         role="radiogroup"
         aria-describedby={error ? "role-error" : undefined}
-        className="grid grid-cols-1 gap-2.5 sm:grid-cols-3"
+        aria-invalid={!!error}
+        className="signup-role-grid"
       >
         {SELF_SIGNUP_ROLES.map((role) => {
           const meta = ROLE_META[role];
@@ -21,11 +22,7 @@ export default function RoleSelector({ value, onChange, error }) {
           return (
             <label
               key={role}
-              className={`flex cursor-pointer flex-col gap-0.5 rounded-md border px-3.5 py-3 text-left transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent has-[:focus-visible]:ring-offset-2 ${
-                isSelected
-                  ? "border-primary bg-primary-light ring-1 ring-primary"
-                  : "border-border bg-surface hover:border-border-strong"
-              }`}
+              className={`signup-role-card${isSelected ? " is-selected" : ""}`}
             >
               <input
                 type="radio"
@@ -35,17 +32,28 @@ export default function RoleSelector({ value, onChange, error }) {
                 onChange={onChange}
                 className="sr-only"
               />
-              <span className="text-sm font-semibold text-text">{meta.label}</span>
-              <span className="text-xs text-muted">{meta.description}</span>
+              <span className="signup-role-icon" aria-hidden="true"><RoleIcon role={role} /></span>
+              <span className="signup-role-copy">
+                <strong>{meta.label}</strong>
+                <small>{meta.description}</small>
+              </span>
+              <span className="signup-role-check" aria-hidden="true">✓</span>
             </label>
           );
         })}
       </div>
       {error && (
-        <p id="role-error" className="text-sm text-error">
+        <p id="role-error" role="alert" className="signup-role-error">
           {error}
         </p>
       )}
     </fieldset>
   );
+}
+
+function RoleIcon({ role }) {
+  if (role === "PM") {
+    return <svg viewBox="0 0 24 24"><path d="M4 20V8l8-4 8 4v12M9 20v-5h6v5M8 10h.01M12 10h.01M16 10h.01" /></svg>;
+  }
+  return <svg viewBox="0 0 24 24"><path d="M4 20V9h16v11M8 9V5h8v4M8 13h3M13 13h3M8 17h3M13 17h3" /></svg>;
 }
