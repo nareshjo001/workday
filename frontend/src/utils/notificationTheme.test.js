@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_THEMES,
@@ -102,6 +102,9 @@ describe("notificationTheme", () => {
   });
 
   it("derives compact 3-line content for compliance notifications with context", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-24T12:00:00.000Z"));
+
     const n = {
       event_type: "DOCUMENT_EXPIRING",
       entity_type: "contractor_document",
@@ -115,10 +118,14 @@ describe("notificationTheme", () => {
         status: "VERIFIED",
       },
     };
-    const content = getNotificationContent(n);
-    expect(content.title).toBe("Compliance document expiring soon");
-    expect(content.contextLine).toBe("Avery Frontend · Tax Document");
-    expect(content.detailLine).toContain("Expires Sep 25, 2026");
+    try {
+      const content = getNotificationContent(n);
+      expect(content.title).toBe("Compliance document expiring soon");
+      expect(content.contextLine).toBe("Avery Frontend · Tax Document");
+      expect(content.detailLine).toContain("Expires Sep 25, 2026");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("gracefully falls back to notification message when context is missing", () => {
