@@ -65,26 +65,22 @@ test('M19 payment eligibility: APPROVED, AUTO_APPROVED, non-payable rejection, a
     return res.insertId;
   }
 
-  // 1. Unpaid APPROVED can record payment
   const approvedId = await insertInvoice('APPROVED', 100.00);
   const pay1 = await paymentService.record(sample.vendor_id, approvedId, { amount: '40.00', reference: 'PARTIAL-APP' }, actor);
   assert.equal(pay1.payment_state, 'PARTIALLY_PAID');
   assert.equal(pay1.paid_amount, 40.00);
   assert.equal(pay1.outstanding_amount, 60.00);
 
-  // 2. Partially paid APPROVED can record payment and transitions to PAID
   const pay2 = await paymentService.record(sample.vendor_id, approvedId, { amount: '60.00', reference: 'FINAL-APP' }, actor);
   assert.equal(pay2.payment_state, 'PAID');
   assert.equal(pay2.paid_amount, 100.00);
   assert.equal(pay2.outstanding_amount, 0.00);
 
-  // 3. Fully paid invoice cannot record again (exceeds outstanding)
   await assert.rejects(
     () => paymentService.record(sample.vendor_id, approvedId, { amount: '0.01' }, actor),
     (err) => err.statusCode === 409 && /Payment exceeds the outstanding invoice amount/i.test(err.message)
   );
 
-  // 4. AUTO_APPROVED behavior matches authoritative status model (unpaid, partially paid, fully paid)
   const autoApprovedId = await insertInvoice('AUTO_APPROVED', 200.00);
   const autoPay1 = await paymentService.record(sample.vendor_id, autoApprovedId, { amount: '50.00', reference: 'AUTO-PARTIAL' }, actor);
   assert.equal(autoPay1.payment_state, 'PARTIALLY_PAID');
@@ -101,7 +97,6 @@ test('M19 payment eligibility: APPROVED, AUTO_APPROVED, non-payable rejection, a
     (err) => err.statusCode === 409 && /Payment exceeds the outstanding invoice amount/i.test(err.message)
   );
 
-  // 5. Non-payable statuses rejected
   for (const nonPayableStatus of ['DRAFT', 'SUBMITTED', 'REJECTED', 'CANCELLED']) {
     const invId = await insertInvoice(nonPayableStatus, 50.00);
     await assert.rejects(
@@ -111,7 +106,6 @@ test('M19 payment eligibility: APPROVED, AUTO_APPROVED, non-payable rejection, a
     );
   }
 
-  // 6. Overpayment remains rejected
   const overpayInvoiceId = await insertInvoice('APPROVED', 50.00);
   await assert.rejects(
     () => paymentService.record(sample.vendor_id, overpayInvoiceId, { amount: '50.01' }, actor),

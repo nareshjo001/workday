@@ -1,24 +1,11 @@
 const { pool } = require("../config/db");
 
-/**
- * Database access for the `client_companies` table (see migration 009).
- * SQL lives only here, same convention as every other repository.
- */
 
 function normalize(name) {
   return name.trim().toLowerCase();
 }
 
-/**
- * Atomic find-or-create by (case/whitespace-insensitive) name. Uses the
- * INSERT ... ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id) idiom against
- * the UNIQUE(normalized_name) constraint so two concurrent signups for
- * "Acme" never race a separate SELECT-then-INSERT into two rows — the
- * database itself is the single source of truth for "does this company
- * already exist", not an application-level check. Always called within
- * the signup transaction (conn), never against the bare pool, so it
- * rolls back cleanly if anything later in signup fails.
- */
+// Find or create the normalized company atomically using LAST_INSERT_ID within the signup transaction.
 async function findOrCreate(conn, name) {
   const runner = conn || pool;
   const normalizedName = normalize(name);
@@ -30,11 +17,7 @@ async function findOrCreate(conn, name) {
   return result.insertId;
 }
 
-/**
- * Creates the initial PM's company.  Unlike findOrCreate this deliberately
- * refuses a duplicate: joining an established tenant must go through an
- * invitation, never through a second self-signup carrying the same name.
- */
+// Reject duplicate companies at signup; joining an existing tenant requires an invitation.
 async function createBootstrap(conn, name) {
   try {
     const [result] = await conn.query(

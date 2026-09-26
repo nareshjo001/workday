@@ -37,7 +37,6 @@ describe("SkillBadge", () => {
     render(<SkillBadge skill="ML Engineer" />);
     expect(screen.getByText("ML Engineer")).toBeInTheDocument();
     const badge = screen.getByTestId("contractor-skill-badge");
-    // Should have valid background and color that is not grey #f8fafc
     expect(badge.style.backgroundColor).not.toBe("rgb(248, 250, 252)");
   });
 

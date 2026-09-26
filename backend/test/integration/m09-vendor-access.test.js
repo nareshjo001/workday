@@ -46,15 +46,12 @@ test("M09 lists connected vendors with client access and authoritative project g
   const project1 = await project(pm);
   const project2 = (await request("POST", "/pm/projects", { name: "Second Project", start_date: new Date().toISOString().slice(0, 10), expected_hours: 8, requirements: [{ skill: "BACKEND", required_count: 1 }] }, pm.token)).data;
 
-  // 1. Connect vendorClientOnly with client-only (no project)
   const resClientOnly = await request("POST", "/pm/vendor-access", { vendorId: vendorClientOnlyId }, pm.token);
   assert.equal(resClientOnly.response.status, 201);
 
-  // 2. Connect vendorWithProject with project1
   const resWithProject = await request("POST", "/pm/vendor-access", { vendorId: vendorWithProjectId, projectId: project1.id }, pm.token);
   assert.equal(resWithProject.response.status, 201);
 
-  // 3. Query GET /pm/vendor-access
   let list = await request("GET", "/pm/vendor-access", undefined, pm.token);
   assert.equal(list.response.status, 200);
   assert.equal(list.data.items.length, 2);
@@ -71,7 +68,6 @@ test("M09 lists connected vendors with client access and authoritative project g
   assert.equal(v2.projects[0].id, project1.id);
   assert.equal(v2.projects[0].name, "Scoped Project");
 
-  // 4. Grant project2 to vendorWithProject as well (multiple projects)
   const grantRes = await request("POST", `/pm/projects/${project2.id}/vendors`, { vendorId: vendorWithProjectId }, pm.token);
   assert.equal(grantRes.response.status, 201);
 
@@ -80,7 +76,6 @@ test("M09 lists connected vendors with client access and authoritative project g
   assert.equal(v2Multi.projects.length, 2);
   assert.deepEqual(v2Multi.projects.map(p => p.id).sort(), [project1.id, project2.id].sort());
 
-  // 5. Revoke vendorWithProject access
   const delRes = await request("DELETE", `/pm/vendor-access/${vendorWithProjectId}`, undefined, pm.token);
   assert.equal(delRes.response.status, 204);
 

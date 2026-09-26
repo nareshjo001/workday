@@ -179,12 +179,10 @@ describe("ProjectTeamModal", () => {
     fireEvent.click(closeBtn);
     expect(handleClose).toHaveBeenCalledTimes(1);
 
-    // Backdrop click
     const dialog = screen.getByRole("dialog");
     fireEvent.click(dialog);
     expect(handleClose).toHaveBeenCalledTimes(2);
 
-    // Escape key
     fireEvent.keyDown(document, { key: "Escape" });
     expect(handleClose).toHaveBeenCalledTimes(3);
   });

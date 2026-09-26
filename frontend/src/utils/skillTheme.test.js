@@ -102,7 +102,6 @@ describe("skillTheme utility", () => {
       expect(cloudTheme).not.toEqual(DEFAULT_NEUTRAL_SKILL_THEME);
       expect(securityTheme).not.toEqual(DEFAULT_NEUTRAL_SKILL_THEME);
 
-      // Verify constrained HSL structure
       [mlTheme, cloudTheme, securityTheme].forEach((theme) => {
         expect(theme.bg).toMatch(/^hsl\(\d+, 65%, 96%\)$/);
         expect(theme.text).toMatch(/^hsl\(\d+, 75%, 24%\)$/);

@@ -80,7 +80,6 @@ describe("PmTimesheetsPage Enterprise Redesign", () => {
     expect(screen.getByText("Accurate approvals.")).toBeInTheDocument();
     expect(screen.getByText("On-time delivery.")).toBeInTheDocument();
 
-    // 4 KPI Cards
     const metricsSection = screen.getByLabelText("Review Queue Metrics");
     expect(within(metricsSection).getByText("Total submissions")).toBeInTheDocument();
     expect(within(metricsSection).getByText("Pending review")).toBeInTheDocument();
@@ -90,14 +89,12 @@ describe("PmTimesheetsPage Enterprise Redesign", () => {
     expect(within(metricsSection).getByText("Awaiting your action")).toBeInTheDocument();
     expect(within(metricsSection).getAllByText("Reviewed this session")).toHaveLength(2);
 
-    // Filters
     expect(screen.getByLabelText("Filter by contractor")).toBeInTheDocument();
     expect(screen.getByLabelText("Filter by skill")).toBeInTheDocument();
     expect(screen.getByLabelText("Filter by project")).toBeInTheDocument();
     expect(screen.getByLabelText("Filter by date range")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Search timesheets...")).toBeInTheDocument();
 
-    // Table rows
     const table = await screen.findByRole("table");
     expect(within(table).getByText("Quinn QA")).toBeInTheDocument();
     expect(within(table).getAllByText("Demo Contractor")).toHaveLength(2);
@@ -122,7 +119,6 @@ describe("PmTimesheetsPage Enterprise Redesign", () => {
     expect(await screen.findByText("Timesheet approved.")).toBeInTheDocument();
     expect(within(table).queryByText("Quinn QA")).not.toBeInTheDocument();
 
-    // Approved count incremented to 1 in KPI metrics section
     const metricsSection = screen.getByLabelText("Review Queue Metrics");
     const approvedCard = within(metricsSection).getByText("Approved").closest("div");
     expect(within(approvedCard).getByText("1")).toBeInTheDocument();
@@ -138,17 +134,14 @@ describe("PmTimesheetsPage Enterprise Redesign", () => {
     const rejectButtons = within(table).getAllByRole("button", { name: "Reject" });
     fireEvent.click(rejectButtons[0]);
 
-    // Modal opens
     const modal = await screen.findByRole("dialog");
     expect(within(modal).getByText("Reject timesheet")).toBeInTheDocument();
     expect(within(modal).getByLabelText("Reason")).toBeInTheDocument();
 
-    // Attempting empty submit shows error
     const submitRejectBtn = within(modal).getByRole("button", { name: "Reject" });
     fireEvent.click(submitRejectBtn);
     expect(await screen.findByText("A rejection reason is required.")).toBeInTheDocument();
 
-    // Enter reason and confirm
     fireEvent.change(within(modal).getByLabelText("Reason"), {
       target: { value: "Hours mismatched with sprint log" },
     });
@@ -176,7 +169,6 @@ describe("PmTimesheetsPage Enterprise Redesign", () => {
     const selectAllCheckbox = screen.getByLabelText("Select all timesheets");
     fireEvent.click(selectAllCheckbox);
 
-    // Bulk toolbar appears
     expect(await screen.findByText("3 timesheets selected")).toBeInTheDocument();
     const bulkApproveBtn = screen.getByRole("button", { name: "Approve selected" });
     const bulkRejectBtn = screen.getByRole("button", { name: "Reject selected" });
@@ -202,7 +194,6 @@ describe("PmTimesheetsPage Enterprise Redesign", () => {
     const table = await screen.findByRole("table");
     expect(within(table).getByText("Quinn QA")).toBeInTheDocument();
 
-    // Filter by Contractor
     const contractorSelect = screen.getByLabelText("Filter by contractor");
     fireEvent.change(contractorSelect, { target: { value: "Quinn QA" } });
 
@@ -210,7 +201,6 @@ describe("PmTimesheetsPage Enterprise Redesign", () => {
     expect(within(table).queryByText("Demo Contractor")).not.toBeInTheDocument();
     expect(screen.getByText("Showing 1 of 3 results")).toBeInTheDocument();
 
-    // Reset contractor and filter by skill
     fireEvent.change(contractorSelect, { target: { value: "" } });
     const skillSelect = screen.getByLabelText("Filter by skill");
     fireEvent.change(skillSelect, { target: { value: "BACKEND" } });
@@ -218,7 +208,6 @@ describe("PmTimesheetsPage Enterprise Redesign", () => {
     expect(within(table).queryByText("Quinn QA")).not.toBeInTheDocument();
     expect(within(table).getAllByText("Demo Contractor")).toHaveLength(2);
 
-    // Search query
     fireEvent.change(skillSelect, { target: { value: "" } });
     const searchInput = screen.getByPlaceholderText("Search timesheets...");
     fireEvent.change(searchInput, { target: { value: "Atlas" } });

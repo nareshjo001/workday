@@ -11,12 +11,7 @@ function whereFor(filters, scope) {
   return { where, params };
 }
 
-/**
- * One requirement per row, with decision-state counts.  The vendor query
- * deliberately joins the active M09 project-vendor relationship: a vendor
- * loses visibility the moment PM access is revoked, even for its own prior
- * submissions. PM data is always scoped by the owning PM.
- */
+// Scope PM data by ownership and vendor data by active project access, including prior submissions.
 async function listRequirementPipeline(filters, scope) {
   const { where, params } = whereFor(filters, scope);
   const candidateScope = scope.type === "vendor" ? " AND cs.vendor_id = ?" : "";

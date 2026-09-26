@@ -45,18 +45,15 @@ describe("PMProjectActivityModal", () => {
     expect(dialog).toBeInTheDocument();
     expect(dialog).toHaveAttribute("aria-modal", "true");
 
-    // Modal panel styling check
     const panel = dialog.querySelector(".project-activity-modal");
     expect(panel).toBeInTheDocument();
 
-    // Verify unified header on the left
     expect(screen.getByRole("heading", { name: "Activity" })).toBeInTheDocument();
     expect(
       screen.getByText("Track all important events across your projects, assignments, invoices and payments.")
     ).toBeInTheDocument();
     expect(screen.getByText("Atlas Commerce Modernization · ACTIVE")).toBeInTheDocument();
 
-    // Verify right actions: Refresh activity and Close button sit in same action group
     const actionsGroup = dialog.querySelector(".ui-modal-header-actions");
     expect(actionsGroup).toBeInTheDocument();
 
@@ -69,10 +66,8 @@ describe("PMProjectActivityModal", () => {
     expect(closeBtn).toBeInTheDocument();
     expect(actionsGroup).toContainElement(closeBtn);
 
-    // Verify activity item
     expect(screen.getByText("Invoice approved")).toBeInTheDocument();
 
-    // Body scroll locked
     expect(document.body.style.overflow).toBe("hidden");
   });
 

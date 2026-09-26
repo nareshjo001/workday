@@ -10,8 +10,7 @@ function redact(value, key = "") {
 }
 
 function write(level, event, fields = {}) {
-  // One JSON object per line keeps logs searchable in local development and
-  // compatible with ordinary container/platform log collectors.
+  // Emit one JSON object per line for container log collectors.
   const target = level === "error" ? "error" : level === "warn" ? "warn" : "log";
   console[target](JSON.stringify({ timestamp: new Date().toISOString(), level, event, ...redact(fields) }));
 }

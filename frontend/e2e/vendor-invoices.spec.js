@@ -36,7 +36,6 @@ test("Vendor invoices uses three clear responsive sections and one history selec
     const history = page.getByTestId("invoice-history");
     await expect(history.getByRole("heading", { name: "Invoices" })).toBeVisible();
 
-    // Select draft invoice
     const draftSelectors = history.getByRole("button", { name: "Draft #8" });
     await draftSelectors.first().click();
     await expect(page.getByTestId("selected-invoice").getByRole("heading", { name: "Draft #8" })).toBeVisible();
@@ -44,17 +43,14 @@ test("Vendor invoices uses three clear responsive sections and one history selec
     await expect(page.getByTestId("selected-invoice").getByRole("button", { name: "Submit invoice" })).toBeVisible();
     await expect(page.getByTestId("selected-invoice").getByRole("button", { name: "Print" })).toBeVisible();
 
-    // Select rejected invoice
     const rejectedSelectors = history.getByRole("button", { name: "INV-2026-000005" });
     await rejectedSelectors.first().click();
     await expect(page.getByTestId("selected-invoice").getByText(/Purchase order reference is missing/)).toBeVisible();
 
-    // Select approved unpaid invoice -> Record payment MUST be visible
     const unpaidSelectors = history.getByRole("button", { name: "INV-2026-000006" });
     await unpaidSelectors.first().click();
     await expect(page.getByTestId("selected-invoice").getByRole("button", { name: "Record payment" })).toBeVisible();
 
-    // Select approved fully paid invoice -> Record payment MUST NOT be visible
     const paidSelectors = history.getByRole("button", { name: "INV-2026-000004" });
     await paidSelectors.first().click();
     await expect(page.getByTestId("selected-invoice").getByText("PAID", { exact: true })).toBeVisible();
@@ -68,7 +64,6 @@ test("Vendor invoices uses three clear responsive sections and one history selec
 
 test("Record payment modal renders compact enterprise design and captures screenshots", async ({ page }) => {
   await mockPage(page);
-  // Add payment endpoint mock
   await page.route("**/api/vendor/invoices/*/payments", async (route) => {
     return route.fulfill({
       status: 201,
@@ -82,7 +77,6 @@ test("Record payment modal renders compact enterprise design and captures screen
     });
   });
 
-  // 1. Desktop 1280x720 verification
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto("/vendor/invoices");
 
@@ -96,14 +90,12 @@ test("Record payment modal renders compact enterprise design and captures screen
   const dialog = page.getByRole("dialog", { name: "Record payment" });
   await expect(dialog).toBeVisible();
 
-  // Summary checks
   await expect(dialog.getByText("Invoice: INV-2026-000006")).toBeVisible();
   await expect(dialog.getByText("Nova Analytics Platform")).toBeVisible();
   const outstandingEl = dialog.getByText("USD 1440.00", { exact: true });
   await expect(outstandingEl).toBeVisible();
   await expect(outstandingEl).toHaveClass(/text-\[#2446b8\]/);
 
-  // Method options check
   const methodSelect = dialog.locator('select[name="method"]');
   const methodOptions = await methodSelect.locator("option").allInnerTexts();
   expect(methodOptions).toEqual([
@@ -115,13 +107,11 @@ test("Record payment modal renders compact enterprise design and captures screen
     "Credit card",
   ]);
 
-  // Check modal container size
   const modalBox = await dialog.locator(".max-w-\\[560px\\]").boundingBox();
   expect(modalBox.width).toBeLessThanOrEqual(580);
   expect(modalBox.width).toBeGreaterThanOrEqual(500);
-  expect(modalBox.height).toBeLessThan(700); // Fits comfortably in 720px without page or modal clipping
+  expect(modalBox.height).toBeLessThan(700);
 
-  // Focus on amount input and verify continuous wrapper ring
   const amountInput = dialog.locator('input[name="amount"]');
   await amountInput.focus();
   const inputOutline = await amountInput.evaluate((el) => window.getComputedStyle(el).outlineStyle);
@@ -130,14 +120,11 @@ test("Record payment modal renders compact enterprise design and captures screen
   const amountWrapper = dialog.locator('div:has(> input[name="amount"])');
   await amountWrapper.screenshot({ path: "C:/Users/nares/.gemini/antigravity/brain/e8b12318-b2ec-417d-88d3-0027d54165a0/amount_composite_focus.png" });
 
-  // Save desktop screenshot with focused amount input into artifacts
   await page.screenshot({ path: "C:/Users/nares/.gemini/antigravity/brain/e8b12318-b2ec-417d-88d3-0027d54165a0/record_payment_modal_desktop_1280x720.png" });
 
-  // Escape closes
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
 
-  // 2. Mobile 390x844 verification
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/vendor/invoices");
   await history.getByRole("button", { name: "INV-2026-000006" }).first().click();
@@ -148,10 +135,8 @@ test("Record payment modal renders compact enterprise design and captures screen
   expect(mobileModalBox.width).toBeLessThanOrEqual(390);
   expect(mobileModalBox.width).toBeGreaterThanOrEqual(320);
 
-  // Save mobile screenshot into artifacts
   await page.screenshot({ path: "C:/Users/nares/.gemini/antigravity/brain/e8b12318-b2ec-417d-88d3-0027d54165a0/record_payment_modal_mobile_390x844.png" });
 
-  // Test form filling and submission
   await dialog.locator('input[name="reference"]').fill("WIRE-2026-001");
   await dialog.locator('select[name="method"]').selectOption("WIRE_TRANSFER");
   await dialog.locator('textarea[name="notes"]').fill("Settled via client direct wire transfer.");

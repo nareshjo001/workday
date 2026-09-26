@@ -1,11 +1,6 @@
 import { useState } from "react";
 import { inputClassName } from "./FormField";
 
-/**
- * Password input with a show/hide toggle. Shares the same visual language
- * as FormField (via inputClassName) but needs its own markup because of
- * the trailing toggle button inside the field.
- */
 export default function PasswordField({
   id,
   label,

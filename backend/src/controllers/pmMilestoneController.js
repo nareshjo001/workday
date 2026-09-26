@@ -6,11 +6,7 @@ const {
 } = require("../validators/pmMilestoneValidators");
 const asyncHandler = require("../utils/asyncHandler");
 
-/**
- * `req.user.userId` (set by `authenticate` from the verified JWT) is the
- * ONLY source of the acting PM's identity here — pm_id is never read
- * from the request body or params.
- */
+// Derive PM identity from the verified JWT, never request input.
 
 const create = asyncHandler(async (req, res) => {
   const payload = validateCreateMilestone(req.body);

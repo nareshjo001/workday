@@ -56,9 +56,7 @@ async function run() {
         continue;
       }
       logger.info("migration_applying", { migration: file });
-      // MySQL DDL can implicitly commit. The ledger entry is deliberately
-      // written only after the SQL succeeds; a failed migration therefore
-      // remains visible and requires an operator's forward-fix/restore plan.
+      // Record a migration only after its SQL succeeds, since MySQL DDL can commit implicitly.
       await connection.query(sql);
       await connection.query("INSERT INTO schema_migrations (version, filename, checksum) VALUES (?, ?, ?)", [file.slice(0, 3), file, checksum]);
       appliedCount += 1;

@@ -3,10 +3,7 @@ const { SKILLS } = require("../constants/skills");
 
 // Matches projects.name / company_name VARCHAR(150).
 const NAME_MAX_LENGTH = 150;
-// ISO date string, e.g. "2026-08-20" — matches what the frontend sends
-// from a native <input type="date">, and what MySQL returns given
-// config/db.js's dateStrings:true pool option (no timezone conversion to
-// reason about on either side).
+// Use ISO calendar dates consistently with native date inputs and MySQL dateStrings.
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 function isValidDateString(value) {
@@ -15,19 +12,11 @@ function isValidDateString(value) {
   return !Number.isNaN(parsed.getTime());
 }
 
-/**
- * "Today" as a YYYY-MM-DD string, compared lexicographically against
- * ISO date strings the same way startDate/endDate are compared against
- * each other below — no Date object math needed either side.
- */
+// Return today's ISO date for calendar-date comparisons.
 function todayDateString() {
   return new Date().toISOString().slice(0, 10);
 }
 
-/**
- * Validates one { skill, required_count } entry. Returns
- * { skill, requiredCount } or pushes error messages onto `errors`.
- */
 function validateRequirementEntry(entry, index, errors, seenSkills) {
   if (typeof entry !== "object" || entry === null) {
     errors.push(`requirements[${index}] must be an object.`);
@@ -54,23 +43,7 @@ function validateRequirementEntry(entry, index, errors, seenSkills) {
   return { skill, requiredCount };
 }
 
-/**
- * Validates + normalizes the payload for POST /api/pm/projects. Returns
- * { name, description, startDate, endDate, requirements } on success,
- * throws ApiError(400) otherwise. Deliberately does NOT accept pm_id —
- * that's always derived server-side from the authenticated PM's JWT.
- *
- * company_name is NO LONGER accepted here (vendor-centric workflow
- * revision) — a project's client company is now derived from the
- * creating PM's own project_managers/client_companies link (set at PM
- * signup), not typed per-project. See projectRepository.create /
- * pmProjectService.createProject.
- *
- * Module 3 revision additions: requirements (at least one staffing line,
- * no duplicate skills, positive counts). Dates must not be in the past
- * for a NEW project — this only applies at creation time; existing
- * projects are never silently modified.
- */
+// Validate project fields while deriving PM and company ownership server-side.
 function validateCreateProject(body = {}) {
   const errors = [];
 
@@ -100,8 +73,7 @@ function validateCreateProject(body = {}) {
     } else {
       if (endDate < today) errors.push("End date cannot be in the past.");
       if (isValidDateString(startDate) && endDate < startDate) {
-        // ISO YYYY-MM-DD strings compare correctly with plain string
-        // comparison — no need to parse into Date objects for this check.
+        // ISO calendar dates preserve chronological order under string comparison.
         errors.push("End date cannot be before start date.");
       }
     }
@@ -119,16 +91,7 @@ function validateCreateProject(body = {}) {
     });
   }
 
-  // Project hours/allocation redesign: total hours capacity for the
-  // WHOLE project (every contractor combined) — required, positive,
-  // non-zero, at most 2 decimal places (matches projects.expected_hours
-  // DECIMAL(9,2), same precision convention as timesheets.hours_logged /
-  // milestones.threshold_hours). There is deliberately no project-edit
-  // endpoint here that would let this value be lowered below already-
-  // allocated hours after staffing begins — expected_hours is only ever
-  // set at creation time in this MVP (see STEP2_STEP3_PLAN.md: no
-  // unnecessary edit endpoint was added since nothing in the spec's
-  // required workflow needs one).
+  // Require positive project capacity with at most two decimal places.
   const expectedHoursRaw = body.expected_hours;
   const expectedHours = Number(expectedHoursRaw);
   if (
@@ -150,11 +113,6 @@ function validateCreateProject(body = {}) {
   return { name, description, startDate, endDate, expectedHours, requirements };
 }
 
-/**
- * Validates the :id route param for GET /api/pm/projects/:id/contractors
- * (Module 5 addition). Same parsePositiveInt-based pattern as
- * pmTimesheetValidators.validateTimesheetIdParam.
- */
 function validateProjectIdParam(params = {}) {
   const n = Number(params.id);
   if (!Number.isInteger(n) || n <= 0) {
@@ -163,26 +121,7 @@ function validateProjectIdParam(params = {}) {
   return n;
 }
 
-/**
- * Validates the URL params + body for
- * PATCH /api/pm/projects/:projectId/contractors/:contractorId/allocation —
- * MVP fix 1 ("work-hour allocation must belong to the PM, not the
- * Vendor"). Returns { projectId, contractorId, allocatedHours } on
- * success, throws ApiError(400) otherwise.
- *
- * allocatedHours must be a finite, POSITIVE number (no zero, no negative —
- * per the fix's explicit requirement) with at most 2 decimal places,
- * matching project_assignments.allocated_hours DECIMAL(9,2) — the same
- * precision/positivity rule the old Vendor-side allocatedHours parser
- * used before this fix moved allocation ownership to the PM (see
- * vendorAssignmentValidators, which no longer parses this field at all).
- * Business-rule checks that need DB state — the contractor must actually
- * be assigned to this project, the new value can't be lowered below hours
- * already approved for them, and the project-wide total can't exceed
- * expected_hours — all live in pmProjectService.updateContractorAllocation,
- * not here (shape here, business rules in the service, same division of
- * responsibility as every other validator in this codebase).
- */
+// Validate positive allocation amounts to two decimals; enforce ownership and remaining capacity in the service.
 function validateUpdateAllocation(params = {}, body = {}) {
   const errors = [];
 
@@ -241,9 +180,6 @@ function validateReleaseContractor(params = {}, body = {}) {
   return { projectId, contractorId, actualEndDate, reason };
 }
 
-// Shared with validateProjectIdParam's inline check above — small,
-// deliberate duplication of the parsePositiveInt pattern every validator
-// file in this codebase already keeps its own copy of.
 function parsePositiveInt(value) {
   const n = Number(value);
   return Number.isInteger(n) && n > 0 ? n : null;

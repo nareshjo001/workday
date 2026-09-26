@@ -14,11 +14,6 @@ const list = asyncHandler(async (req, res) => {
   res.status(200).json(await vendorProjectService.listAvailableProjectsPage(query, req.user.userId));
 });
 
-/**
- * GET /api/vendor/projects/:id/requirements — a single project's detail
- * (name/company/PM/dates/requirements with live counts), the screen a
- * vendor lands on after clicking a project from their browse list.
- */
 const getRequirements = asyncHandler(async (req, res) => {
   const projectId = parsePositiveInt(req.params.id);
   if (!projectId) throw ApiError.badRequest("Invalid project id.");
@@ -26,12 +21,7 @@ const getRequirements = asyncHandler(async (req, res) => {
   res.status(200).json(project);
 });
 
-/**
- * GET /api/vendor/projects/:id/requirements/:requirementId/eligible-contractors
- * — contractors THIS vendor could assign to this one requirement.
- * `req.user.userId` is the only source of which vendor's contractors are
- * being listed.
- */
+// List eligible contractors only for the authenticated vendor and requested requirement.
 const getEligibleContractors = asyncHandler(async (req, res) => {
   const projectId = parsePositiveInt(req.params.id);
   const requirementId = parsePositiveInt(req.params.requirementId);

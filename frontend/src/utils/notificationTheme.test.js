@@ -72,19 +72,16 @@ describe("notificationTheme", () => {
   });
 
   it("falls back deterministically when deep_link is missing or malformed for Vendor", () => {
-    // Missing deep_link
     expect(resolveNotificationDestination({ event_type: "DOCUMENT_EXPIRING" }, "vendor")).toBe("/vendor/compliance");
     expect(resolveNotificationDestination({ event_type: "INVOICE_APPROVED" }, "vendor")).toBe("/vendor/invoices");
     expect(resolveNotificationDestination({ event_type: "INVOICE_REJECTED" }, "vendor")).toBe("/vendor/invoices");
     expect(resolveNotificationDestination({ event_type: "CANDIDATE_ACCEPTED" }, "vendor")).toBe("/vendor/staffing-pipeline");
     expect(resolveNotificationDestination({ event_type: "CANDIDATE_REJECTED" }, "vendor")).toBe("/vendor/staffing-pipeline");
 
-    // Malformed deep_link or out-of-role prefix
     expect(
       resolveNotificationDestination({ event_type: "INVOICE_APPROVED", deep_link: "/pm/invoices" }, "vendor")
     ).toBe("/vendor/invoices");
 
-    // Unknown event type with missing deep link falls back to notifications page
     expect(resolveNotificationDestination({ event_type: "FUTURE_EVENT" }, "vendor")).toBe("/vendor/notifications");
   });
 
@@ -101,7 +98,6 @@ describe("notificationTheme", () => {
     const formatted = formatNotificationTimestamp(ts);
     expect(formatted.date).toBe("Sep 11 2026");
     expect(formatted.time).toMatch(/^\d{1,2}:\d{2}\s?(AM|PM)$/i);
-    // Should have exactly one colon separating hour and minute (no seconds)
     expect((formatted.time.match(/:/g) || []).length).toBe(1);
   });
 

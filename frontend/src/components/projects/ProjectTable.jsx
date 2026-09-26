@@ -10,29 +10,7 @@ import {
 } from "./format";
 import { formatSkill } from "../../constants/skills";
 
-/**
- * Desktop presentation — hidden below md, where ProjectCardList takes
- * over. Shared between PMProjectsPage (showId=true, rows carry
- * total_required/total_assigned/staffing_status — Module 3 revision) and
- * ContractorProjectsPage (showId=false, rows carry assigned_date +
- * assigned_skill instead). Extra columns render automatically based on
- * which fields are actually present on the rows, so this one component
- * serves both shapes without a prop for every variant.
- *
- * Project hours/allocation redesign: an "Hours" column renders whenever a
- * row carries expected_hours (non-null) — separate from the existing
- * headcount "Team" column, since a project tracks staffing-by-headcount
- * and staffing-by-hours as two independent concepts (see format.jsx).
- * Legacy rows with expected_hours null simply don't get the column
- * populated for that row (the whole column is still shown if ANY row has
- * it, matching the showStaffing pattern already used here).
- *
- * `onComplete` (project hours/allocation redesign) is optional and, per
- * this codebase's "derive UI mode from callback presence" convention,
- * only PMProjectsPage passes it — a "Complete Project" button then
- * renders for that PM's own ACTIVE rows only. ContractorProjectsPage
- * never passes it, so a contractor never sees this control.
- */
+// Derive optional columns and actions from row fields and callbacks; keep headcount and hours separate.
 export default function ProjectTable({ projects, showId = true, onComplete, completingId, onSettings, onRequirements, onControl, onActivity }) {
   const showAssignedDate = projects.some((p) => p.assigned_date !== undefined);
   const showAssignedSkill = projects.some((p) => p.assigned_skill !== undefined);

@@ -10,17 +10,7 @@ import { groupTimesheetsByProjectAndWeek } from "../components/timesheets/weekGr
 import contractorTimesheetService from "../services/contractorTimesheetService";
 import contractorProjectService from "../services/contractorProjectService";
 
-/**
- * Contractor's own timesheet history + daily "Log Hours" submission.
- * All data comes from contractorTimesheetService/contractorProjectService,
- * both scoped to the authenticated contractor server-side — this
- * component never sends or reads a contractor id itself.
- *
- * The API returns a flat list of daily rows; this page groups them into
- * project -> week -> day purely for display (see weekGrouping.js) and
- * re-groups from scratch on every timesheets update — there is no
- * separate "weekly" state to keep in sync.
- */
+// Display server-scoped daily logs grouped by project and week without duplicating weekly state.
 export default function ContractorTimesheetsPage() {
   const [timesheets, setTimesheets] = useState([]);
   const [assignedProjects, setAssignedProjects] = useState([]);
@@ -60,20 +50,7 @@ export default function ContractorTimesheetsPage() {
     return () => clearTimeout(timer);
   }, [successMessage]);
 
-  // Only ACTIVE assignments can accept new timesheets (the backend
-  // rejects COMPLETED/ON_HOLD projects too — see
-  // contractorTimesheetService.submitTimesheet) — filtered here so the
-  // Log Hours dropdown never offers a project that would just bounce.
-  //
-  // PROJECT HOURS/ALLOCATION REDESIGN: also requires assignment_status
-  // === "ACTIVE" — a project can stay lifecycle-ACTIVE while THIS
-  // contractor has already been RELEASED from it (e.g. after project
-  // completion auto-released everyone, or an individual release), and a
-  // released contractor should never be offered that project to log
-  // against even though the project itself is still open. Legacy rows
-  // with assignment_status undefined (pre-redesign data) are treated as
-  // eligible, same "undefined means not yet migrated, don't block on it"
-  // convention used elsewhere in this redesign.
+  // Offer active projects with active assignments, retaining compatibility for unspecified assignment status.
   const activeProjects = useMemo(
     () =>
       assignedProjects.filter(
@@ -87,11 +64,7 @@ export default function ContractorTimesheetsPage() {
     [timesheets]
   );
 
-  // Project hours/allocation redesign: looked up per project group so
-  // ProjectTimesheetGroup can show an Allocated/Approved/Pending/
-  // Remaining banner — assignedProjects (not the flat timesheets list)
-  // is the source of truth for allocation, since a week with no logs yet
-  // still has an allocation worth showing.
+  // Use assignment data for allocation totals even when a project has no logged hours.
   const allocationByProjectId = useMemo(() => {
     const map = new Map();
     for (const p of assignedProjects) map.set(p.id, p);

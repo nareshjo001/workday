@@ -126,7 +126,6 @@ describe("ProjectStaffingCard", () => {
     expect(icon.className.baseVal || icon.className).toContain("w-[18px]");
     expect(icon.className.baseVal || icon.className).toContain("h-[18px]");
 
-    // Verify it only renders once in the button
     const iconsInButton = button.querySelectorAll("svg");
     expect(iconsInButton).toHaveLength(1);
   });

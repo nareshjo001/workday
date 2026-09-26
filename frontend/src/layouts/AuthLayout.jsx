@@ -1,11 +1,3 @@
-/**
- * Shared shell for Login/Signup.
- *
- * Desktop (md+): two-column composition — a brand panel on the left
- * establishing product identity, and the auth card on the right.
- * Mobile: the brand panel collapses to a compact wordmark above the
- * card, so nothing forces the desktop layout onto small screens.
- */
 export default function AuthLayout({ title, description, children, footer, variant = "default" }) {
   const isPremiumAuth = variant === "login" || variant === "signup";
   const isSignup = variant === "signup";

@@ -6,10 +6,6 @@ export function formatRate(rate) {
   })}`;
 }
 
-/**
- * Derives 1-2 uppercase letter initials from a contractor's name.
- * e.g. "Avery Frontend" -> "AF", "Casey QA" -> "CQ", "Dakota" -> "DA"
- */
 export function getInitials(name) {
   if (!name || typeof name !== "string") return "?";
   const parts = name.trim().split(/\s+/).filter(Boolean);

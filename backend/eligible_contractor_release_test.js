@@ -1,25 +1,4 @@
-// Focused regression test for the "released contractors must reappear in
-// the eligible-contractors list" bug fix (contractorRepository.
-// listEligibleForVendorAndSkill's LEFT JOIN now filters to pa.status =
-// 'ACTIVE' instead of matching any historical assignment row).
-//
-// Lifecycle exercised, exactly as specified:
-//   1. Create an ACTIVE contractor.
-//   2. Assign contractor to Project A.
-//   3. Verify contractor is NOT returned by the eligible-contractors list.
-//   4. Complete Project A.
-//   5. Verify the assignment changes from ACTIVE -> RELEASED.
-//   6. Call the eligible-contractors list again.
-//   7. Verify the same contractor IS now returned as eligible.
-//   8. Assign the contractor to Project B.
-//   9. Verify the contractor's Project B assignment is ACTIVE.
-//   10. Verify the contractor is again excluded from the eligible list
-//       while working on Project B.
-// Plus the stated edge case: multiple historical RELEASED rows (from
-// completing Project A AND, later, Project B) with no ACTIVE row must
-// still leave the contractor eligible.
-//
-// Usage: node eligible_contractor_release_test.js   (server on :5000)
+// Live-server regression: released assignment history must not prevent future staffing eligibility.
 
 const BASE = process.env.API_BASE_URL || "http://localhost:5000/api";
 let pass = 0;
@@ -89,7 +68,6 @@ async function main() {
     return { status: accepted.status === 200 ? 201 : accepted.status, data: accepted.data };
   }
 
-  // 1. Create an ACTIVE contractor.
   const createRes = await req(
     "POST",
     "/vendor/contractors",
@@ -106,7 +84,6 @@ async function main() {
   const skillRes = await req("PATCH", "/contractor/profile/skill", { skill: "BACKEND" }, contractorToken);
   assert(skillRes.status === 200, `set contractor skill: expected 200, got ${skillRes.status}`);
 
-  // Project A.
   const projA = await req(
     "POST",
     "/pm/projects",
@@ -116,12 +93,10 @@ async function main() {
   assert(projA.status === 201, `create project A: expected 201, got ${projA.status} ${JSON.stringify(projA.data)}`);
   const reqAId = projA.data.requirements[0].id;
 
-  // 2. Assign contractor to Project A.
   const assignA = await submitAndAccept(projA.data.id, reqAId, contractorId);
   assert(assignA.status === 201, `assign contractor to project A: expected 201, got ${assignA.status} ${JSON.stringify(assignA.data)}`);
 
-  // 3. Verify contractor is NOT returned by the eligible-contractors list
-  // (needs a second project/requirement with the same skill to query against).
+  // Probe a second requirement with the same skill to test active-assignment exclusion.
   const projProbe1 = await req(
     "POST",
     "/pm/projects",
@@ -139,14 +114,10 @@ async function main() {
   const foundWhileActive = eligibleWhileActive.data.eligible_contractors.some((c) => c.id === contractorId);
   assert(!foundWhileActive, "contractor with an ACTIVE assignment must NOT appear in the eligible list");
 
-  // 4. Complete Project A.
   const completeA = await req("PATCH", `/pm/projects/${projA.data.id}/complete`, undefined, pm.token);
   assert(completeA.status === 200, `complete project A: expected 200, got ${completeA.status} ${JSON.stringify(completeA.data)}`);
   assert(completeA.data.released_assignment_count === 1, `expected 1 assignment released, got ${completeA.data.released_assignment_count}`);
 
-  // 5. Verify the assignment changed ACTIVE -> RELEASED (observed via the
-  // PM's assigned-contractors view for project A, which surfaces
-  // assignment_status).
   const teamA = await req("GET", `/pm/projects/${projA.data.id}/contractors`, undefined, pm.token);
   assert(teamA.status === 200, `list project A contractors: expected 200, got ${teamA.status}`);
   const contractorRowA = teamA.data.find((c) => c.contractor_id === contractorId);
@@ -156,7 +127,6 @@ async function main() {
     `contractor's project A assignment should now be RELEASED, got ${contractorRowA?.assignment_status}`
   );
 
-  // 6/7. Call the eligible-contractors list again -> contractor now eligible.
   const eligibleAfterRelease = await req(
     "GET",
     `/vendor/projects/${projProbe1.data.id}/requirements/${probe1ReqId}/eligible-contractors`,
@@ -167,7 +137,6 @@ async function main() {
   const foundAfterRelease = eligibleAfterRelease.data.eligible_contractors.some((c) => c.id === contractorId);
   assert(foundAfterRelease, "contractor with only a RELEASED assignment MUST appear in the eligible list — this is the core bug-fix assertion");
 
-  // 8. Assign the contractor to Project B.
   const projB = await req(
     "POST",
     "/pm/projects",
@@ -178,13 +147,11 @@ async function main() {
   const assignB = await submitAndAccept(projB.data.id, reqBId, contractorId);
   assert(assignB.status === 201, `assign contractor to project B: expected 201, got ${assignB.status} ${JSON.stringify(assignB.data)}`);
 
-  // 9. Verify the contractor's Project B assignment is ACTIVE.
   const teamB = await req("GET", `/pm/projects/${projB.data.id}/contractors`, undefined, pm.token);
   const contractorRowB = teamB.data.find((c) => c.contractor_id === contractorId);
   assert(contractorRowB?.assignment_status === "ACTIVE", `contractor's project B assignment should be ACTIVE, got ${contractorRowB?.assignment_status}`);
 
-  // 10. Verify the contractor is again excluded from the eligible list
-  // while working on Project B (using a fresh probe project/requirement).
+  // Use a fresh requirement to verify that the new active assignment blocks overlapping eligibility.
   const projProbe2 = await req(
     "POST",
     "/pm/projects",
@@ -201,8 +168,7 @@ async function main() {
   const foundWhileActiveB = eligibleWhileActiveB.data.eligible_contractors.some((c) => c.id === contractorId);
   assert(!foundWhileActiveB, "contractor with an ACTIVE assignment on project B must NOT appear in the eligible list");
 
-  // Edge case: complete Project B too, leaving TWO historical RELEASED
-  // rows (A and B) and zero ACTIVE rows — contractor must still be eligible.
+  // Retain eligibility with two released assignments and no active assignment.
   const completeB = await req("PATCH", `/pm/projects/${projB.data.id}/complete`, undefined, pm.token);
   assert(completeB.status === 200, `complete project B: expected 200, got ${completeB.status}`);
   const eligibleAfterTwoReleases = await req(

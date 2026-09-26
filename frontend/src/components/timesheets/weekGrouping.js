@@ -1,34 +1,16 @@
-/**
- * Pure grouping helpers that turn the flat list of daily timesheet rows
- * GET /api/contractor/timesheets returns into the project -> week -> day
- * hierarchy ContractorTimesheetsPage renders. The backend has no concept
- * of a "week" anywhere in the daily data model (see backend migration
- * 013 — one row is one day, work_date) — grouping by week, and summing
- * each week's Total/Approved/Pending/Rejected hours, is purely a display
- * computation done here, every time, from the daily rows currently in
- * state. Nothing computed in this file is ever sent back to the server
- * or treated as authoritative; it is recomputed on every render from
- * whatever the API most recently returned.
- */
+// Group returned daily rows into project/week summaries for display only.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/**
- * The Monday that starts the week containing `dateStr` (a "YYYY-MM-DD"
- * string), returned the same way. Parsed/computed entirely in UTC so
- * this never drifts by a day depending on the browser's local timezone —
- * same convention the backend's date validators use for date-only
- * values (see contractorTimesheetValidators.js).
- */
+// Find the week's Monday in UTC so local timezones cannot shift calendar dates.
 export function getWeekStart(dateStr) {
   const date = new Date(`${dateStr}T00:00:00Z`);
-  const day = date.getUTCDay(); // 0 = Sunday ... 6 = Saturday
+  const day = date.getUTCDay();
   const diffToMonday = day === 0 ? 6 : day - 1;
   const monday = new Date(date.getTime() - diffToMonday * DAY_MS);
   return monday.toISOString().slice(0, 10);
 }
 
-/** The Sunday that ends the week started by `weekStartStr`. */
 export function getWeekEnd(weekStartStr) {
   const monday = new Date(`${weekStartStr}T00:00:00Z`);
   const sunday = new Date(monday.getTime() + 6 * DAY_MS);
@@ -39,13 +21,7 @@ function emptyTotals() {
   return { total: 0, approved: 0, pending: 0, rejected: 0 };
 }
 
-/**
- * approved/pending/rejected are mutually exclusive slices of total by
- * status (never double counted) — same "Approved excludes pending and
- * rejected" rule the Vendor Project Team view uses for
- * logged_hours/approved_hours (see backend assignmentRepository
- * .listAssignedContractorsWithHours).
- */
+// Accumulate mutually exclusive status totals without counting a log twice.
 function addToTotals(totals, log) {
   const hours = Number(log.hours_logged) || 0;
   totals.total += hours;
@@ -54,15 +30,7 @@ function addToTotals(totals, log) {
   else if (log.status === "REJECTED") totals.rejected += hours;
 }
 
-/**
- * Groups a flat list of daily timesheet rows into:
- *   [{ project_id, project_name, weeks: [
- *     { weekStart, weekEnd, logs: [...], totals: {total, approved, pending, rejected} }
- *   ] }]
- * Projects are ordered by name; weeks within a project newest-first;
- * daily logs within a week newest-first — matching the newest-first
- * convention the flat (pre-revision) timesheet list always used.
- */
+// Order projects by name, then their calendar weeks and daily logs newest first.
 export function groupTimesheetsByProjectAndWeek(timesheets) {
   const projectMap = new Map();
 

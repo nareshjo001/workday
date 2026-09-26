@@ -1,11 +1,3 @@
-/**
- * Loading-state placeholders for the dashboards. No skeleton primitive
- * existed anywhere in this app before this feature (Spinner.jsx is a
- * full-region spinner, not a shaped placeholder) — these are small and
- * scoped to exactly what the dashboards need: a row of KPI-card-shaped
- * blocks and a block-shaped section placeholder, both plain `animate-pulse`
- * divs using the existing `bg-surface-muted` token, no new dependency.
- */
 export function KpiCardSkeleton() {
   return (
     <div className="flex flex-col gap-2 rounded-lg bg-surface p-4 shadow-panel ring-1 ring-border sm:p-5">

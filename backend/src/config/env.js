@@ -51,8 +51,7 @@ const env = {
     smtpUser: process.env.SMTP_USER || "",
     smtpPassword: process.env.SMTP_PASSWORD || "",
   },
-  // Decision Intelligence is deliberately opt-in. These flags expose no
-  // intelligence behaviour by themselves; later modules own their engines.
+  // Keep Decision Intelligence features opt-in.
   intelligence: {
     vendorRateIntelligence: featureEnabled("INTELLIGENCE_VENDOR_RATE_ENABLED"),
     pmProjectControl: featureEnabled("INTELLIGENCE_PM_PROJECT_CONTROL_ENABLED"),

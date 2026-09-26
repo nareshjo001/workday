@@ -4,33 +4,9 @@ const timesheetRepository = require("../repositories/timesheetRepository");
 const dashboardAnalyticsService = require("./dashboardAnalyticsService");
 const auditActivityService = require("./auditActivityService");
 
-/**
- * Vendor dashboard/analytics (UI + analytics redesign). Read-only —
- * calls no mutating repository function anywhere in this file. `vendorId`
- * is always `req.user.userId` off the JWT, resolved by the controller —
- * this file never accepts a vendor id as a parameter from a request, so
- * there is no way to ask for another vendor's dashboard by supplying a
- * different id (see routes/vendorRoutes.js: this endpoint sits behind
- * the SAME `authenticate + authorizeRoles(VENDOR)` gate every other
- * vendor route already uses).
- *
- * Reuses the EXISTING generic sumAllocatedHoursForProjects /
- * sumApprovedHoursForProjects batch reads (already used by
- * pmProjectService/vendorProjectService) for the project-progress
- * numbers rather than duplicating that SQL — only the vendor-specific
- * aggregations (earnings, invoice counts, activity feed, "which
- * projects/contractors are this vendor's") are new, and all of that new
- * SQL lives in dashboardRepository.js, not here.
- */
+// Build read-only metrics scoped to the authenticated vendor with shared batched progress queries.
 
-/**
- * Same approved/expected -> percentage formula as
- * pmProjectService.toProjectView / vendorProjectService.toProjectView —
- * duplicated here rather than imported, matching this codebase's own
- * established "small pure-function duplication over a cross-service
- * import" convention (see e.g. deriveStaffingStatus, formatHours across
- * multiple files).
- */
+// Use approved hours divided by expected hours for project progress.
 function computeWorkProgressPercent(approvedHours, expectedHours) {
   if (expectedHours === null || expectedHours === undefined || expectedHours === 0) return null;
   return Math.min(100, Math.round((approvedHours / expectedHours) * 1000) / 10);
@@ -54,10 +30,7 @@ async function getVendorDashboard(vendorId, rawFilters = {}, analyticsView = nul
     auditActivityService.vendor(vendorId, { page: 1, limit: 5 }, filters),
   ]);
 
-  // Second pass: attach the same server-computed allocated/approved/
-  // progress figures every other project view in this codebase carries —
-  // one batched query for however many active projects this vendor has,
-  // never N+1.
+  // Batch project-hour totals to avoid a query per project.
   const projectIds = projectsForProgress.map((p) => p.id);
   let projectProgress = [];
   if (projectIds.length > 0) {
@@ -85,10 +58,7 @@ async function getVendorDashboard(vendorId, rawFilters = {}, analyticsView = nul
     });
   }
 
-  // Invoice overview: pending vendor approvals / approved / rejected /
-  // total invoiced (every status, since "invoiced" happens at generation
-  // time regardless of review outcome — see dashboardRepository's own
-  // comment on invoiceStatusCountsForVendor).
+  // Include all invoice states in invoiced totals regardless of review outcome.
   const byStatus = new Map(invoiceStatusCounts.map((r) => [r.status, r]));
   const approvedCount = (byStatus.get("APPROVED")?.count || 0) + (byStatus.get("AUTO_APPROVED")?.count || 0);
   const approvedTotal = (byStatus.get("APPROVED")?.total || 0) + (byStatus.get("AUTO_APPROVED")?.total || 0);

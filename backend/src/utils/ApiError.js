@@ -1,8 +1,4 @@
-/**
- * Typed application error carrying an HTTP status code.
- * Thrown from services/controllers and turned into a safe JSON response by
- * the centralized error-handling middleware.
- */
+// Carry an HTTP status for safe responses from the central error handler.
 class ApiError extends Error {
   constructor(statusCode, message, details, code) {
     super(message);

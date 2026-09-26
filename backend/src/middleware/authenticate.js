@@ -4,13 +4,7 @@ const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const authSessionRepository = require("../repositories/authSessionRepository");
 
-/**
- * Verifies the Bearer JWT on the Authorization header and attaches the
- * authenticated identity to req.user as { userId, role }.
- *
- * Pure authentication concern only — no business logic, no DB lookups.
- * Rejects: missing token, malformed header, invalid signature, expired token.
- */
+// Verify the Bearer JWT and active session before attaching the authenticated identity.
 const authenticate = asyncHandler(async (req, res, next) => {
   const header = req.headers.authorization || "";
   const [scheme, token] = header.split(" ");

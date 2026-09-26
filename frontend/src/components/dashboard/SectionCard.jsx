@@ -1,10 +1,3 @@
-/**
- * The boxed-card wrapper every dashboard section (charts, tables,
- * activity feed) sits in — the exact "rounded-lg bg-surface p-4
- * shadow-panel ring-1 ring-border sm:p-6" pattern already used inline in
- * PmMilestonesPage/VendorAssignmentsPage etc., pulled into one component
- * so all three new dashboards render visually identical section boxes.
- */
 export default function SectionCard({ title, description, action, children, className = "" }) {
   return (
     <div className={`min-w-0 rounded-lg bg-surface p-4 shadow-panel ring-1 ring-border sm:p-6 ${className}`}>

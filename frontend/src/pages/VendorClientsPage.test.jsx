@@ -102,7 +102,6 @@ describe("VendorClientsPage", () => {
     expect(await screen.findByText("Atlas Commerce")).toBeInTheDocument();
     expect(screen.getByText("Nova Digital")).toBeInTheDocument();
 
-    // Check initials avatar
     const atlasCard = screen.getByTestId("client-card-1");
     expect(within(atlasCard).getByText("AC")).toBeInTheDocument();
 
@@ -152,7 +151,6 @@ describe("VendorClientsPage", () => {
   it("Item F: renders recent projects with semantic status pills", async () => {
     render(<VendorClientsPage />);
 
-    // Atlas recent projects
     expect(await screen.findByText("Atlas Commerce Modernization")).toBeInTheDocument();
     expect(screen.getByText("Platform Upgrade")).toBeInTheDocument();
 
@@ -166,7 +164,6 @@ describe("VendorClientsPage", () => {
     expect(platformBadge).toHaveTextContent("In Progress");
     expect(platformBadge).toHaveClass("bg-emerald-50");
 
-    // Nova recent projects
     expect(screen.getByText("Nova Analytics Platform")).toBeInTheDocument();
     const novaRow = screen.getByTestId("recent-project-201");
     const novaBadge = within(novaRow).getByTestId("project-status-badge");
@@ -186,7 +183,6 @@ describe("VendorClientsPage", () => {
     expect(screen.getByText("Atlas Commerce")).toBeInTheDocument();
     expect(screen.queryByText("Nova Digital")).not.toBeInTheDocument();
 
-    // Search by PM contact
     fireEvent.change(searchInput, { target: { value: "Nova" } });
     expect(screen.queryByText("Atlas Commerce")).not.toBeInTheDocument();
     expect(screen.getByText("Nova Digital")).toBeInTheDocument();
@@ -212,12 +208,10 @@ describe("VendorClientsPage", () => {
 
     const sortSelect = screen.getByTestId("client-sort-select");
 
-    // Initial order: Atlas Commerce first, then Nova Digital
     let cards = screen.getAllByTestId(/client-card-/);
     expect(cards[0]).toHaveTextContent("Atlas Commerce");
     expect(cards[1]).toHaveTextContent("Nova Digital");
 
-    // Change to Name (Z–A)
     fireEvent.change(sortSelect, { target: { value: "name_desc" } });
     cards = screen.getAllByTestId(/client-card-/);
     expect(cards[0]).toHaveTextContent("Nova Digital");

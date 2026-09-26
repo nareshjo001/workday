@@ -16,13 +16,7 @@ const { ROLES } = require("../constants/roles");
 const pmInvitations = require("../repositories/pmCompanyInvitationRepository");
 const audit = require("./auditService");
 
-/**
- * PM signup additionally finds-or-creates a client_companies row and
- * links the new user to it via project_managers — all in one transaction
- * with the user insert itself, so a failure partway through (e.g. the
- * company link) never leaves an orphaned user record with no company.
- * Vendor signup skips all of this (role !== PM).
- */
+// Create the PM user and company association atomically; existing tenants require invitations.
 async function signup({ name, email, password, role, companyName, companyInvitationToken, auditActor }) {
   const existing = await userRepository.findByEmail(email);
   if (existing) {

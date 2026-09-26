@@ -6,8 +6,7 @@ async function signup({ name, email, password, role, companyName }) {
     email,
     password,
     role,
-    // Only meaningful (and only required by the backend) for role = PM —
-    // sent as-is for other roles, the backend simply ignores it.
+    // Only PM signup requires companyName; other roles ignore it server-side.
     companyName,
   });
   return data;

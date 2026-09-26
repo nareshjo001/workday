@@ -2,13 +2,7 @@ import DataTableScroll from "../DataTableScroll";
 import { formatRate, StatusBadge } from "./format";
 import { formatSkill } from "../../constants/skills";
 
-/**
- * Desktop presentation — hidden below md, where ContractorCardList takes
- * over. Both are dumb list renderers; VendorContractorsPage owns the data
- * and the edit-modal state. Skill column (Module 3 revision) reflects
- * whatever the contractor has set on their own profile — a Vendor can see
- * it but never edit it here.
- */
+// Display contractor skills read-only; vendors manage rates and status in the parent page.
 export default function ContractorTable({ contractors, onEdit, onHistory }) {
   return (
     <DataTableScroll label="Contractor Table" className="hidden md:block">

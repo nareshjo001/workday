@@ -1,13 +1,4 @@
-/**
- * Presentation utility for deterministic, stable contractor skill badge styling.
- *
- * Rules:
- * 1. Same skill (case/whitespace insensitive) -> exact same color every time.
- * 2. Known core skills retain currently established approved styles.
- * 3. Unknown/new/future skills are assigned deterministically via a stable string hash
- *    over an accessible, enterprise-grade color theme palette.
- * 4. Zero Math.random(), zero reliance on contractor IDs, row index, state, or storage.
- */
+// Assign stable skill colors from normalized names, preserving known themes and hashing unknown skills.
 
 /**
  * Normalizes a skill string for identity comparison and deterministic color lookup.
@@ -19,9 +10,7 @@ export function normalizeSkill(skill) {
   return String(skill).trim().replace(/\s+/g, " ").toLowerCase();
 }
 
-/**
- * Established styles for known core skills to preserve existing visual hierarchy.
- */
+// Preserve established themes for known skills.
 export const KNOWN_SKILL_THEMES = Object.freeze({
   frontend: {
     bg: "#f5f3ff",
@@ -61,7 +50,7 @@ export const KNOWN_SKILL_THEMES = Object.freeze({
   },
 });
 
-/** Neutral fallback used strictly when skill is empty or undefined. */
+// Use a neutral theme only when no skill is provided.
 export const DEFAULT_NEUTRAL_SKILL_THEME = Object.freeze({
   bg: "#f8fafc",
   text: "#475569",
@@ -108,10 +97,7 @@ export function generateSkillThemeFromHash(skill) {
   };
 }
 
-/**
- * 14 restrained, accessible enterprise-grade theme palettes for optional discrete use.
- * Preserved for backwards compatibility with existing consumers.
- */
+// Retain the discrete skill palette for backward compatibility.
 export const EXTENDED_SKILL_PALETTE = Object.freeze([
   // 0: Indigo
   { bg: "#eef2ff", text: "#3730a3", border: "#c7d2fe", dot: "#6366f1" },

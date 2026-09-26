@@ -44,14 +44,7 @@ function FieldError({ id, message }) {
   return message ? <p id={id} role="alert" className="mt-1 text-xs font-medium text-red-600">{message}</p> : null;
 }
 
-/**
- * PM creates a milestone for the currently selected PROJECT (project
- * hours/allocation redesign: milestones are project-scoped, not
- * per-contractor — every contractor staffed on the project contributes
- * hours toward the same shared threshold, apportioned chronologically by
- * checkAndTriggerMilestones on the backend). The old contractor picker is
- * gone entirely; there is no per-milestone contractor to select anymore.
- */
+// Create project-level checkpoints; the server calculates each contractor's unbilled contribution independently.
 export default function CreateMilestoneModal({ onClose, onCreate }) {
   const [form, setForm] = useState(initialForm);
   const [fieldErrors, setFieldErrors] = useState({});

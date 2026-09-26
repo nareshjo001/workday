@@ -173,35 +173,28 @@ test("Contractor Timesheets Redesign visual and interaction verification", async
     await page.goto("http://localhost:5173/contractor/timesheets");
     await expect(page.getByRole("heading", { name: "Timesheets", level: 1 })).toBeVisible();
 
-    // Verify no horizontal page overflow
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
     expect(overflow, `Horizontal overflow detected at ${vp.width}x${vp.height}`).toBe(false);
 
-    // Save screenshot
     await page.screenshot({
       path: path.join(ARTIFACT_DIR, `contractor_timesheets_${vp.name}.png`),
       fullPage: false,
     });
   }
 
-  // Set desktop viewport for interaction tests
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto("http://localhost:5173/contractor/timesheets");
 
-  // Verify 2 Edit buttons exist (DRAFT row and REJECTED row)
   const editButtons = page.locator('button[aria-label="Edit"]');
   await expect(editButtons).toHaveCount(2);
 
-  // Click second Edit button (DRAFT row) and verify EditLogModal opens with Draft
   await editButtons.nth(1).click();
   const draftModalTitle = page.getByRole("heading", { name: "Edit Draft Log" });
   await expect(draftModalTitle).toBeVisible();
 
-  // Close Edit modal
   await page.getByRole("button", { name: "Cancel" }).click();
   await expect(draftModalTitle).not.toBeVisible();
 
-  // Click first Edit button (REJECTED row) and verify EditLogModal opens with Rejected
   await editButtons.first().click();
   const editModalTitle = page.getByRole("heading", { name: "Edit Rejected Log" });
   await expect(editModalTitle).toBeVisible();
@@ -211,34 +204,28 @@ test("Contractor Timesheets Redesign visual and interaction verification", async
     fullPage: false,
   });
 
-  // Close Edit modal
   await page.getByRole("button", { name: "Cancel" }).click();
   await expect(editModalTitle).not.toBeVisible();
 
-  // Click Log Hours button and verify LogHoursModal opens
   await page.getByRole("button", { name: /Log Hours/i }).click();
   const logModalTitle = page.getByRole("heading", { name: "Log Hours" });
   await expect(logModalTitle).toBeVisible();
 
-  // Test form interactions
   await page.locator("#projectId").selectOption("1");
   await page.locator("#workDate").fill("2026-09-15");
   await page.locator("#hoursLogged").fill("8");
   await page.locator("#description").fill("Implemented checkout performance improvements and tested cart state.");
 
-  // Test Timesheet Intelligence check
   const checkBtn = page.getByRole("button", { name: "Check before submitting" });
   await expect(checkBtn).toBeVisible();
   await checkBtn.click();
   await expect(page.getByText("No current timesheet intelligence findings")).toBeVisible();
 
-  // Screenshot at 1280x720 to verify fit with zero scroll
   await page.screenshot({
     path: path.join(ARTIFACT_DIR, "contractor_timesheets_log_modal_1280x720.png"),
     fullPage: false,
   });
 
-  // Verify fit across all required viewports
   const modalViewports = [
     { width: 1920, height: 1080, name: "desktop_1920x1080" },
     { width: 1536, height: 864, name: "desktop_1536x864" },
@@ -259,7 +246,6 @@ test("Contractor Timesheets Redesign visual and interaction verification", async
     });
   }
 
-  // Close Log Hours modal via Cancel button
   await page.getByRole("button", { name: "Cancel" }).click();
   await expect(logModalTitle).not.toBeVisible();
 });

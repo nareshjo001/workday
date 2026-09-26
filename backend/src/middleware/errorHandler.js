@@ -1,14 +1,7 @@
 const ApiError = require("../utils/ApiError");
 const logger = require("../observability/logger");
 
-/**
- * Centralized error-handling middleware. Every route/service throws
- * ApiError (or lets an unexpected error propagate) and this is the single
- * place responses are shaped — nothing else in the app should send its
- * own error JSON.
- *
- * Never leaks stack traces, SQL errors, or secrets to the client.
- */
+// Shape errors centrally without exposing stack traces, SQL details, or secrets.
 // eslint-disable-next-line no-unused-vars
 function errorHandler(err, req, res, next) {
   if (err instanceof ApiError) {

@@ -4,17 +4,6 @@ import {
   ProjectStatusBadge,
 } from "./format";
 
-/**
- * Modern contractor project card for Vendor "Projects Open for Staffing" list.
- * Refined compact enterprise density:
- * - Title (~16-17px, bold navy) + compact Semantic Status Pill
- * - PM line (~12-13px muted slate)
- * - Compact Client Chip + Neutral Date Range Chip
- * - 3 Compact Metric Tiles: Team, Work done, Staffing (~54-56px height, ~15px values, NO progress bar)
- * - Work Progress Section: Single-line capsule (clock icon, "32h / 160h", "20%") on header row
- * - Refined 6px progress bar directly below capsule
- * - Full-width Outlined Primary Button (~40-42px height)
- */
 export default function ProjectStaffingCard({ project, onViewTeam }) {
   const isFullyStaffed = project.staffing_status === "FULLY_STAFFED";
   const hasExpectedHours =
@@ -26,7 +15,7 @@ export default function ProjectStaffingCard({ project, onViewTeam }) {
   const allocatedHours = Number(project.allocated_hours ?? 0);
   const expectedHours = hasExpectedHours ? Number(project.expected_hours) : null;
 
-  // Compute work progress percentage (clamped 0-100)
+  // Clamp displayed work progress to 0-100%.
   let workPercent = 0;
   if (project.work_progress_percent !== undefined && project.work_progress_percent !== null) {
     workPercent = Math.min(100, Math.max(0, Math.round(Number(project.work_progress_percent))));
@@ -34,7 +23,6 @@ export default function ProjectStaffingCard({ project, onViewTeam }) {
     workPercent = Math.min(100, Math.max(0, Math.round((approvedHours / expectedHours) * 100)));
   }
 
-  // Active or derived status for badge lookup
   const statusValue = project.staffing_status || project.status || "PENDING";
 
   return (
@@ -44,7 +32,6 @@ export default function ProjectStaffingCard({ project, onViewTeam }) {
       data-project-id={project.id}
     >
       <div className="flex flex-col">
-        {/* Top Header: Title + Semantic Status Pill */}
         <div className="flex items-start justify-between gap-2.5">
           <div className="min-w-0 flex-1">
             <h2 className="text-[15.5px] sm:text-[17px] font-semibold text-slate-900 tracking-tight leading-snug break-words">
@@ -61,7 +48,6 @@ export default function ProjectStaffingCard({ project, onViewTeam }) {
           </div>
         </div>
 
-        {/* Chips Row: Client Chip + Date Range Chip */}
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
           {project.company_name && (
             <span
@@ -81,9 +67,7 @@ export default function ProjectStaffingCard({ project, onViewTeam }) {
           )}
         </div>
 
-        {/* 3 Compact Metric Tiles (Team, Work done, Staffing) */}
         <div className="mt-3.5 grid grid-cols-3 gap-2 sm:gap-2.5">
-          {/* Tile 1: Team */}
           <div
             className="flex flex-col items-center justify-center rounded-xl bg-slate-50/90 border border-slate-100/90 h-[54px] sm:h-[56px] py-1 px-1.5 text-center"
             data-testid="metric-tile-team"
@@ -96,7 +80,6 @@ export default function ProjectStaffingCard({ project, onViewTeam }) {
             </span>
           </div>
 
-          {/* Tile 2: Work done */}
           <div
             className="flex flex-col items-center justify-center rounded-xl bg-slate-50/90 border border-slate-100/90 h-[54px] sm:h-[56px] py-1 px-1.5 text-center"
             data-testid="metric-tile-work-done"
@@ -109,7 +92,6 @@ export default function ProjectStaffingCard({ project, onViewTeam }) {
             </span>
           </div>
 
-          {/* Tile 3: Staffing */}
           <div
             className="flex flex-col items-center justify-center rounded-xl bg-slate-50/90 border border-slate-100/90 h-[54px] sm:h-[56px] py-1 px-1.5 text-center"
             data-testid="metric-tile-staffing"
@@ -123,10 +105,8 @@ export default function ProjectStaffingCard({ project, onViewTeam }) {
           </div>
         </div>
 
-        {/* Work Progress Section (ONLY Work has a progress bar) */}
         {hasExpectedHours && (
           <div className="mt-3.5 flex flex-col" data-testid="work-progress-section">
-            {/* Header row: "Work" label + Single-line Capsule */}
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs sm:text-[13px] font-semibold text-slate-800">
                 Work
@@ -164,7 +144,6 @@ export default function ProjectStaffingCard({ project, onViewTeam }) {
               </div>
             </div>
 
-            {/* Slim 6px progress bar track */}
             <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
               <div
                 className="h-full rounded-full bg-[#1c4375] transition-all duration-300"
@@ -180,7 +159,6 @@ export default function ProjectStaffingCard({ project, onViewTeam }) {
         )}
       </div>
 
-      {/* Bottom Action: Full-width Outlined Primary Button */}
       <button
         type="button"
         onClick={() => onViewTeam(project)}

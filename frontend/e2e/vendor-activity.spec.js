@@ -62,10 +62,8 @@ test("Vendor Activity displays correctly across viewports with zero overflow, no
     await expect(page.getByText("Invoice submitted")).toBeVisible();
     await expect(page.getByText("Assignment allocation changed")).toBeVisible();
 
-    // Verify meaningless change is suppressed
     await expect(page.locator("text=40.00 → 40")).toHaveCount(0);
 
-    // Verify zero horizontal page overflow
     const dimensions = await page.evaluate(() => ({
       width: document.documentElement.clientWidth,
       scrollWidth: document.documentElement.scrollWidth,
@@ -123,7 +121,6 @@ test("Vendor Activity standardizes pagination to 10 items per page and renders o
 
   await page.goto("/vendor/activity");
 
-  // Verify pagination renders Page 1 of 2
   const pagination = page.getByRole("navigation", { name: "Activity pagination" });
   await expect(pagination).toBeVisible();
   await expect(pagination.getByText("Page 1 of 2")).toBeVisible();
@@ -133,14 +130,12 @@ test("Vendor Activity standardizes pagination to 10 items per page and renders o
   await expect(prevBtn).toBeDisabled();
   await expect(nextBtn).toBeEnabled();
 
-  // Click Next -> requests page 2
   await nextBtn.click();
   await expect(pagination.getByText("Page 2 of 2")).toBeVisible();
   await expect(prevBtn).toBeEnabled();
   await expect(nextBtn).toBeDisabled();
   await expect(page.getByText("Invoice event #15")).toBeVisible();
 
-  // Click Previous -> requests page 1
   await prevBtn.click();
   await expect(pagination.getByText("Page 1 of 2")).toBeVisible();
   await expect(page.getByText("Invoice event #1", { exact: true })).toBeVisible();

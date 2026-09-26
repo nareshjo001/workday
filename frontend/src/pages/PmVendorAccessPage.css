@@ -1,4 +1,3 @@
-/* PM Vendor Access Page Styles */
 
 .va-container {
   max-width: 1024px;
@@ -547,9 +546,7 @@
   }
 }
 
-/* ==========================================================================
-   Remove Access In-App Confirmation Modal
-   ========================================================================== */
+/* Remove-access confirmation dialog */
 
 .va-modal-backdrop {
   position: fixed;

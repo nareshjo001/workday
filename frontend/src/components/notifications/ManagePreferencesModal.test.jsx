@@ -51,18 +51,15 @@ describe("ManagePreferencesModal", () => {
       screen.getByText("Choose which in-app notifications you want to receive.")
     ).toBeInTheDocument();
 
-    // Check grouped headings
     expect(screen.getByText("Compliance")).toBeInTheDocument();
     expect(screen.getByText("Invoices & payments")).toBeInTheDocument();
     expect(screen.getByText("Staffing")).toBeInTheDocument();
 
-    // Check preference item labels
     expect(screen.getByText("Document Expiring")).toBeInTheDocument();
     expect(screen.getByText("Invoice Approved")).toBeInTheDocument();
     expect(screen.getByText("Invoice Rejected")).toBeInTheDocument();
     expect(screen.getByText("Candidate Accepted")).toBeInTheDocument();
 
-    // Check footer buttons
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save changes" })).toBeInTheDocument();
   });
@@ -109,11 +106,9 @@ describe("ManagePreferencesModal", () => {
       />
     );
 
-    // Toggle a checkbox
     const invoiceApprovedCheckbox = screen.getByLabelText("Invoice Approved");
     fireEvent.click(invoiceApprovedCheckbox);
 
-    // Click Cancel
     const cancelBtn = screen.getByRole("button", { name: "Cancel" });
     fireEvent.click(cancelBtn);
 
@@ -135,13 +130,11 @@ describe("ManagePreferencesModal", () => {
       />
     );
 
-    // Toggle INVOICE_APPROVED from true to false
     const invoiceApprovedCheckbox = screen.getByLabelText("Invoice Approved");
     expect(invoiceApprovedCheckbox).toBeChecked();
     fireEvent.click(invoiceApprovedCheckbox);
     expect(invoiceApprovedCheckbox).not.toBeChecked();
 
-    // Click Save changes
     const saveBtn = screen.getByRole("button", { name: "Save changes" });
     fireEvent.click(saveBtn);
 

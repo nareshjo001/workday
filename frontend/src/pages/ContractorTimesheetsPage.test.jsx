@@ -115,12 +115,10 @@ describe("ContractorTimesheetsPage Redesign", () => {
     expect(screen.getByRole("button", { name: "Submit visible drafts" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Log Hours/i })).toBeInTheDocument();
 
-    // Allocation bar
     expect(screen.getByText("Atlas Commerce Modernization")).toBeInTheDocument();
     expect(screen.getByText(/Allocated:/)).toBeInTheDocument();
     expect(screen.getByText("120h")).toBeInTheDocument();
 
-    // Metric chips in the weekly card
     expect(screen.getByText("Total:")).toBeInTheDocument();
     expect(screen.getByText("14h")).toBeInTheDocument();
     expect(screen.getAllByText("Approved:")).toHaveLength(2);
@@ -137,7 +135,6 @@ describe("ContractorTimesheetsPage Redesign", () => {
       expect(screen.getAllByText("Checkout flow optimizations").length).toBeGreaterThan(0);
     });
 
-    // In desktop table, 2 edit buttons: one for DRAFT row, one for REJECTED row
     const editButtons = screen.getAllByRole("button", { name: "Edit" });
     expect(editButtons).toHaveLength(2);
 
@@ -146,28 +143,22 @@ describe("ContractorTimesheetsPage Redesign", () => {
     const draftRow = screen.getAllByText("Draft work on cart")[0].closest("tr");
     const rejectedRow = screen.getAllByText("Bug hunting")[0].closest("tr");
 
-    // DRAFT row has Edit button
     const draftEditBtn = within(draftRow).getByRole("button", { name: "Edit" });
     expect(draftEditBtn).toBeInTheDocument();
 
-    // REJECTED row has Edit button
     const rejectedEditBtn = within(rejectedRow).getByRole("button", { name: "Edit" });
     expect(rejectedEditBtn).toBeInTheDocument();
 
-    // APPROVED and SUBMITTED rows have NO edit buttons
     expect(within(approvedRow).queryByRole("button", { name: "Edit" })).toBeNull();
     expect(within(submittedRow).queryByRole("button", { name: "Edit" })).toBeNull();
 
-    // Click draft edit button -> opens EditLogModal with 'Edit Draft Log'
     fireEvent.click(draftEditBtn);
     expect(screen.getByRole("heading", { name: "Edit Draft Log" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save Changes" })).toBeInTheDocument();
 
-    // Close modal
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.queryByRole("heading", { name: "Edit Draft Log" })).not.toBeInTheDocument();
 
-    // Click rejected edit button -> opens EditLogModal with 'Edit Rejected Log'
     fireEvent.click(rejectedEditBtn);
     expect(screen.getByRole("heading", { name: "Edit Rejected Log" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Resubmit" })).toBeInTheDocument();
@@ -217,7 +208,6 @@ describe("ContractorTimesheetsPage Redesign", () => {
   });
 
   it("correctly renders final-page range using total_weeks when navigating to last page", async () => {
-    // Page 1 initial render
     contractorTimesheetService.listMyTimesheets.mockResolvedValueOnce({
       items: mockTimesheets,
       total_weeks: 12,
@@ -232,7 +222,6 @@ describe("ContractorTimesheetsPage Redesign", () => {
       expect(screen.getByText("Showing 1–5 of 12 weeks")).toBeInTheDocument();
     });
 
-    // Page 2 response on clicking Next
     contractorTimesheetService.listMyTimesheets.mockResolvedValueOnce({
       items: mockTimesheets,
       total_weeks: 12,
@@ -247,7 +236,6 @@ describe("ContractorTimesheetsPage Redesign", () => {
       expect(screen.getByText("Showing 6–10 of 12 weeks")).toBeInTheDocument();
     });
 
-    // Page 3 (final page) response on clicking Next
     contractorTimesheetService.listMyTimesheets.mockResolvedValueOnce({
       items: mockTimesheets,
       total_weeks: 12,

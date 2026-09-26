@@ -1,13 +1,6 @@
 import apiClient from "./apiClient";
 
-/**
- * PM's invoice VISIBILITY API — invoice-workflow redesign: this is now
- * READ-ONLY. A PM can no longer approve or reject invoices (see
- * vendorInvoiceService for where that authority moved); this file only
- * ever GETs. Built on the shared apiClient, same as
- * pmMilestoneService/pmTimesheetService — the JWT is attached
- * automatically, so nothing here ever passes a pm id explicitly.
- */
+// Use the authenticated PM's scope for invoice history and review operations.
 async function listInvoices(params = {}) {
   const { data } = await apiClient.get("/pm/invoices", { params });
   return data;

@@ -20,7 +20,7 @@ function parseCapabilities(payload) {
   };
 }
 
-// Foundation-only discovery. The server derives role and identity from JWT.
+// Discover capabilities for the role and identity verified by the server.
 async function getCapabilities() {
   const { data } = await apiClient.get("/intelligence/capabilities");
   return parseCapabilities(data);

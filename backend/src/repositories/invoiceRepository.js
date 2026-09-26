@@ -1,13 +1,5 @@
 const { pool } = require("../config/db");
 
-/**
- * Database access for the `invoices` table (Module 6). SQL lives only
- * here, same convention as every other repository. An invoice is never
- * created directly by a PM or Vendor request — the only writes here are
- * `create` (from invoiceService.generateInvoiceForMilestone, an internal
- * Module 5->6 hook) and `applyReview` (from a PM's PATCH request, gated
- * by ownership + a conditional status transition).
- */
 
 function toRow(r) {
   return {
@@ -27,16 +19,7 @@ function toRow(r) {
   };
 }
 
-/**
- * Inserts a new invoice, snapshotting project_id/contractor_id/vendor_id/
- * amount at generation time (see invoiceService.generateInvoiceForMilestone
- * for where each of those is actually resolved from — never from a
- * request). Relies on UNIQUE(milestone_billing_id) (migration 015) as
- * the real "exactly one invoice per milestone billing" guarantee under
- * concurrency — the caller catches ER_DUP_ENTRY and treats it as
- * "someone else already generated this one," same pattern as every other
- * duplicate-under-race guard in this codebase.
- */
+// Snapshot invoice ownership and amount; the unique billing key prevents duplicate generation.
 async function create({ milestoneBillingId, projectId, contractorId, vendorId, amount, status }) {
   const [result] = await pool.query(
     `INSERT INTO invoices (milestone_billing_id, project_id, contractor_id, vendor_id, amount, status, generated_at)
@@ -46,14 +29,7 @@ async function create({ milestoneBillingId, projectId, contractorId, vendorId, a
   return result.insertId;
 }
 
-/**
- * The idempotency fast path for invoice generation: if a milestone
- * billing already has an invoice, generateInvoiceForMilestone returns
- * THIS row instead of attempting a second insert. No ownership scoping
- * — this is an internal lookup by a unique, server-generated id, not a
- * path reachable from an authenticated HTTP request with an
- * attacker-chosen id.
- */
+// Look up an existing invoice by its trusted billing ID for idempotent generation.
 async function findByMilestoneBillingId(milestoneBillingId) {
   const [rows] = await pool.query(
     `SELECT id, milestone_billing_id, project_id, contractor_id, vendor_id, amount, status,
@@ -64,14 +40,7 @@ async function findByMilestoneBillingId(milestoneBillingId) {
   return rows[0] ? toRow(rows[0]) : null;
 }
 
-/**
- * A single invoice by id, with no ownership scoping — used right after
- * create()/review() to re-fetch fresh state for a response. Every
- * HTTP-reachable caller does its own ownership check first (see
- * lockOwnedByVendorForReview below, which scopes by vendor_id in SQL
- * before this is ever called), same pattern as timesheetRepository.findById
- * / milestoneRepository.findById.
- */
+// Unscoped lookup for callers that have already verified ownership.
 async function findById(id) {
   const [rows] = await pool.query(
     `SELECT id, milestone_billing_id, project_id, contractor_id, vendor_id, amount, status,
@@ -82,13 +51,7 @@ async function findById(id) {
   return rows[0] ? toRow(rows[0]) : null;
 }
 
-/**
- * Shared SELECT fragment joining an invoice to its project/contractor/
- * milestone display names — every "list/show an invoice" query below
- * uses this same shape so the PM view, Vendor view, and post-review
- * re-fetch never drift into three different response shapes for the
- * same underlying data.
- */
+// Reuse one joined invoice shape across list, detail, and response queries.
 const DETAIL_SELECT = `
   SELECT i.id, i.project_id, p.name AS project_name,
          i.contractor_id, u.name AS contractor_name,
@@ -122,29 +85,13 @@ function toDetailView(r) {
   };
 }
 
-/**
- * A single invoice's full display view by id — used to build the
- * response after generateInvoiceForMilestone creates a row and after a
- * PM review commits. No ownership scoping (see findById's comment above
- * for why that's fine here).
- */
+// Build the detailed invoice view only after the caller has verified access.
 async function findDetailedById(id) {
   const [rows] = await pool.query(`${DETAIL_SELECT} WHERE i.id = ? LIMIT 1`, [id]);
   return rows[0] ? toDetailView(rows[0]) : null;
 }
 
-/**
- * Conditionally transitions PENDING_REVIEW -> APPROVED/REJECTED. The
- * `AND status = 'PENDING_REVIEW'` guard is the actual atomicity
- * backstop, on top of the row lock from lockOwnedByVendorForReview below
- * — even if two requests somehow both got past the lock, only the first
- * UPDATE here can match a still-PENDING_REVIEW row; the second gets
- * affectedRows = 0 and the caller turns that into a clean 409, never a
- * silent overwrite of the first review's outcome (same pattern as
- * timesheetRepository.markReviewed / milestoneRepository.markMet).
- * AUTO_APPROVED, APPROVED, and REJECTED are all terminal — there is no
- * UPDATE anywhere in this file whose WHERE clause matches any of them.
- */
+// Guard the legacy review transition by status so concurrent decisions cannot overwrite each other.
 async function applyReview(conn, invoiceId, { status, reviewedBy, rejectionReason }) {
   const [result] = await conn.query(
     `UPDATE invoices
@@ -155,9 +102,7 @@ async function applyReview(conn, invoiceId, { status, reviewedBy, rejectionReaso
   return result.affectedRows > 0;
 }
 
-// Completion is intentionally blocked while a generated invoice is still
-// awaiting its Vendor decision. The existing invoice-review endpoint is the
-// explicit resolution path; no financial status is inferred or overwritten.
+// Keep completion blocked while legacy invoice review is unresolved.
 async function countPendingReviewForProject(conn, projectId) {
   const [[row]] = await conn.query(
     `SELECT COUNT(*) AS total FROM invoices WHERE project_id = ? AND status = 'PENDING_REVIEW'`,
@@ -166,19 +111,7 @@ async function countPendingReviewForProject(conn, projectId) {
   return Number(row.total);
 }
 
-/**
- * Every invoice for contractors belonging to the given vendor, newest
- * first. Ownership is enforced via the invoice's OWN snapshotted
- * `vendor_id` column (set once at generation time, see
- * invoiceService.generateInvoiceForMilestone) rather than a live join to
- * contractors.vendor_id — this endpoint intentionally shows a vendor
- * their invoices' historically-correct ownership, not whatever the
- * contractor's CURRENT vendor happens to be (there is no
- * reassign-contractor-to-a-different-vendor feature anywhere in this
- * codebase, so in practice the two are always identical, but the
- * snapshot is the one the spec calls out as authoritative — see
- * migration 015's comment).
- */
+// Scope historical invoice ownership by its snapshotted vendor_id, not the contractor's current vendor.
 async function listForVendor(vendorId) {
   const [rows] = await pool.query(`${DETAIL_SELECT} WHERE i.vendor_id = ? ORDER BY i.generated_at DESC`, [
     vendorId,
@@ -196,16 +129,7 @@ async function listPageForVendor(vendorId, query) {
   return { rows: rows.map(toDetailView), total: Number(count.total) };
 }
 
-/**
- * Locks the target invoice row for the duration of the caller's
- * transaction (`SELECT ... FOR UPDATE`), scoped to `vendor_id = ?` —
- * invoice-workflow redesign: approval authority moves to the Vendor (see
- * vendorInvoiceService.reviewInvoice). Same pattern as
- * lockOwnedByPmForReview above, just scoped by the invoice's own
- * snapshotted vendor_id instead of a project-ownership JOIN. A vendor
- * probing another vendor's invoice id gets `null` here, indistinguishable
- * from a nonexistent id (no existence leakage).
- */
+// Lock the vendor-owned invoice in the caller's transaction without exposing foreign invoice existence.
 async function lockOwnedByVendorForReview(conn, invoiceId, vendorId) {
   const [rows] = await conn.query(
     `SELECT id, project_id, contractor_id, vendor_id, amount, status, milestone_billing_id
@@ -218,18 +142,7 @@ async function lockOwnedByVendorForReview(conn, invoiceId, vendorId) {
   return rows[0] || null;
 }
 
-/**
- * Every invoice for projects owned by the given PM, every status —
- * invoice-workflow redesign: a PM no longer approves/rejects (see
- * invoiceApprovalService's retired mutation), only VIEWS their own
- * projects' invoice history, with vendor-approved invoices surfacing
- * first as the primary financial record (spec: "vendor-approved invoices
- * shown prominently") — ORDER BY puts APPROVED first, then
- * PENDING_REVIEW/AUTO_APPROVED, then REJECTED last, newest within each
- * group. Ownership is enforced in the JOIN/WHERE clause
- * (i.project_id -> p.id, p.pm_id = ?), never filtered in JavaScript
- * afterward.
- */
+// Enforce PM project ownership in SQL and retain the legacy invoice ordering.
 async function listForPm(pmId) {
   const [rows] = await pool.query(
     `${DETAIL_SELECT}

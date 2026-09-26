@@ -10,10 +10,6 @@ function normalizeEmail(email) {
   return typeof email === "string" ? email.trim().toLowerCase() : email;
 }
 
-/**
- * Validates + normalizes a signup payload.
- * Returns the sanitized fields on success, throws ApiError(400) otherwise.
- */
 function validateSignup(body = {}) {
   const errors = [];
   const allowed = ["name", "email", "password", "role", "companyName", "companyInvitationToken"];
@@ -38,10 +34,7 @@ function validateSignup(body = {}) {
   if (!role) {
     errors.push("Role is required.");
   } else if (role === ROLES.CONTRACTOR) {
-    // Contractor accounts are provisioned by a Vendor
-    // (POST /api/vendor/contractors), not self-registered — see
-    // constants/roles.js. Called out separately from the generic "invalid
-    // role" case below so the client gets an explanation, not a guess.
+    // Contractor accounts require vendor provisioning instead of self-signup.
     errors.push(
       "Contractor accounts are created by a Vendor, not self-registered. Ask your Vendor to add you as a contractor."
     );
@@ -49,10 +42,7 @@ function validateSignup(body = {}) {
     errors.push(`Role must be one of: ${SELF_SIGNUP_ROLES.join(", ")}.`);
   }
 
-  // PM signup associates the account with a client company (see
-  // authService.signup / client_companies + project_managers,
-  // migration 009). Vendor signup does not need this; Contractor
-  // self-signup is disabled above, so it never reaches this branch.
+  // Require a company association for PM signup only.
   let companyName = "";
   if (role === ROLES.PM) {
     companyName = typeof body.companyName === "string" ? body.companyName.trim() : "";
@@ -71,9 +61,6 @@ function validateSignup(body = {}) {
   return { name, email, password, role, companyName: role === ROLES.PM ? companyName : undefined, companyInvitationToken };
 }
 
-/**
- * Validates + normalizes a login payload.
- */
 function validateLogin(body = {}) {
   const errors = [];
   if (Object.keys(body).some((key) => !["email", "password"].includes(key))) errors.push("Unexpected field in request.");
@@ -116,9 +103,7 @@ module.exports = {
   validateSignup,
   validateLogin,
   normalizeEmail,
-  // Exported so other modules (e.g. Module 2's vendor-created contractor
-  // accounts) validate emails/passwords against the exact same rules
-  // instead of duplicating/drifting from them.
+  // Reuse the same email and password rules for vendor-provisioned accounts.
   EMAIL_REGEX,
   NAME_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,

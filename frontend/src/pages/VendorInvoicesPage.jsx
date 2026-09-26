@@ -205,7 +205,6 @@ function OperationalSummary({ queue, invoices }) {
       aria-label="Operational Summary"
       className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-3.5"
     >
-      {/* 1. Eligible billing */}
       <div className="flex min-h-[78px] min-w-0 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm sm:gap-3.5 sm:p-4">
         <span
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600"
@@ -222,7 +221,6 @@ function OperationalSummary({ queue, invoices }) {
         </div>
       </div>
 
-      {/* 2. Approved */}
       <div className="flex min-h-[78px] min-w-0 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm sm:gap-3.5 sm:p-4">
         <span
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600"
@@ -239,7 +237,6 @@ function OperationalSummary({ queue, invoices }) {
         </div>
       </div>
 
-      {/* 3. Pending review */}
       <div className="flex min-h-[78px] min-w-0 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm sm:gap-3.5 sm:p-4">
         <span
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600"
@@ -256,7 +253,6 @@ function OperationalSummary({ queue, invoices }) {
         </div>
       </div>
 
-      {/* 4. Rejected */}
       <div className="flex min-h-[78px] min-w-0 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm sm:gap-3.5 sm:p-4">
         <span
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-600"
@@ -410,7 +406,6 @@ function SelectedInvoice({
       }`}
       aria-labelledby="selected-invoice-heading"
     >
-      {/* Header with Title, Status & Utility Actions (Print / PDF) */}
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 bg-slate-50/50 p-4 sm:px-5">
         <div className="flex min-w-0 items-center gap-3">
           <span
@@ -446,7 +441,6 @@ function SelectedInvoice({
           </div>
         </div>
 
-        {/* Right Header Utility Actions */}
         <div className="flex items-center gap-2 pt-1">
           <button
             type="button"
@@ -469,7 +463,6 @@ function SelectedInvoice({
         </div>
       </div>
 
-      {/* Rejection notice banner if REJECTED */}
       {isRejected && invoice.rejection_reason && (
         <div className="mx-4 mt-4 flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50/90 p-3 text-xs text-red-700 sm:mx-5">
           <RejectedIcon className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
@@ -479,7 +472,6 @@ function SelectedInvoice({
         </div>
       )}
 
-      {/* Line Items Table */}
       <div className="p-4 sm:px-5">
         <div className="overflow-x-auto rounded-xl border border-slate-200">
           <table className="w-full min-w-[620px] text-left text-xs">
@@ -521,7 +513,6 @@ function SelectedInvoice({
           )}
         </div>
 
-        {/* Totals Breakdown */}
         <dl className="ml-auto mt-4 w-full max-w-xs space-y-1.5 text-xs sm:text-sm">
           <div className="flex justify-between gap-4 text-slate-600">
             <dt>Subtotal</dt>
@@ -549,7 +540,6 @@ function SelectedInvoice({
           </div>
         </dl>
 
-        {/* Settlement Panel (Approved invoices) */}
         {isApproved && (
           <section
             aria-label="Settlement details"
@@ -634,7 +624,6 @@ function SelectedInvoice({
         )}
       </div>
 
-      {/* Draft Actions Footer (Only for DRAFT invoices) */}
       {isDraft && (
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-slate-50/40 px-4 py-3 sm:px-5">
           <button
@@ -738,7 +727,6 @@ function InvoiceHistory({
         description="Track draft, submitted, approved, and rejected invoices."
       />
 
-      {/* Desktop Table */}
       <div className="mt-4 hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
         <table className="w-full min-w-[820px] text-left text-xs">
           <thead className="bg-slate-50 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
@@ -830,7 +818,6 @@ function InvoiceHistory({
         </table>
       </div>
 
-      {/* Mobile Card List */}
       <div className="mt-4 flex flex-col gap-2 md:hidden">
         {invoices.map((invoice) => {
           const isSelected = selectedId === invoice.id;
@@ -1076,13 +1063,10 @@ export default function VendorInvoicesPage() {
         <AlertBanner message={successMessage} variant="success" />
         <AlertBanner message={actionError || loadError} />
 
-        {/* 1. Operational Summary Row */}
         <OperationalSummary queue={queue} invoices={invoices} />
 
-        {/* 2. Eligible Billing */}
         <BillingQueue items={queue} onCreateDraft={createDraft} />
 
-        {/* 3. Selected Invoice Detail / Selection Guidance */}
         {!isLoading && invoices.length > 0 && (
           selectedInvoice ? (
             <SelectedInvoice
@@ -1106,7 +1090,6 @@ export default function VendorInvoicesPage() {
           )
         )}
 
-        {/* 4. Invoice History */}
         {isLoading ? (
           <Spinner label="Loading invoices…" />
         ) : invoices.length === 0 ? (

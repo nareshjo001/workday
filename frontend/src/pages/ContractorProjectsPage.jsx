@@ -9,11 +9,7 @@ import { resolveProjectStatusTheme } from "../utils/projectStatusTheme";
 import contractorProjectService from "../services/contractorProjectService";
 import "./ContractorProjectsPage.css";
 
-/**
- * Contractor's read-only view of their assigned projects. The backend
- * derives the contractor from the JWT; this page only presents the
- * authoritative list returned by that existing endpoint.
- */
+// Present assigned projects scoped to the authenticated contractor by the server.
 export default function ContractorProjectsPage() {
   const [projects, setProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

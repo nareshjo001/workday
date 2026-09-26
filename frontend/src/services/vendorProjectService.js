@@ -1,29 +1,17 @@
 import apiClient from "./apiClient";
 
-/**
- * Vendor's project-browsing API — projects currently open for staffing,
- * with requirement/staffing-progress data attached. Replaces the old
- * "ask the PM for a numeric ID" flow (see VendorAssignmentsPage).
- */
+// Browse projects and staffing requirements within the vendor's authorized scope.
 async function listAvailableProjects(params = {}) {
   const { data } = await apiClient.get("/vendor/projects", { params });
   return data;
 }
 
-/**
- * One project's detail (name/company/PM/dates/requirements with live
- * counts) — the screen a vendor lands on after clicking a project from
- * the browse list.
- */
 async function getProjectDetail(projectId) {
   const { data } = await apiClient.get(`/vendor/projects/${projectId}/requirements`);
   return data;
 }
 
-/**
- * Contractors THIS vendor could assign to one specific requirement.
- * Returns { requirement, eligible_contractors }.
- */
+// List the vendor's eligible contractors for one project requirement.
 async function getEligibleContractors(projectId, requirementId) {
   const { data } = await apiClient.get(
     `/vendor/projects/${projectId}/requirements/${requirementId}/eligible-contractors`

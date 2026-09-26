@@ -67,11 +67,6 @@ function ActivityIcon() {
   );
 }
 
-/**
- * Responsive Contractor Cards List.
- * Replaces the wide table that required horizontal scrolling with compact,
- * responsive row cards inspired by the enterprise list design reference.
- */
 export default function ContractorCardList({ contractors, onEdit, onHistory }) {
   if (!contractors || contractors.length === 0) {
     return null;
@@ -79,7 +74,6 @@ export default function ContractorCardList({ contractors, onEdit, onHistory }) {
 
   return (
     <div className="contractor-card-list" data-testid="contractor-card-list">
-      {/* Desktop List Header: ONE lightweight header above all contractor rows */}
       <div
         className="contractor-list-header"
         data-testid="contractor-list-header"
@@ -99,7 +93,6 @@ export default function ContractorCardList({ contractors, onEdit, onHistory }) {
           className="contractor-row-card"
           data-testid={`contractor-card-${contractor.id}`}
         >
-          {/* Identity: Avatar + Name + Email */}
           <div className="contractor-card-identity">
             <div
               className="contractor-avatar"
@@ -118,7 +111,6 @@ export default function ContractorCardList({ contractors, onEdit, onHistory }) {
             </div>
           </div>
 
-          {/* Skill column */}
           <div className="contractor-card-col contractor-col-skill">
             <span className="contractor-col-label">
               <MonitorIcon />
@@ -129,7 +121,6 @@ export default function ContractorCardList({ contractors, onEdit, onHistory }) {
             </div>
           </div>
 
-          {/* Rate column */}
           <div className="contractor-card-col contractor-col-rate">
             <span className="contractor-col-label">
               <TagIcon />
@@ -142,7 +133,6 @@ export default function ContractorCardList({ contractors, onEdit, onHistory }) {
             </div>
           </div>
 
-          {/* Status column */}
           <div className="contractor-card-col contractor-col-status">
             <span className="contractor-col-label">
               <ActivityIcon />
@@ -153,7 +143,6 @@ export default function ContractorCardList({ contractors, onEdit, onHistory }) {
             </div>
           </div>
 
-          {/* Actions column */}
           <div className="contractor-card-col contractor-col-actions">
             <div className="contractor-col-value contractor-actions-group">
               <button

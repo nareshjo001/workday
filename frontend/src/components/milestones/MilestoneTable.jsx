@@ -1,19 +1,6 @@
 import { formatDate, formatHours, formatCurrency, MilestoneStatusBadge } from "./format";
 
-/**
- * Desktop presentation of a project's milestones — hidden below md, where
- * MilestoneCardList takes over. Same split pattern as
- * components/projects/ProjectTable + ProjectCardList.
- *
- * PROJECT-LEVEL REDESIGN: a milestone is now project-wide, not tied to
- * one contractor — each row can have zero (still PENDING), one, or many
- * contributing contractors once MET. Rather than one row per
- * (milestone, contractor) pair, this renders one row per milestone with
- * its `contributions` array (see milestoneRepository.listByProject)
- * expanded as a small nested breakdown, so the milestone's own threshold/
- * status/met-date/total-billed stay a single line while still showing
- * exactly who contributed how much.
- */
+// Render each project milestone once with its nested contractor contributions.
 export default function MilestoneTable({ milestones }) {
   return (
     <div role="region" aria-label="Milestone Table" tabIndex={0} className="hidden max-w-full overflow-x-auto rounded-lg border border-slate-200 md:block">

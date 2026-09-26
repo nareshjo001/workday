@@ -20,12 +20,7 @@ const vendorOffboardingController = require('../controllers/vendorOffboardingCon
 const vendorRateIntelligenceController = require("../controllers/vendorRateIntelligenceController");
 const auditActivityController = require("../controllers/auditActivityController");
 
-/**
- * Every route in this router requires a valid JWT AND role = VENDOR.
- * `authenticate` populates req.user = { userId, role } from the token;
- * `authorizeRoles` rejects anything that isn't VENDOR before a controller
- * ever runs. Contractor/PM tokens get a 403 here, never a partial response.
- */
+// Require an authenticated vendor before any controller in this router runs.
 const router = express.Router();
 
 router.use(authenticate, authorizeRoles(ROLES.VENDOR));
@@ -52,9 +47,7 @@ router.post("/contractor-documents", contractorDocumentController.upload);
 router.get("/contractors/:contractorId/documents", contractorDocumentController.list);
 router.patch("/contractor-documents/:id/review", contractorDocumentController.review);
 
-// Vendors browse authorized projects and submit eligible candidates for
-// PM review. Assignment creation is intentionally absent from this router;
-// PM candidate acceptance is the only production assignment path.
+// Vendors submit candidates; only PM acceptance creates production assignments.
 router.get("/projects", vendorProjectController.list);
 router.get("/projects/:id/requirements", vendorProjectController.getRequirements);
 router.get(
@@ -64,8 +57,7 @@ router.get(
 router.post("/projects/:projectId/requirements/:requirementId/candidates", candidateSubmissionController.submit);
 router.patch("/candidate-submissions/:id/withdraw", candidateSubmissionController.withdraw);
 
-// Vendor billing queue, draft construction, submission, document access,
-// and settlement recording. Client approval remains PM-only.
+// Vendors manage billing and settlement; invoice approval remains PM-only.
 router.get("/invoices", vendorInvoiceController.list);
 router.patch("/invoices/:id", invoiceLifecycleController.update);
 router.get("/billing-queue", invoiceLifecycleController.queue);
@@ -80,12 +72,6 @@ router.get("/invoices/:id/detail", invoiceLifecycleController.detail);
 router.get("/invoices/:id/pdf", invoiceLifecycleController.pdf);
 router.post("/invoices/:id/payments", paymentController.record);
 
-// UI + analytics redesign: a single read-only aggregated dashboard
-// payload for the Vendor home screen (KPIs, earnings, project progress,
-// invoice overview, recent activity) — see vendorDashboardService.js.
-// Same gate reuse rationale as /contractors above — no new
-// authenticate/authorizeRoles declaration needed, and no existing route
-// above this line was changed.
 router.get("/dashboard", vendorDashboardController.getDashboard);
 router.get('/dashboard/exports/:dataset', dashboardExportController.export);
 router.get("/notifications", notificationController.list);

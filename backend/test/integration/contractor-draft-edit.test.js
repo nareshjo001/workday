@@ -53,7 +53,6 @@ test("Contractor draft and rejected timesheet lifecycle edits", { timeout: 60000
   const pm = await signup("PM", unique("pm"));
   const vendor = await signup("VENDOR", unique("vendor"));
 
-  // Create Contractor 1
   const contractorEmail1 = unique("contractor1");
   const created1 = await request("POST", "/vendor/contractors", {
     name: "Contractor One",
@@ -67,7 +66,7 @@ test("Contractor draft and rejected timesheet lifecycle edits", { timeout: 60000
   const contractor1Token = login1.data.token;
   await request("PATCH", "/contractor/profile/skill", { skill: "BACKEND" }, contractor1Token);
 
-  // Create Contractor 2 (for cross-contractor isolation check)
+  // Use a second contractor to verify cross-contractor isolation.
   const contractorEmail2 = unique("contractor2");
   const created2 = await request("POST", "/vendor/contractors", {
     name: "Contractor Two",
@@ -79,7 +78,6 @@ test("Contractor draft and rejected timesheet lifecycle edits", { timeout: 60000
   const login2 = await request("POST", "/auth/login", { email: contractorEmail2, password: "Password123!" });
   const contractor2Token = login2.data.token;
 
-  // Create project with allocation for Contractor 1
   const project = await request("POST", "/pm/projects", {
     name: "Draft Edit Project",
     start_date: workDate,
@@ -100,7 +98,6 @@ test("Contractor draft and rejected timesheet lifecycle edits", { timeout: 60000
   await request("PATCH", `/pm/candidate-submissions/${submission.data.id}`, { status: "ACCEPTED" }, pm.token);
   await request("PATCH", `/pm/projects/${projectId}/contractors/${contractorId1}/allocation`, { allocated_hours: 40 }, pm.token);
 
-  // 1. Create a DRAFT
   const draft = await request("POST", "/contractor/timesheets", {
     projectId,
     workDate,
@@ -112,7 +109,6 @@ test("Contractor draft and rejected timesheet lifecycle edits", { timeout: 60000
   assert.equal(draft.data.submitted_at, null);
   const draftId = draft.data.id;
 
-  // 2. Contractor can edit own DRAFT; DRAFT edit remains DRAFT and updated values persist
   const draftEdit = await request("PATCH", `/contractor/timesheets/${draftId}`, {
     workDate,
     hoursLogged: 5,
@@ -125,7 +121,7 @@ test("Contractor draft and rejected timesheet lifecycle edits", { timeout: 60000
   assert.equal(draftEdit.data.submitted_at, null);
   assert.equal(draftEdit.data.reviewed_at, null);
 
-  // 3. Contractor cannot edit another contractor's record (returns 404)
+  // Return 404 for foreign timesheets to avoid revealing another contractor's records.
   const crossContractorEdit = await request("PATCH", `/contractor/timesheets/${draftId}`, {
     workDate,
     hoursLogged: 6,
@@ -133,11 +129,9 @@ test("Contractor draft and rejected timesheet lifecycle edits", { timeout: 60000
   }, contractor2Token);
   assert.equal(crossContractorEdit.response.status, 404);
 
-  // 4. Submit the edited draft -> status becomes SUBMITTED
   const submitRes = await request("POST", "/contractor/timesheets/submit", { timesheetIds: [draftId] }, contractor1Token);
   assert.equal(submitRes.response.status, 200);
 
-  // 5. SUBMITTED edit returns 409
   const submittedEdit = await request("PATCH", `/contractor/timesheets/${draftId}`, {
     workDate,
     hoursLogged: 6,
@@ -146,7 +140,6 @@ test("Contractor draft and rejected timesheet lifecycle edits", { timeout: 60000
   assert.equal(submittedEdit.response.status, 409);
   assert.match(submittedEdit.data.message, /only draft and rejected timesheets can be edited/i);
 
-  // 6. PM rejects the timesheet
   const rejectRes = await request("PATCH", `/pm/timesheets/${draftId}`, {
     status: "REJECTED",
     rejectionReason: "Missing ticket link.",
@@ -155,7 +148,7 @@ test("Contractor draft and rejected timesheet lifecycle edits", { timeout: 60000
   assert.equal(rejectRes.data.status, "REJECTED");
   assert.equal(rejectRes.data.rejection_reason, "Missing ticket link.");
 
-  // 7. Contractor can edit own REJECTED; REJECTED edit returns to DRAFT as currently designed
+  // Rejected corrections must return to DRAFT before explicit resubmission.
   const rejectedEdit = await request("PATCH", `/contractor/timesheets/${draftId}`, {
     workDate,
     hoursLogged: 5.5,
@@ -167,18 +160,15 @@ test("Contractor draft and rejected timesheet lifecycle edits", { timeout: 60000
   assert.equal(rejectedEdit.data.description, "Fixed ticket link");
   assert.equal(rejectedEdit.data.rejection_reason, null);
 
-  // 8. Resubmit the corrected draft
   const resubmitRes = await request("POST", "/contractor/timesheets/submit", { timesheetIds: [draftId] }, contractor1Token);
   assert.equal(resubmitRes.response.status, 200);
 
-  // 9. PM approves the timesheet
   const approveRes = await request("PATCH", "/pm/timesheets/bulk-review", {
     timesheetIds: [draftId],
     status: "APPROVED",
   }, pm.token);
   assert.equal(approveRes.response.status, 200);
 
-  // 10. APPROVED edit returns 409
   const approvedEdit = await request("PATCH", `/contractor/timesheets/${draftId}`, {
     workDate,
     hoursLogged: 7,

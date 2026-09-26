@@ -5,12 +5,7 @@ import PrimaryButton from "../PrimaryButton";
 import AlertBanner from "../AlertBanner";
 import { inputClassName } from "../FormField";
 
-/**
- * MVP edit interaction: hourly rate + status only, exactly what the
- * backend's PATCH /api/vendor/contractors/:id accepts. `onUpdate` does the
- * API call and list update, and is expected to close this modal on
- * success.
- */
+// Delegate the update and successful modal close to the parent callback.
 export default function EditContractorModal({ contractor, onClose, onUpdate }) {
   const [hourlyRate, setHourlyRate] = useState(String(contractor.hourly_rate));
   const [status, setStatus] = useState(contractor.status);

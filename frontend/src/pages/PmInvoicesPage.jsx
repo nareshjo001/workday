@@ -35,11 +35,7 @@ function EmptySelectedInvoice() {
   </section>;
 }
 
-/**
- * PM invoice review and history for the PM's own projects. Ownership and
- * review eligibility remain server-enforced; this page only presents the
- * existing PM workflow using the shared invoice visual language.
- */
+// Present invoice review and history with ownership and review eligibility enforced server-side.
 export default function PmInvoicesPage() {
   const [invoices, setInvoices] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

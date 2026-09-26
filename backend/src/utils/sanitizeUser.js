@@ -1,7 +1,4 @@
-/**
- * Produces the safe, public representation of a user row.
- * Never include password_hash or any other sensitive field here.
- */
+// Expose only public user fields, never password hashes.
 function sanitizeUser(userRow) {
   if (!userRow) return null;
   return {

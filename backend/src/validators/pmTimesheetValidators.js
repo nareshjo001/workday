@@ -7,10 +7,6 @@ function parsePositiveInt(value) {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-/**
- * Validates the :id route param for PATCH /api/pm/timesheets/:id.
- * Returns the parsed timesheet id, throws ApiError(400) otherwise.
- */
 function validateTimesheetIdParam(params = {}) {
   const timesheetId = parsePositiveInt(params.id);
   if (!timesheetId) {
@@ -19,15 +15,7 @@ function validateTimesheetIdParam(params = {}) {
   return timesheetId;
 }
 
-/**
- * Validates the payload for PATCH /api/pm/timesheets/:id. Returns
- * { status } on success, throws ApiError(400) otherwise. Only APPROVED
- * or REJECTED are ever accepted — a client cannot set a timesheet back
- * to PENDING, or to anything else, through this endpoint (spec section
- * 6). Deliberately does NOT accept reviewed_by/reviewed_at from the
- * body — those are always derived server-side (see
- * pmTimesheetService.reviewTimesheet).
- */
+// Accept only approval or rejection; derive reviewer identity and timestamps server-side.
 function validateReviewTimesheet(body = {}) {
   const errors = [];
 

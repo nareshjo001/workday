@@ -1,13 +1,4 @@
-/**
- * Reusable "nothing here yet" block — the same visual pattern every
- * existing page in this app already repeats inline (e.g.
- * VendorAssignmentsPage, PmMilestonesPage: "rounded-lg border-dashed
- * border-border bg-surface px-6 py-12 text-center"), pulled out into one
- * component for the dashboards so every KPI/chart/section renders the
- * exact same empty look rather than several slightly different ones.
- * `compact` shrinks the padding for use inside an already-boxed chart
- * card rather than as a full-page placeholder.
- */
+// Use compact spacing when the empty state sits inside an existing card.
 export default function EmptyState({ message, hint, compact = false }) {
   return (
     <div

@@ -1,8 +1,4 @@
-/**
- * Reusable inline banner for surfacing API/network errors and success
- * messages with a user-friendly message (never raw error objects/stack
- * traces). Shared across Authentication and future modules.
- */
+// Display safe API messages without exposing raw errors or stack traces.
 export default function AlertBanner({ message, variant = "error" }) {
   if (!message) return null;
 

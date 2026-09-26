@@ -20,12 +20,7 @@ function SearchIcon() {
   );
 }
 
-/**
- * Vendor's contractor-management screen: list + add + edit (rate/status).
- * All data comes from vendorContractorService, which is scoped to the
- * authenticated vendor server-side — this component never sends or reads
- * a vendor id itself.
- */
+// Manage contractor data scoped to the authenticated vendor by the server.
 export default function VendorContractorsPage() {
   const [contractors, setContractors] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -97,7 +92,6 @@ export default function VendorContractorsPage() {
   return (
     <DashboardLayout title="Contractors">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
-        {/* Page Header: Title, Result Count, Add Contractor */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold text-text">Contractors</h1>
@@ -110,7 +104,6 @@ export default function VendorContractorsPage() {
           </PrimaryButton>
         </div>
 
-        {/* Filter & Search Controls */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative flex-1">
             <label htmlFor="contractor-search" className="sr-only">Search by name or email</label>
@@ -146,7 +139,6 @@ export default function VendorContractorsPage() {
         <AlertBanner message={successMessage} variant="success" />
         <AlertBanner message={loadError} />
 
-        {/* Content Area: Loading, Empty, or Cards */}
         {isLoading ? (
           <Spinner label="Loading contractors…" />
         ) : contractors.length === 0 ? (
@@ -166,7 +158,6 @@ export default function VendorContractorsPage() {
               onHistory={setHistoryContractor}
             />
 
-            {/* Bottom Pagination Info */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 text-xs text-muted" data-testid="contractor-pagination">
               <span>
                 {pageInfo.total} result{pageInfo.total === 1 ? "" : "s"} · Page {page} of {Math.max(pageInfo.total_pages, 1)}

@@ -114,7 +114,6 @@ export default function ActivityList({
       aria-labelledby={hideHeader ? undefined : "activity-title"}
       className="flex flex-col gap-5"
     >
-      {/* Header */}
       {!hideHeader && (
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -156,7 +155,6 @@ export default function ActivityList({
         </header>
       )}
 
-      {/* Feed list or empty state */}
       {activity.items.length === 0 ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-2xs">
           <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-500 mb-3" aria-hidden="true">
@@ -181,7 +179,6 @@ export default function ActivityList({
                 className="flex flex-col sm:flex-row sm:items-start justify-between gap-3.5 sm:gap-4 rounded-xl border border-slate-200/90 bg-white p-4 sm:p-4.5 shadow-2xs hover:border-slate-300 transition-colors"
               >
                 <div className="flex items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
-                  {/* Category Icon Badge */}
                   <div
                     className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl border shadow-2xs"
                     style={{
@@ -194,19 +191,15 @@ export default function ActivityList({
                     <Icon className="h-5 w-5" />
                   </div>
 
-                  {/* Content Block */}
                   <div className="min-w-0 flex-1">
-                    {/* Line 1: Title */}
                     <h2 className="text-sm sm:text-[14.5px] font-bold text-slate-900 tracking-tight truncate">
                       {item.title}
                     </h2>
 
-                    {/* Line 2: Actor / Action Description */}
                     <p className="mt-0.5 text-xs sm:text-[13px] text-slate-600">
                       {item.summary || `${item.actor?.display_name || "System"} recorded activity.`}
                     </p>
 
-                    {/* Line 3: Related Entity Line */}
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] sm:text-xs text-slate-500">
                       {item.entity?.type && (
                         <span className="inline-flex items-center font-medium text-slate-700">
@@ -221,7 +214,6 @@ export default function ActivityList({
                       )}
                     </div>
 
-                    {/* Line 4: Meaningful Change Metadata Details */}
                     {meaningfulDetails.length > 0 && (
                       <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-2 border-t border-slate-100 text-xs">
                         {meaningfulDetails.map((detail) => (
@@ -235,7 +227,6 @@ export default function ActivityList({
                   </div>
                 </div>
 
-                {/* Right / Timestamp section (2-line on desktop) */}
                 <div className="shrink-0 text-left sm:text-right pl-13 sm:pl-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100/80">
                   <time dateTime={item.occurred_at} className="block text-xs font-bold text-slate-900 whitespace-nowrap">
                     {ts.date}
@@ -250,7 +241,6 @@ export default function ActivityList({
         </ol>
       )}
 
-      {/* Pagination */}
       {activity.pagination?.total_pages > 1 && (
         <nav aria-label="Activity pagination" className="mt-3 flex items-center justify-between gap-3 pt-2">
           <span className="text-xs sm:text-sm font-medium text-slate-500">

@@ -24,7 +24,7 @@ describe("AddContractorModal", () => {
     expect(screen.getByLabelText(/hourly rate/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText("0.00")).toBeInTheDocument();
 
-    // Verify NO Skill selector is present (contractor sets skill later)
+    // Contractors set their own skills after the vendor creates their account.
     expect(screen.queryByLabelText(/skill/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
@@ -175,11 +175,9 @@ describe("AddContractorModal", () => {
     render(<AddContractorModal onClose={onClose} onCreate={vi.fn()} />);
 
     const dialog = screen.getByRole("dialog");
-    // Clicking backdrop
     fireEvent.click(dialog);
     expect(onClose).toHaveBeenCalledTimes(1);
 
-    // Clicking inside dialog content (e.g. heading) does not close modal
     fireEvent.click(screen.getByRole("heading", { level: 2, name: "Add Contractor" }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });

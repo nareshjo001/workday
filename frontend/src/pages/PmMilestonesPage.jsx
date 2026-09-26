@@ -61,15 +61,7 @@ function HeroArtwork() {
   );
 }
 
-/**
- * PM's Milestones screen (Module 5): select one of your own projects,
- * view its milestones (across every contractor staffed on it), and
- * create new ones. All data is scoped to the authenticated PM
- * server-side — this component never sends or reads a pm id itself, and
- * every request is already implicitly limited to projects this PM owns
- * (see pmMilestoneService / pmProjectService, both 404 on any other PM's
- * project rather than this page filtering anything client-side).
- */
+// List and create milestones only within the server-enforced PM project scope.
 export default function PmMilestonesPage() {
   const [projects, setProjects] = useState([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
@@ -84,10 +76,7 @@ export default function PmMilestonesPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState(null);
 
-  // MVP fix 1 ("work-hour allocation must belong to the PM, not the
-  // Vendor"): per-contractor allocation-input state, keyed by
-  // contractor_id, plus a per-row saving flag and error so one row's save
-  // in flight/failure never affects the others.
+  // Track allocation input, saving, and errors per contractor so row updates stay independent.
   const [allocationInputs, setAllocationInputs] = useState({});
   const [savingAllocationId, setSavingAllocationId] = useState(null);
   const [allocationError, setAllocationError] = useState(null);
@@ -124,9 +113,7 @@ export default function PmMilestonesPage() {
       ]);
       setMilestones(milestoneData);
       setContractors(contractorData);
-      // Seed each row's input with its current allocation so the field
-      // starts populated rather than blank — a PM editing one contractor
-      // shouldn't have to first look up what's already allocated.
+      // Initialize each allocation input from its current server value.
       const seeded = {};
       for (const c of contractorData) {
         seeded[c.contractor_id] = c.allocated_hours === null || c.allocated_hours === undefined ? "" : String(c.allocated_hours);
@@ -144,11 +131,7 @@ export default function PmMilestonesPage() {
     setAllocationInputs((prev) => ({ ...prev, [contractorId]: value }));
   };
 
-  // MVP fix 1: the actual mutating call — validated server-side regardless
-  // of anything checked here (positive number, contractor still actively
-  // assigned, total <= project.expected_hours, can't drop below hours
-  // already approved for this contractor). This is just a friendly
-  // client-side guard against an obviously-empty submission.
+  // Guard empty input locally; the server enforces ownership, active assignment, and allocation limits.
   const handleSaveAllocation = async (contractorId) => {
     setAllocationError(null);
     const raw = allocationInputs[contractorId];
@@ -304,8 +287,7 @@ export default function PmMilestonesPage() {
                   {allocationError && <div className="mt-2"><AlertBanner message={allocationError} /></div>}
                 </div>
 
-                {/* MVP fix 1: allocation remains a PM control, with the
-                    existing save/release handlers and API calls unchanged. */}
+                {/* PM-owned allocation controls. */}
                 <div className="relative flex flex-col justify-center px-4 py-2 text-sm before:absolute before:inset-y-4 before:left-0 before:hidden before:w-px before:bg-slate-200 sm:px-[18px] lg:before:block">
                   {contractors.map((c) => (
                     <div

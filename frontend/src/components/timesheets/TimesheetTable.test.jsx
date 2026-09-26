@@ -22,17 +22,14 @@ describe("TimesheetTable edit availability", () => {
     const approvedRow = screen.getByText("Approved log work").closest("tr");
     const rejectedRow = screen.getByText("Rejected log work").closest("tr");
 
-    // DRAFT row has edit action
     expect(draftRow).toContainElement(editButtons[0]);
     fireEvent.click(editButtons[0]);
     expect(onEdit).toHaveBeenCalledWith(logs[0]);
 
-    // REJECTED row has edit action
     expect(rejectedRow).toContainElement(editButtons[1]);
     fireEvent.click(editButtons[1]);
     expect(onEdit).toHaveBeenCalledWith(logs[3]);
 
-    // SUBMITTED and APPROVED rows have NO edit action (cell is empty)
     expect(submittedRow.querySelector("button")).toBeNull();
     expect(approvedRow.querySelector("button")).toBeNull();
   });

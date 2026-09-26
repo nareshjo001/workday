@@ -132,9 +132,9 @@ test("3. renders Required, Assigned, and Remaining metric strip values correctly
   expect(screen.getByText("Required")).toBeInTheDocument();
   expect(screen.getByText("Assigned")).toBeInTheDocument();
   expect(screen.getByText("Remaining")).toBeInTheDocument();
-  expect(screen.getByText("3")).toBeInTheDocument(); // Required count
-  expect(screen.getByText("1")).toBeInTheDocument(); // Assigned count
-  expect(screen.getByText("2")).toBeInTheDocument(); // Remaining count
+  expect(screen.getByText("3")).toBeInTheDocument();
+  expect(screen.getByText("1")).toBeInTheDocument();
+  expect(screen.getByText("2")).toBeInTheDocument();
 });
 
 test("4. renders start and end date input fields", () => {

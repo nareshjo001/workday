@@ -64,7 +64,6 @@ export default function PendingTimesheetTable({
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-      {/* Desktop Table */}
       <div className="hidden md:block w-full overflow-x-auto">
         <table className="pm-timesheets-table w-full min-w-[928px] table-fixed text-left text-xs">
           <colgroup>
@@ -225,7 +224,6 @@ export default function PendingTimesheetTable({
         </table>
       </div>
 
-      {/* Mobile Card List */}
       <div className="md:hidden divide-y divide-slate-100">
         {timesheets.length === 0 ? (
           <div className="p-6 text-center text-slate-500">
@@ -306,7 +304,6 @@ export default function PendingTimesheetTable({
         )}
       </div>
 
-      {/* Integrated Card Pagination Footer */}
       {onPrevious && onNext && (
         <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 px-6 py-3.5 text-xs text-slate-500">
           <div>

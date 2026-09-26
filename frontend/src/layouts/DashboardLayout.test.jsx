@@ -138,12 +138,10 @@ test("PM profile dropdown supports open/close, PM identity, Escape/outside dismi
   expect(summary).toHaveAttribute("aria-expanded", "false");
   expect(details).not.toHaveAttribute("open");
 
-  // Open dropdown
   fireEvent.click(summary);
   expect(summary).toHaveAttribute("aria-expanded", "true");
   expect(details).toHaveAttribute("open");
 
-  // Popover identity matches PM
   expect(screen.getByText("Demo PM — Atlas", { selector: ".account-popover-name" })).toBeInTheDocument();
   expect(screen.getByText("PM", { selector: ".account-popover-role" })).toBeInTheDocument();
   expect(container.querySelector(".account-popover-avatar")).toHaveTextContent("D");
@@ -153,14 +151,12 @@ test("PM profile dropdown supports open/close, PM identity, Escape/outside dismi
   expect(logoutBtn).toBeInTheDocument();
   expect(logoutAllBtn).toBeInTheDocument();
 
-  // Escape key closes popover without logout (preserves session)
   auth.logout.mockClear();
   fireEvent.keyDown(document, { key: "Escape" });
   expect(summary).toHaveAttribute("aria-expanded", "false");
   expect(details).not.toHaveAttribute("open");
   expect(auth.logout).not.toHaveBeenCalled();
 
-  // Re-open and outside click closes popover without logout (preserves session)
   fireEvent.click(summary);
   expect(summary).toHaveAttribute("aria-expanded", "true");
   fireEvent.pointerDown(screen.getByTestId("outside-area"));
@@ -168,14 +164,12 @@ test("PM profile dropdown supports open/close, PM identity, Escape/outside dismi
   expect(details).not.toHaveAttribute("open");
   expect(auth.logout).not.toHaveBeenCalled();
 
-  // Re-open and click Logout invokes existing auth.logout
   fireEvent.click(summary);
   auth.logout.mockClear();
   fireEvent.click(logoutBtn);
   expect(auth.logout).toHaveBeenCalledTimes(1);
   expect(summary).toHaveAttribute("aria-expanded", "false");
 
-  // Re-open and click Logout all sessions invokes existing auth.logoutAll
   fireEvent.click(summary);
   auth.logoutAll.mockClear();
   fireEvent.click(logoutAllBtn);
@@ -196,58 +190,46 @@ test("profile dropdown supports accessible open/close, dynamic user data, escape
   const summary = screen.getByLabelText("Account menu");
   const details = container.querySelector(".account-menu");
 
-  // I. aria-expanded initially reflects closed state
   expect(summary).toHaveAttribute("aria-expanded", "false");
   expect(details).not.toHaveAttribute("open");
 
-  // A. profile trigger opens popover
   fireEvent.click(summary);
   expect(summary).toHaveAttribute("aria-expanded", "true");
   expect(details).toHaveAttribute("open");
 
-  // B. user name/role are rendered dynamically inside trigger and popover summary
   expect(screen.getByText("Sarah Connor", { selector: ".account-name" })).toBeInTheDocument();
   expect(screen.getByText("VENDOR", { selector: ".account-name small" })).toBeInTheDocument();
   expect(screen.getByText("Sarah Connor", { selector: ".account-popover-name" })).toBeInTheDocument();
   expect(screen.getByText("VENDOR", { selector: ".account-popover-role" })).toBeInTheDocument();
   expect(container.querySelector(".account-popover-avatar")).toHaveTextContent("S");
 
-  // C. Logout action exists
   const logoutBtn = screen.getByRole("button", { name: "Logout" });
   expect(logoutBtn).toBeInTheDocument();
 
-  // D. Logout all sessions exists
   const logoutAllBtn = screen.getByRole("button", { name: "Logout all sessions" });
   expect(logoutAllBtn).toBeInTheDocument();
 
-  // G. Escape closes popover
   fireEvent.keyDown(document, { key: "Escape" });
   expect(summary).toHaveAttribute("aria-expanded", "false");
   expect(details).not.toHaveAttribute("open");
 
-  // Re-open
   fireEvent.click(summary);
   expect(summary).toHaveAttribute("aria-expanded", "true");
 
-  // H. click outside closes popover
   fireEvent.pointerDown(screen.getByTestId("outside-area"));
   expect(summary).toHaveAttribute("aria-expanded", "false");
   expect(details).not.toHaveAttribute("open");
 
-  // Re-open for action handler execution
   fireEvent.click(summary);
   expect(summary).toHaveAttribute("aria-expanded", "true");
 
-  // E. normal Logout invokes existing handler
   auth.logout.mockClear();
   fireEvent.click(logoutBtn);
   expect(auth.logout).toHaveBeenCalledTimes(1);
   expect(summary).toHaveAttribute("aria-expanded", "false");
 
-  // Re-open for logoutAll test
   fireEvent.click(summary);
   auth.logoutAll.mockClear();
-  // F. Logout all sessions invokes its existing handler
   fireEvent.click(screen.getByRole("button", { name: "Logout all sessions" }));
   expect(auth.logoutAll).toHaveBeenCalledTimes(1);
   expect(summary).toHaveAttribute("aria-expanded", "false");
@@ -286,24 +268,19 @@ describe("Collapsible sidebar interaction, state, and accessibility", () => {
     const nav = within(sidebar).getByRole("navigation", { name: "Workspace navigation" });
     const toggle = screen.getByRole("button", { name: "Collapse sidebar" });
 
-    // Initial expanded state: labels exist in sidebar
     expect(within(nav).getByText("Projects & assignments")).toBeInTheDocument();
     expect(within(nav).getByText("Contractors")).toBeInTheDocument();
 
-    // B: Click collapse
     fireEvent.click(toggle);
 
     expect(sidebar).toHaveClass("is-collapsed");
     expect(container.querySelector(".workspace")).toHaveClass("has-collapsed-sidebar");
-    // Toggle label updates to Expand sidebar and aria-expanded is false (G)
     expect(toggle).toHaveAttribute("aria-label", "Expand sidebar");
     expect(toggle).toHaveAttribute("aria-expanded", "false");
 
-    // Icons still present in collapsed state
     const icons = sidebar.querySelectorAll(".vendor-nav-icon");
     expect(icons.length).toBeGreaterThan(0);
 
-    // C: Click expand
     fireEvent.click(toggle);
 
     expect(sidebar).not.toHaveClass("is-collapsed");
@@ -327,7 +304,6 @@ describe("Collapsible sidebar interaction, state, and accessibility", () => {
     expect(activeLink).toHaveClass("is-active");
     expect(activeLink).toHaveAttribute("aria-current", "page");
 
-    // Collapse
     const toggle = screen.getByRole("button", { name: "Collapse sidebar" });
     fireEvent.click(toggle);
 
@@ -368,14 +344,12 @@ describe("Collapsible sidebar interaction, state, and accessibility", () => {
     const sidebar = container.querySelector(".workspace-sidebar");
     const toggle = screen.getByRole("button", { name: "Collapse sidebar" });
 
-    // 1. Sidebar expanded: Sign out not present
     expect(within(sidebar).queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
     expect(within(sidebar).queryByText("Sign out")).not.toBeInTheDocument();
     expect(sidebar.querySelector(".sidebar-footer")).not.toBeInTheDocument();
     expect(sidebar.querySelector('[aria-label="Sign out"]')).not.toBeInTheDocument();
     expect(sidebar.querySelector('[data-tooltip="Sign out"]')).not.toBeInTheDocument();
 
-    // 2. Sidebar collapsed: Sign out not present
     fireEvent.click(toggle);
     expect(sidebar).toHaveClass("is-collapsed");
     expect(within(sidebar).queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
@@ -384,7 +358,6 @@ describe("Collapsible sidebar interaction, state, and accessibility", () => {
     expect(sidebar.querySelector('[aria-label="Sign out"]')).not.toBeInTheDocument();
     expect(sidebar.querySelector('[data-tooltip="Sign out"]')).not.toBeInTheDocument();
 
-    // 3. Profile popover: Logout still present, Logout all sessions still present
     const summary = screen.getByLabelText("Account menu");
     fireEvent.click(summary);
 
@@ -393,7 +366,6 @@ describe("Collapsible sidebar interaction, state, and accessibility", () => {
     expect(logoutBtn).toBeInTheDocument();
     expect(logoutAllBtn).toBeInTheDocument();
 
-    // 4. Existing logout handlers remain functional through the profile menu
     fireEvent.click(logoutBtn);
     expect(auth.logout).toHaveBeenCalledTimes(1);
 
@@ -455,7 +427,6 @@ describe("Collapsible sidebar interaction, state, and accessibility", () => {
 
     const sidebar = container.querySelector(".workspace-sidebar");
     const html = sidebar.innerHTML;
-    // Emoji Unicode ranges regex
     const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}]/u;
     expect(emojiRegex.test(html)).toBe(false);
   });

@@ -81,7 +81,6 @@ describe("PmVendorAccessPage", () => {
       </MemoryRouter>
     );
 
-    // 1. Hero Card
     expect(await screen.findByRole("heading", { level: 1, name: "Vendor Access" })).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -89,7 +88,6 @@ describe("PmVendorAccessPage", () => {
       )
     ).toBeInTheDocument();
 
-    // 2. Connect a Vendor Card
     expect(screen.getByRole("heading", { level: 2, name: "Connect a Vendor" })).toBeInTheDocument();
     expect(screen.getByText("Select a vendor and choose the level of access.")).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: /^Vendor/i })).toBeInTheDocument();
@@ -102,7 +100,6 @@ describe("PmVendorAccessPage", () => {
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Connect vendor/i })).toBeInTheDocument();
 
-    // 3. Connected Vendors Card
     expect(screen.getByRole("heading", { level: 2, name: "Connected vendors" })).toBeInTheDocument();
     expect(
       screen.getByText("Vendors currently connected to your client and their project access.")
@@ -120,7 +117,7 @@ describe("PmVendorAccessPage", () => {
     await screen.findByText("Acme Corp · contact@acme.com");
     expect(screen.getByText("Globex Talent · talent@globex.io")).toBeInTheDocument();
 
-    // Active projects should be present, archived projects excluded
+    // Exclude archived projects from new vendor access grants.
     expect(screen.getByRole("option", { name: "Atlas Platform" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Nova Redesign" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Archived Project" })).not.toBeInTheDocument();
@@ -133,19 +130,18 @@ describe("PmVendorAccessPage", () => {
       </MemoryRouter>
     );
 
-    // Vendor with client-only connection
+    // Exercise a client-only connection with no project grants.
     expect(await screen.findByText("Acme Corp")).toBeInTheDocument();
     expect(screen.getByText("No project access")).toBeInTheDocument();
 
-    // Vendor with single project grant
+    // Exercise a connection with one project grant.
     expect(screen.getByText("Starlight Staffing")).toBeInTheDocument();
     expect(screen.getAllByText("Atlas Platform").length).toBeGreaterThanOrEqual(1);
 
-    // Vendor with multiple project grants
+    // Exercise a connection with multiple project grants.
     expect(screen.getByText("Omni Talent")).toBeInTheDocument();
     expect(screen.getAllByText("Nova Redesign").length).toBeGreaterThanOrEqual(1);
 
-    // Every connected vendor displays the base Client access badge
     expect(screen.getAllByText("Client access").length).toBe(3);
     expect(screen.getAllByRole("button", { name: "Remove access" }).length).toBe(3);
   });
@@ -160,24 +156,20 @@ describe("PmVendorAccessPage", () => {
     await screen.findByText("Acme Corp");
     const searchInput = screen.getByRole("searchbox", { name: "Search vendors" });
 
-    // Filter by vendor name
     fireEvent.change(searchInput, { target: { value: "starlight" } });
     expect(screen.getByText("Starlight Staffing")).toBeInTheDocument();
     expect(screen.queryByText("Acme Corp")).not.toBeInTheDocument();
     expect(screen.queryByText("Omni Talent")).not.toBeInTheDocument();
 
-    // Filter by project name
     fireEvent.change(searchInput, { target: { value: "Nova" } });
     expect(screen.getByText("Omni Talent")).toBeInTheDocument();
     expect(screen.queryByText("Acme Corp")).not.toBeInTheDocument();
     expect(screen.queryByText("Starlight Staffing")).not.toBeInTheDocument();
 
-    // Filter with no match
     fireEvent.change(searchInput, { target: { value: "NonExistent" } });
     expect(screen.getByText("No connected vendors match your search.")).toBeInTheDocument();
     expect(screen.getByText("Try searching with a different vendor name or email.")).toBeInTheDocument();
 
-    // Clear search
     fireEvent.change(searchInput, { target: { value: "" } });
     expect(screen.getByText("Acme Corp")).toBeInTheDocument();
     expect(screen.getByText("Starlight Staffing")).toBeInTheDocument();
@@ -211,12 +203,9 @@ describe("PmVendorAccessPage", () => {
     const vendorSelect = await screen.findByRole("combobox", { name: /^Vendor/i });
     const projectSelect = screen.getByRole("combobox", { name: /^Project access/i });
 
-    // Select vendor
     fireEvent.change(vendorSelect, { target: { value: "11" } });
-    // Select project
     fireEvent.change(projectSelect, { target: { value: "101" } });
 
-    // Submit
     const connectButton = screen.getByRole("button", { name: /Connect vendor/i });
     fireEvent.click(connectButton);
 
@@ -225,7 +214,6 @@ describe("PmVendorAccessPage", () => {
     );
 
     expect(await screen.findByText("Vendor relationship and sourcing access saved.")).toBeInTheDocument();
-    // Form fields reset
     expect(screen.getByRole("combobox", { name: /^Vendor/i })).toHaveValue("");
     expect(screen.getByRole("combobox", { name: /^Project access/i })).toHaveValue("");
   });
@@ -242,7 +230,7 @@ describe("PmVendorAccessPage", () => {
     const vendorSelect = await screen.findByRole("combobox", { name: /^Vendor/i });
 
     fireEvent.change(vendorSelect, { target: { value: "10" } });
-    // Keep project access as default ""
+    // Leave project access empty to exercise a client-only connection.
 
     const connectButton = screen.getByRole("button", { name: /Connect vendor/i });
     fireEvent.click(connectButton);
@@ -288,10 +276,8 @@ describe("PmVendorAccessPage", () => {
     const removeButtons = screen.getAllByRole("button", { name: "Remove access" });
     fireEvent.click(removeButtons[0]);
 
-    // Native confirm must NOT be called
     expect(confirmSpy).not.toHaveBeenCalled();
 
-    // In-app modal must be open
     const modal = screen.getByRole("dialog");
     expect(modal).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Remove vendor access" })).toBeInTheDocument();
@@ -302,7 +288,6 @@ describe("PmVendorAccessPage", () => {
       )
     ).toBeInTheDocument();
 
-    // Access summary for Acme Corp (no project grants)
     expect(screen.getByText("Connected")).toBeInTheDocument();
     expect(screen.getByText("None")).toBeInTheDocument();
   });
@@ -323,7 +308,6 @@ describe("PmVendorAccessPage", () => {
     expect(modal).toBeInTheDocument();
     expect(screen.getByText("Remove access for Starlight Staffing?")).toBeInTheDocument();
 
-    // Modal should show Atlas Platform under Project access
     const projectPills = screen.getAllByText("Atlas Platform");
     expect(projectPills.length).toBeGreaterThanOrEqual(1);
   });
@@ -405,14 +389,12 @@ describe("PmVendorAccessPage", () => {
     const modal = screen.getByRole("dialog");
     expect(modal).toBeInTheDocument();
 
-    // Click destructive "Remove access" inside modal footer
     const confirmRemoveButton = within(modal).getByRole("button", { name: "Remove access" });
     fireEvent.click(confirmRemoveButton);
 
     await waitFor(() => expect(pmVendorAccess.remove).toHaveBeenCalledWith(10));
     expect(await screen.findByText("Vendor access was removed from future sourcing.")).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    // Connections reloaded
     expect(pmVendorAccess.connections).toHaveBeenCalledTimes(2);
   });
 
@@ -438,11 +420,9 @@ describe("PmVendorAccessPage", () => {
     const confirmRemoveButton = within(modal).getByRole("button", { name: "Remove access" });
     fireEvent.click(confirmRemoveButton);
 
-    // Modal button enters loading state and is disabled
     expect(within(modal).getByRole("button", { name: "Removing…" })).toBeDisabled();
     expect(within(modal).getByRole("button", { name: "Cancel" })).toBeDisabled();
 
-    // Resolve the promise
     resolveRemove();
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });

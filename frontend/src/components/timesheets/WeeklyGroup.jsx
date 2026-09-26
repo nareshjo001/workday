@@ -3,20 +3,7 @@ import { formatDate, formatHours } from "./format";
 import TimesheetTable from "./TimesheetTable";
 import TimesheetCardList from "./TimesheetCardList";
 
-/**
- * One collapsible week within a project's timesheet history — the
- * accordion node the daily-logging revision introduced so a contractor
- * still sees a familiar weekly summary even though every row underneath
- * is now an individually-submitted, individually-reviewed day (see
- * weekGrouping.js for how `week` is computed, and backend migration 013
- * for why there is no stored weekly row anymore).
- *
- * Collapsed by default (`defaultOpen` lets the parent open the most
- * recent week per project automatically) to keep a contractor with a
- * long history from facing a wall of daily rows on load — the week
- * header alone already answers "how many hours, and how much of that is
- * approved" without expanding anything.
- */
+// Collapse historical weeks by default; the parent may expand the most recent week.
 export default function WeeklyGroup({ week, onEdit, onSubmitWeek, defaultOpen = false }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const { totals } = week;

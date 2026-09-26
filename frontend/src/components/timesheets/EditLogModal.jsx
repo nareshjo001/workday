@@ -10,11 +10,7 @@ function todayDateString() {
   return new Date().toISOString().slice(0, 10);
 }
 
-/**
- * Edits a single DRAFT or REJECTED daily log (PATCH /api/contractor/timesheets/:id).
- * - For DRAFT: edits the existing draft in-place; status remains DRAFT.
- * - For REJECTED: edits the rejected log; status returns to DRAFT for resubmission.
- */
+// Edit drafts in place; rejected corrections return to DRAFT for explicit resubmission.
 export default function EditLogModal({ log, project, onClose, onSubmit }) {
   const [workDate, setWorkDate] = useState(log.work_date);
   const [hoursLogged, setHoursLogged] = useState(String(log.hours_logged));

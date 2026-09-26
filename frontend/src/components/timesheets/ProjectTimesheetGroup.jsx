@@ -1,22 +1,7 @@
 import WeeklyGroup from "./WeeklyGroup";
 import { formatHours } from "../projects/format";
 
-/**
- * One project's section of the contractor's timesheet history — a
- * heading plus every week that has at least one logged day for this
- * project (see weekGrouping.groupTimesheetsByProjectAndWeek), newest
- * week first. Only the most recent week starts expanded; older weeks
- * start collapsed (see WeeklyGroup) so a contractor assigned to a
- * long-running project doesn't land on a page-long wall of daily rows.
- *
- * PROJECT HOURS/ALLOCATION REDESIGN: `allocation` (looked up by
- * ContractorTimesheetsPage from the contractor's own assigned-projects
- * list, see assignmentRepository.listProjectsForContractor) carries this
- * contractor's own allocated/approved/pending/remaining hours on THIS
- * project — rendered as a small banner under the heading. Optional/null
- * for legacy assignments with no allocated_hours set, or if the lookup
- * ever misses (e.g. a stale group with no matching assignment row).
- */
+// Group daily logs by week and use assignment data for allocation totals even when logs are absent.
 export default function ProjectTimesheetGroup({ project, allocation, onEdit, onSubmitWeek }) {
   const hasAllocation =
     allocation && allocation.allocated_hours !== null && allocation.allocated_hours !== undefined;

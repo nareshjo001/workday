@@ -1,10 +1,6 @@
 const MAX_DATE = "9999-12-31";
 
-/**
- * The authoritative active-rate-card period rule. Currency deliberately is
- * not part of the identity: cards are scoped by client, vendor, and skill.
- * Date boundaries are inclusive and a null end date is ongoing.
- */
+// Compare inclusive periods by client, vendor, and skill; ignore currency and treat null end dates as ongoing.
 function activeRateCardPeriodsOverlap(left, right) {
   if (left.status !== "ACTIVE" || right.status !== "ACTIVE") return false;
   if (left.clientCompanyId !== right.clientCompanyId || left.vendorId !== right.vendorId || left.skillId !== right.skillId) return false;

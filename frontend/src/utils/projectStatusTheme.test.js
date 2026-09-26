@@ -121,7 +121,6 @@ describe("projectStatusTheme", () => {
       "DRAFT",
       "UNKNOWN",
     ];
-    // Regex checking for common emoji ranges
     const emojiRegex = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
     for (const s of statuses) {
       const res = resolveProjectStatusTheme(s);

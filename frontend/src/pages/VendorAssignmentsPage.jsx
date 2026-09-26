@@ -10,12 +10,7 @@ import vendorProjectService from "../services/vendorProjectService";
 import vendorAssignmentService from "../services/vendorAssignmentService";
 import ListControls from "../components/ListControls";
 
-/**
- * Vendor's project-staffing screen: browse projects open for staffing,
- * drill into one to see its per-skill requirements, and submit one or
- * more eligible contractors for PM review. Both project visibility and
- * contractor eligibility are scoped and rechecked server-side.
- */
+// Submit staffing candidates within server-enforced project visibility and contractor eligibility.
 export default function VendorAssignmentsPage() {
   const [projects, setProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -57,9 +52,7 @@ export default function VendorAssignmentsPage() {
   }, [successMessage]);
 
   const handleViewTeam = async (project) => {
-    // Re-fetch the single project's detail rather than reusing the list
-    // row — this is the freshest possible staffing snapshot right before
-    // the Vendor drills into requirements/assignment.
+    // Refresh project detail before opening the staffing requirements.
     try {
       const detail = await vendorProjectService.getProjectDetail(project.id);
       setSelectedProject(detail);
@@ -93,9 +86,7 @@ export default function VendorAssignmentsPage() {
       dates
     );
 
-    // Re-fetch so every card/requirement reflects the true server-side
-    // count — a local optimistic increment could drift if, say, another
-    // vendor filled a slot in between.
+    // Re-fetch staffing counts after submission to account for concurrent changes.
     const [refreshedList, refreshedDetail] = await Promise.all([
       loadProjects(),
       vendorProjectService.getProjectDetail(selectedProject.id),

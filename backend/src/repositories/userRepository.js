@@ -1,10 +1,5 @@
 const { pool } = require("../config/db");
 
-/**
- * Database access for the `users` table.
- * Keeps SQL isolated from services/controllers. All queries are
- * parameterized — never interpolate user input into SQL strings.
- */
 
 async function findByEmail(email) {
   const [rows] = await pool.query(
@@ -23,13 +18,7 @@ async function findById(id, conn) {
   return rows[0] || null;
 }
 
-/**
- * `conn` is optional (defaults to the pool) so callers that need to
- * create a user as part of a larger transaction — e.g. PM signup, which
- * also creates/links a client_companies row in the same transaction, see
- * authService.signup — can pass a checked-out, already-begun connection
- * and have this insert participate in it.
- */
+// Allow user creation to participate in the caller's signup transaction.
 async function createUser({ name, email, passwordHash, role }, conn) {
   const runner = conn || pool;
   const [result] = await runner.query(

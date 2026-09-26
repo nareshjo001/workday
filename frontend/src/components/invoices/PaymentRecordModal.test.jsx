@@ -34,7 +34,7 @@ describe("PaymentRecordModal", () => {
     const methodSelect = screen.getByLabelText(/method/i);
     const options = Array.from(methodSelect.querySelectorAll("option"));
 
-    expect(options).toHaveLength(6); // 1 placeholder + 5 methods
+    expect(options).toHaveLength(6);
     expect(options.map((o) => o.textContent)).toEqual([
       "Select payment method",
       "Bank transfer",
@@ -53,7 +53,6 @@ describe("PaymentRecordModal", () => {
       "CREDIT_CARD",
     ]);
 
-    // Explicitly verify "Check" is used, not "Cheque"
     expect(screen.queryByText(/cheque/i)).not.toBeInTheDocument();
     expect(screen.getByText("Check")).toBeInTheDocument();
   });

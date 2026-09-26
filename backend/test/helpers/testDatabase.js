@@ -2,9 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const mysql = require("mysql2/promise");
 
-// Integration tests import this helper before the Express app in several
-// files. Load the same untracked local .env contract explicitly so reset
-// authentication never silently falls back to a blank password.
+// Load test credentials before app imports so database resets cannot silently use a blank password.
 require("dotenv").config({ path: path.join(__dirname, "../../.env") });
 
 let resetQueue = Promise.resolve();
@@ -37,10 +35,7 @@ async function performReset() {
     await admin.query("DROP DATABASE IF EXISTS ??", [config.name]);
     await admin.query("CREATE DATABASE ??", [config.name]);
 
-    // Open a second fresh connection without a selected schema, then select
-    // the database only after the admin phase has committed CREATE DATABASE.
-    // The admin connection remains open to hold the advisory lock until this
-    // complete reset/migration sequence has finished.
+    // Select the freshly created schema on a new connection while the admin connection retains the reset lock.
     const connection = await mysql.createConnection({ ...connectionConfig, multipleStatements: true });
     try {
       await connection.query("USE ??", [name]);
@@ -51,8 +46,7 @@ async function performReset() {
       for (const migration of migrations) {
         await connection.query(fs.readFileSync(path.join(__dirname, "../../src/migrations", migration), "utf8"));
       }
-      // Make a final query against a core migrated table so reset never
-      // reports success while the new schema is unusable.
+      // Verify a migrated table before reporting the reset as successful.
       await connection.query("SELECT 1 FROM users LIMIT 1");
     } finally {
       await connection.end();
@@ -64,10 +58,7 @@ async function performReset() {
 }
 
 async function resetTestDatabase() {
-  // Every caller joins a real promise chain. Capturing a previous promise
-  // and awaiting it is insufficient: two callers waiting on the same reset
-  // may otherwise resume together. The advisory lock in performReset covers
-  // separate Node test workers and coverage subprocesses.
+  // Serialize resets in-process; the database advisory lock also coordinates separate test workers.
   const current = resetQueue.then(performReset);
   resetQueue = current.catch(() => {});
   return current;

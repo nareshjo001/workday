@@ -31,10 +31,7 @@ export function StatusBadge({ status }) {
   );
 }
 
-/**
- * Modern semantic status pill with dot indicator and zero emoji.
- * Uses centralized resolveProjectStatusTheme for consistent colors and labels.
- */
+// Use the shared status theme for consistent project colors and labels.
 export function ProjectStatusBadge({ status, className = "" }) {
   const theme = resolveProjectStatusTheme(status);
   return (
@@ -49,12 +46,7 @@ export function ProjectStatusBadge({ status, className = "" }) {
   );
 }
 
-/**
- * Staffing status is DERIVED server-side from requirements vs.
- * assignments (never stored) — this just renders whatever the API
- * already computed. See pmProjectService.deriveStaffingStatus /
- * vendorProjectService on the backend.
- */
+// Render staffing status computed by the server from requirements and assignments.
 export function StaffingBadge({ status }) {
   const isFullyStaffed = status === "FULLY_STAFFED";
   return (
@@ -76,10 +68,6 @@ export function StaffingBadge({ status }) {
   );
 }
 
-/**
- * "4 / 6" style progress readout, reused for both the overall project
- * total and each individual per-skill requirement row.
- */
 export function StaffingProgress({ assigned, required }) {
   const isFull = assigned >= required;
   return (
@@ -89,16 +77,7 @@ export function StaffingProgress({ assigned, required }) {
   );
 }
 
-/**
- * Project hours/allocation redesign: HOURS staffing status
- * (PENDING_STAFFING / FULLY_STAFFED, derived from allocated vs.
- * expected_hours) — deliberately a SEPARATE badge from StaffingBadge
- * above, which renders the skill-HEADCOUNT staffing status. A project
- * can be fully staffed on headcount while still pending on hours, or vice
- * versa; these are never merged into one indicator. Renders nothing for
- * legacy projects with no expected_hours set (status is null there —
- * see pmProjectService.deriveHoursStaffingStatus on the backend).
- */
+// Keep hours-based staffing separate from headcount and omit it for legacy projects without targets.
 export function HoursStaffingBadge({ status }) {
   if (!status) return null;
   const isFullyStaffed = status === "FULLY_STAFFED";
@@ -121,16 +100,7 @@ export function HoursStaffingBadge({ status }) {
   );
 }
 
-/**
- * Project hours/allocation redesign: the "Work: 85/150h 56.7%" readout —
- * project-wide APPROVED hours over expected_hours, server-computed
- * (pmProjectService/vendorProjectService toProjectView), capped at 100%
- * for display. Deliberately distinct from StaffingProgress above (which
- * shows allocated/staffed capacity, not actual approved work) and from
- * milestone progress (which tracks discrete threshold checkpoints, not a
- * continuous percentage). Renders nothing for legacy projects with no
- * expected_hours set.
- */
+// Display server-computed approved-work progress separately from staffing and milestone thresholds.
 export function WorkProgress({ approvedHours, expectedHours, progressPercent }) {
   if (expectedHours === null || expectedHours === undefined) return null;
   return (
@@ -147,10 +117,7 @@ export function WorkProgress({ approvedHours, expectedHours, progressPercent }) 
   );
 }
 
-/**
- * Project hours/allocation redesign: the "Staffing: 150/150h" hours-based
- * counterpart to StaffingProgress (which counts headcount, not hours).
- */
+// Show allocated-hour capacity independently of headcount staffing.
 export function HoursStaffingProgress({ allocatedHours, expectedHours }) {
   if (expectedHours === null || expectedHours === undefined) return null;
   return (
@@ -161,15 +128,6 @@ export function HoursStaffingProgress({ allocatedHours, expectedHours }) {
   );
 }
 
-/**
- * Renders an hours value with at most 2 decimal places and no trailing
- * zeros. Small, deliberate duplicate of
- * components/timesheets/format.jsx's formatHours rather than a
- * cross-folder import — projects/ and timesheets/ have otherwise never
- * depended on each other, and this is a two-line pure function, the same
- * "small duplication over a new coupling" tradeoff this codebase already
- * makes for parsePositiveInt across validator files.
- */
 export function formatHours(hours) {
   const rounded = Math.round((Number(hours) || 0) * 100) / 100;
   return rounded.toString();

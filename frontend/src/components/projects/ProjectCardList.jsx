@@ -9,14 +9,7 @@ import {
 } from "./format";
 import { formatSkill } from "../../constants/skills";
 
-/**
- * Mobile presentation — visible below md, where ProjectTable takes over.
- * Same field-presence detection as ProjectTable (company_name,
- * total_required/assigned/staffing_status, assigned_date/assigned_skill)
- * so the same component serves the PM and Contractor project lists.
- *
- * `onComplete`/`completingId` mirror ProjectTable's — see its comment.
- */
+// Render optional project fields according to the server-provided row shape.
 export default function ProjectCardList({ projects, showId = true, onComplete, completingId, onSettings, onRequirements, onControl, onActivity }) {
   return (
     <div className="flex flex-col gap-3 md:hidden">

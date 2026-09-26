@@ -1,8 +1,7 @@
 const escapePdfText = (value) => String(value ?? "").replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)").replace(/[\r\n]/g, " ");
 const money = (value, currency) => `${currency || "USD"} ${Number(value || 0).toFixed(2)}`;
 
-// A deliberately small, dependency-free PDF writer. It only renders trusted,
-// server-derived invoice snapshots; callers never provide PDF commands.
+// Render only trusted invoice snapshots; callers cannot supply PDF commands.
 function makePage(lines) {
   const commands = ["BT", "/F1 10 Tf", "50 790 Td"];
   lines.forEach((line, index) => {

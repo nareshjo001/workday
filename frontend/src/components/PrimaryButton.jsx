@@ -1,9 +1,3 @@
-/**
- * The single primary-action button used across Authentication and future
- * modules (Projects, Timesheets, Billing, ...). Encapsulates hover/active/
- * disabled/loading states so every "submit" style action looks and behaves
- * the same everywhere.
- */
 export default function PrimaryButton({
   children,
   loadingText,

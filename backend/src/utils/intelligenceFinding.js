@@ -21,11 +21,7 @@ function validateEvidence(evidence) {
   });
 }
 
-/**
- * Validates and normalizes the authoritative, deterministic finding format.
- * Evidence is intentionally limited to explicit safe primitives: engines must
- * select what may be shown rather than pass through records or model output.
- */
+// Limit finding evidence to explicitly selected safe primitives, never raw records or model output.
 function createFinding(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new TypeError("Finding must be an object.");
   const severity = normalizeSeverity(input.severity);

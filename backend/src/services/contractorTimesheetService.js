@@ -12,25 +12,7 @@ function todayDateString() {
   return new Date().toISOString().slice(0, 10);
 }
 
-/**
- * THE security boundary for "which dates can a contractor log hours
- * against" — deliberately server-side only, never trusting a browser's
- * <input type="date"> min/max attributes (those are a UX convenience the
- * frontend also sets, but a request built by hand or replayed with a
- * different date must be rejected here regardless). Called from both
- * submitTimesheet (new daily log) and updateTimesheet (editing a
- * REJECTED log) so the rule is enforced identically, from exactly one
- * place, in both cases:
- *
- *   1. workDate must not be in the future (compared as plain ISO date
- *      strings against `todayDateString()` — no Date object math needed,
- *      same lexicographic-comparison approach pmProjectValidators uses
- *      for start/end date ordering).
- *   2. workDate must not be before the project's start_date.
- *   3. workDate must not be after the project's end_date, if the project
- *      has one set (end_date is nullable — an open-ended project has no
- *      upper bound beyond "not in the future").
- */
+// Enforce the project's date window and reject future work dates on the server.
 function assertWorkDateWithinProject(workDate, project) {
   const today = todayDateString();
   if (workDate > today) {
@@ -51,41 +33,7 @@ function assertWorkDateWithinProject(workDate, project) {
   }
 }
 
-/**
- * PROJECT HOURS/ALLOCATION REDESIGN — the remaining-capacity check every
- * new submission and every edit-of-a-rejected-log must pass:
- *
- * `reservedHours` (PENDING + APPROVED, see
- * timesheetRepository.sumReservedHoursForContractorProject) is the
- * "already spoken for" figure. The spec explicitly calls for treating
- * PENDING hours as reserved by default for this MVP — a contractor
- * cannot stack up multiple PENDING submissions that collectively exceed
- * their allocation just because none of them has been approved yet.
- * DOCUMENTED DECISION (per the spec's instruction to document this
- * choice explicitly): if a PM later REJECTS one of those pending
- * submissions, its hours stop being reserved automatically — they were
- * never persisted as "reserved" separately from the row's own status, so
- * a rejection immediately frees that capacity for the contractor's next
- * submission or edit, with no separate bookkeeping needed.
- *
- * A legacy project with no expected_hours set at all has no capacity
- * model to check against — same "don't invent a value that was never
- * captured" stance used elsewhere in this redesign — so submission
- * against it is allowed without a capacity check regardless of what the
- * assignment's own allocated_hours happens to be.
- *
- * MVP FIX 1 ADDITION ("work-hour allocation must belong to the PM, not
- * the Vendor"): on a project that DOES track expected_hours, a contractor
- * whose own allocated_hours is still NULL — i.e. the Vendor has assigned
- * them, but the PM has not yet set their allocation via
- * pmProjectService.updateContractorAllocation — must be blocked from
- * submitting ANY hours, not silently allowed unlimited hours. Without
- * this, a project simply never having its per-contractor allocation set
- * would leave the contractor's cap unenforceable, which would defeat the
- * whole point of the PM owning allocation: "a contractor must never be
- * able to submit/approve more hours than their own remaining allocation"
- * cannot be satisfied when there is no allocation to measure against.
- */
+// Reserve draft, submitted, and approved hours against allocation; legacy projects without targets bypass the check.
 function assertWithinRemainingAllocation(project, assignment, reservedHours, hoursLogged) {
   if (project.expected_hours === null) return;
   if (assignment.allocated_hours === null) {
@@ -105,47 +53,7 @@ async function assertTimePolicy(conn, project, contractorId, workDate, hoursLogg
   if (project.max_hours_per_week !== null && project.max_hours_per_week !== undefined) { const reserved=await timesheetRepository.sumReservedHoursForContractorProjectWeek(conn,contractorId,project.id,workDate,excludeId); if(reserved+hoursLogged>Number(project.max_hours_per_week))throw ApiError.conflict("This entry exceeds the project's weekly hour limit."); }
 }
 
-/**
- * Submits a new PENDING daily timesheet row on behalf of the
- * authenticated contractor. `userId` is req.user.userId off the JWT —
- * this resolves it to the contractor's own contractors.id
- * (timesheets.contractor_id is keyed on that, not on users.id) before
- * doing anything else. There is no parameter here that lets a caller
- * submit hours as a different contractor — contractorId never comes from
- * the request body.
- *
- * Runs inside a transaction that locks the contractor's ACTIVE
- * assignment row for this project
- * (assignmentRepository.lockActiveForContractorProject) — this is what
- * makes the remaining-allocation check below race-safe: two
- * near-simultaneous submissions for the SAME contractor+project
- * serialize on this lock, so the second one always sees the first one's
- * already-committed reservation before deciding whether there's still
- * room.
- *
- * Every rule below is enforced here, in order, each with its own clean
- * error — never a raw DB error, and never by trusting anything the
- * client claims about the project's state or the date's validity:
- *   1. The account must resolve to an ACTIVE contractor record
- *      (inactive contractors cannot submit new timesheets).
- *   2. The contractor must have an ACTIVE assignment on projectId — a
- *      RELEASED contractor cannot log new hours (project hours/
- *      allocation redesign: release ends their ability to submit,
- *      historical rows are untouched). A non-match returns a generic 404
- *      rather than confirming/denying the project exists (no information
- *      leakage) — same as the never-assigned case.
- *   3. The project must be ACTIVE — COMPLETED/ON_HOLD projects reject
- *      new timesheets.
- *   4. workDate must fall inside the project's own date window and not
- *      be in the future — see assertWorkDateWithinProject above.
- *   5. hoursLogged must not exceed the contractor's remaining allocation
- *      on this project — see assertWithinRemainingAllocation above.
- *   6. Duplicate contractor/project/day submissions are rejected with a
- *      clean 409 — see the ER_DUP_ENTRY catch below, backed by the
- *      UNIQUE(contractor_id, project_id, work_date) constraint from
- *      migration 013 (the actual guarantee under concurrency, not just
- *      this check).
- */
+// Create the authenticated contractor's daily log under the active-assignment lock and capacity checks.
 async function submitTimesheet(userId, { projectId, workDate, hoursLogged, description }, auditActor) {
   const contractor = await contractorRepository.findByUserId(userId);
   if (!contractor) {
@@ -192,10 +100,7 @@ async function submitTimesheet(userId, { projectId, workDate, hoursLogged, descr
         hoursLogged, description,
       });
     } catch (err) {
-      // Race-safety net: the pre-check above is a friendly read, the
-      // UNIQUE(contractor_id, project_id, work_date) constraint (migration
-      // 013) is the real guarantee against two near-simultaneous
-      // submissions for the same project+day.
+      // The unique contractor/project/date constraint rejects concurrent duplicate submissions.
       if (err?.code === "ER_DUP_ENTRY") {
         throw ApiError.conflict("A timesheet for this project and date has already been submitted.");
       }
@@ -219,15 +124,7 @@ async function submitTimesheet(userId, { projectId, workDate, hoursLogged, descr
   return timesheetRepository.findById(timesheetId);
 }
 
-/**
- * Lists the authenticated contractor's own daily timesheet history,
- * newest day first — a flat list of daily rows. `userId` is
- * req.user.userId off the JWT — there is no parameter here that lets a
- * caller ask for a different contractor's timesheets. Grouping this into
- * the project -> week -> day view is entirely a frontend concern (see
- * frontend/src/components/timesheets/weekGrouping.js) — nothing here
- * computes or returns a weekly total.
- */
+// Return daily history scoped to the authenticated contractor.
 async function listMyTimesheets(userId) {
   const contractor = await contractorRepository.findByUserId(userId);
   if (!contractor) {
@@ -269,10 +166,7 @@ async function submitTimesheets(userId, timesheetIds, auditActor) {
     if (rows.length !== ids.length || rows.some((row) => !["DRAFT", "REJECTED"].includes(row.status))) {
       throw ApiError.conflict("Only your draft or rejected timesheets can be submitted.");
     }
-    // Preserve the existing release/completion rule for draft rows too: a
-    // contractor cannot turn an old draft into new pending work after the
-    // assignment or project has ceased to be active. Project IDs are ordered
-    // deterministically before acquiring assignment locks.
+    // Lock assignments in project-ID order and reject draft submission after release or project closure.
     for (const projectId of [...new Set(rows.map((row) => row.project_id))].sort((a, b) => a - b)) {
       const assignment = await assignmentRepository.lockActiveForContractorProject(conn, contractor.id, projectId);
       if (!assignment) throw ApiError.conflict("You are no longer assigned to this project and cannot submit this timesheet.");
@@ -292,43 +186,7 @@ async function submitTimesheets(userId, timesheetIds, auditActor) {
   return result;
 }
 
-/**
- * Edits one of the authenticated contractor's own timesheet rows —
- * PATCH /api/contractor/timesheets/:id. This is the ONLY way an existing
- * row's hours/date can change after submission, and it is intentionally
- * narrow:
- *   - Only the row's OWNER may edit it. `userId` resolves to the caller's
- *     own contractors.id exactly like submitTimesheet; the lock read
- *     below compares that id against the row's contractor_id and returns
- *     a generic 404 on any mismatch — the same "don't confirm the row
- *     exists at all" leakage protection pmTimesheetService.reviewTimesheet
- *     uses for cross-PM access.
- *   - Only a REJECTED row may be edited. PENDING (already awaiting
- *     review) and APPROVED (a final, billable decision) are immutable —
- *     attempting to edit either returns a clean 409, enforced both by the
- *     status check below AND by updateRejectedLog's conditional
- *     `WHERE status = 'REJECTED'`, the same belt-and-suspenders pattern
- *     markReviewed uses for the PM review transaction.
- *   - project_id, contractor_id, status, reviewed_by and reviewed_at are
- *     never accepted from the client — only workDate and hoursLogged can
- *     change (see validateEditTimesheet). The project itself is
- *     re-fetched here and re-validated exactly like a fresh submission
- *     (must still be ACTIVE, workDate must still fall inside its window
- *     and not be in the future, and the edited hours must still fit the
- *     contractor's remaining allocation — a rejected log from months ago
- *     being edited today must satisfy today's rules, not the rules at
- *     the time it was first submitted).
- *   - A successful edit resets status back to PENDING and clears
- *     reviewed_by/reviewed_at — it re-enters the PM's queue as a new
- *     decision to be made, never silently staying REJECTED or jumping
- *     straight to APPROVED.
- *
- * Runs inside a transaction with a row lock on both the timesheet AND the
- * contractor's assignment (same FOR UPDATE + conditional UPDATE pattern
- * as pmTimesheetService.reviewTimesheet) so a concurrent edit — or a
- * concurrent new submission against the same allocation — can't
- * interleave with this one.
- */
+// Lock and revalidate owner edits to DRAFT or REJECTED logs; rejected corrections return to DRAFT.
 async function updateTimesheet(userId, timesheetId, { workDate, hoursLogged, description }, auditActor) {
   const contractor = await contractorRepository.findByUserId(userId);
   if (!contractor) {
@@ -344,8 +202,7 @@ async function updateTimesheet(userId, timesheetId, { workDate, hoursLogged, des
 
     const existing = await timesheetRepository.lockForOwnerEdit(conn, timesheetId);
     if (!existing || existing.contractor_id !== contractor.id) {
-      // Same 404 whether the row doesn't exist at all or belongs to
-      // another contractor — never confirm which.
+      // Use the same 404 for missing and foreign timesheets to prevent existence leaks.
       throw ApiError.notFound("Timesheet not found.");
     }
     if (existing.status !== "DRAFT" && existing.status !== "REJECTED") {
@@ -358,8 +215,7 @@ async function updateTimesheet(userId, timesheetId, { workDate, hoursLogged, des
       existing.project_id
     );
     if (!assignment) {
-      // The contractor was released from this project since the row was
-      // first submitted — a released contractor cannot resubmit either.
+      // Released contractors cannot edit historical logs.
       throw ApiError.conflict("You are no longer assigned to this project and cannot edit this timesheet.");
     }
 
@@ -421,8 +277,6 @@ async function updateTimesheet(userId, timesheetId, { workDate, hoursLogged, des
     conn.release();
   }
 
-  // Re-fetch fresh, post-commit state for the response, same convention
-  // as pmTimesheetService.reviewTimesheet.
   return timesheetRepository.findById(timesheetId);
 }
 

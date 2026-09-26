@@ -7,8 +7,7 @@ async function hasAssignmentHistory(conn,id){const [r]=await conn.query("SELECT 
 async function update(conn,id,p){await conn.query("UPDATE rate_cards SET client_company_id=?,skill_id=?,effective_from=?,effective_to=?,bill_rate=?,cost_rate=?,currency=?,status=? WHERE id=?",[p.clientCompanyId,p.skillId,p.effectiveFrom,p.effectiveTo,p.billRate,p.costRate,p.currency,p.status,id]);}
 async function resolve(conn,p){const [r]=await conn.query("SELECT id,bill_rate,cost_rate,currency FROM rate_cards WHERE client_company_id=? AND vendor_id=? AND skill_id=? AND status='ACTIVE' AND effective_from<=? AND (effective_to IS NULL OR effective_to>=?) ORDER BY effective_from DESC LIMIT 1 FOR UPDATE",[p.clientCompanyId,p.vendorId,p.skillId,p.date,p.date]);return r[0]||null;}
 async function list(vendorId,companyId){const [r]=await pool.query("SELECT rc.*,s.code AS skill FROM rate_cards rc JOIN skills s ON s.id=rc.skill_id WHERE rc.vendor_id=? AND rc.client_company_id=? ORDER BY rc.effective_from DESC",[vendorId,companyId]);return r;}
-// `skills` uses the M07 `is_active` flag. The former `status` predicate
-// caused GET /vendor/rate-card-skills to fail at SQL level.
+// Filter skills with is_active, the schema's availability flag.
 async function listSkills(){const [r]=await pool.query("SELECT id,code,name FROM skills WHERE is_active=1 ORDER BY code");return r;}
 async function contextForAssignment(conn,projectId,requirementId){const [r]=await conn.query("SELECT pm.company_id,pr.skill_id FROM projects p JOIN project_managers pm ON pm.user_id=p.pm_id JOIN project_requirements pr ON pr.id=? AND pr.project_id=p.id WHERE p.id=? FOR UPDATE",[requirementId,projectId]);return r[0]||null;}
 module.exports={clientRelationship,findOverlap,create,lockOwned,hasAssignmentHistory,update,resolve,list,listSkills,contextForAssignment};

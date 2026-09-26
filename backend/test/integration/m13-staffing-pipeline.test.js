@@ -33,8 +33,7 @@ test("M13 reports a scoped funnel and derives response SLA without persisting br
   assert.equal((await request("PATCH", `/pm/candidate-submissions/${acceptedSubmission.data.id}`, { status: "ACCEPTED" }, pm.token)).response.status, 200);
   assert.equal((await request("PATCH", `/pm/candidate-submissions/${rejectedSubmission.data.id}`, { status: "REJECTED", reason: "Not the current fit" }, pm.token)).response.status, 200);
   assert.equal((await request("PATCH", `/vendor/candidate-submissions/${withdrawnSubmission.data.id}/withdraw`, undefined, vendor.token)).response.status, 200);
-  // There is no business API that changes a submission timestamp; this is a
-  // deterministic clock fixture for read-time SLA calculation only.
+  // Set a deterministic submission time directly because the business API does not expose timestamp edits.
   await pool.query("UPDATE candidate_submissions SET submitted_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE id = ?", [waitingSubmission.data.id]);
   const pmPipeline = await request("GET", `/pm/staffing-pipeline?project_id=${projectId}&skill=FRONTEND&sla_breached=true`, undefined, pm.token);
   assert.equal(pmPipeline.response.status, 200, JSON.stringify(pmPipeline.data)); assert.equal(pmPipeline.data.items.length, 1);

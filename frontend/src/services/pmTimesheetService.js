@@ -1,10 +1,6 @@
 import apiClient from "./apiClient";
 
-/**
- * PM's timesheet-review API. Built on the shared apiClient, same as
- * pmProjectService — the JWT is attached automatically, so nothing here
- * ever passes a pm id explicitly.
- */
+// Use session-derived PM identity for timesheet review requests.
 
 async function listPending(params = {}) {
   const { data } = await apiClient.get("/pm/timesheets/pending", { params });

@@ -22,31 +22,26 @@ describe("CreateProjectModal", () => {
 
     render(<CreateProjectModal onClose={onClose} onCreate={onCreate} />);
 
-    // Header check
     expect(screen.getByRole("dialog", { name: "Create Project" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Create Project" })).toBeInTheDocument();
     expect(
       screen.getByText("Set up a new project with key details and staffing requirements.")
     ).toBeInTheDocument();
 
-    // Section 1 check
     expect(screen.getByRole("heading", { name: "Basic Information" })).toBeInTheDocument();
     expect(screen.getByLabelText(/Project Name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Description/i)).toBeInTheDocument();
 
-    // Section 2 check
     expect(screen.getByRole("heading", { name: "Timeline & Capacity" })).toBeInTheDocument();
     expect(screen.getByLabelText(/Start Date/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/End Date \(optional\)/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Expected Hours \(total project capacity\)/i)).toBeInTheDocument();
 
-    // Section 3 check
     expect(screen.getByRole("heading", { name: "Staffing Requirements" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Add skill/i })).toBeInTheDocument();
     expect(screen.getAllByRole("combobox", { name: "Select skill" })).toHaveLength(1);
     expect(screen.getAllByRole("spinbutton", { name: "Staffing headcount" })).toHaveLength(1);
 
-    // Footer actions check
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create Project" })).toBeInTheDocument();
   });
@@ -71,12 +66,10 @@ describe("CreateProjectModal", () => {
     const startInput = screen.getByLabelText(/Start Date/i);
     const endInput = screen.getByLabelText(/End Date \(optional\)/i);
 
-    // Set past start date
     fireEvent.change(startInput, { target: { name: "start_date", value: pastDateString(3) } });
     fireEvent.click(screen.getByRole("button", { name: "Create Project" }));
     expect(screen.getByText("Start date cannot be in the past.")).toBeInTheDocument();
 
-    // Set future start date and earlier end date
     fireEvent.change(startInput, { target: { name: "start_date", value: futureDateString(10) } });
     fireEvent.change(endInput, { target: { name: "end_date", value: futureDateString(5) } });
     fireEvent.click(screen.getByRole("button", { name: "Create Project" }));
@@ -88,23 +81,18 @@ describe("CreateProjectModal", () => {
 
     expect(screen.getAllByRole("combobox", { name: "Select skill" })).toHaveLength(1);
 
-    // Initial single row cannot be removed
     const initialRemoveBtn = screen.getByRole("button", { name: "Remove requirement" });
     expect(initialRemoveBtn).toBeDisabled();
 
-    // Add a second row
     fireEvent.click(screen.getByRole("button", { name: /Add skill/i }));
     expect(screen.getAllByRole("combobox", { name: "Select skill" })).toHaveLength(2);
 
-    // Select skill in first row to verify filtering in second row
     const selects = screen.getAllByRole("combobox", { name: "Select skill" });
     fireEvent.change(selects[0], { target: { value: "FRONTEND" } });
 
-    // Second dropdown should not offer FRONTEND
     const secondSelectOptions = Array.from(selects[1].querySelectorAll("option")).map((o) => o.value);
     expect(secondSelectOptions).not.toContain("FRONTEND");
 
-    // Remove first row
     const removeButtons = screen.getAllByRole("button", { name: "Remove requirement" });
     expect(removeButtons[0]).toBeEnabled();
     fireEvent.click(removeButtons[0]);

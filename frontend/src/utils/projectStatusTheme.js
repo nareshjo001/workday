@@ -1,18 +1,4 @@
-/**
- * Centralized semantic status theme resolver for Project cards and badges.
- * Normalizes status strings (trimming, case-insensitivity, delimiter handling)
- * and maps them to deterministic semantic color palettes and formatted labels.
- *
- * Supported semantic statuses:
- * - PENDING: Amber/warm yellow
- * - ACTIVE / OPEN: Emerald (or blue)
- * - COMPLETED / FILLED / FULLY_STAFFED / STAFFED: Emerald
- * - ON_HOLD: Orange
- * - CANCELLED: Muted red / Rose
- * - REJECTED / BLOCKED: Red
- * - DRAFT: Slate
- * - Unknown: Neutral slate fallback
- */
+// Normalize project statuses into consistent labels and themes with a neutral fallback.
 
 const STATUS_CONFIGS = {
   PENDING: {

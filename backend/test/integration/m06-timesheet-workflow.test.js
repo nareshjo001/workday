@@ -47,7 +47,7 @@ test("M06 preserves daily drafts, requires reasons, supports correction/resubmis
   const draft = await request("POST", "/contractor/timesheets", { projectId, workDate, hoursLogged: 8, description: "Build daily workflow" }, contractor);
   assert.equal(draft.response.status, 201); assert.equal(draft.data.status, "DRAFT"); assert.equal(draft.data.submitted_at, null);
 
-  // Contractor can edit own DRAFT: remains DRAFT, values persist, submitted_at remains null
+  // Saving a draft must preserve DRAFT status and leave submitted_at unset.
   const draftEdit = await request("PATCH", `/contractor/timesheets/${draft.data.id}`, { workDate, hoursLogged: 6, description: "Build daily workflow v2" }, contractor);
   assert.equal(draftEdit.response.status, 200);
   assert.equal(draftEdit.data.status, "DRAFT");

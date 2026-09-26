@@ -27,7 +27,6 @@ function formatProposedDates(startDate, endDate) {
   return `${start} – ${end}`;
 }
 
-/* --- SVG Icons --- */
 
 
 function ClockIcon({ size = 14, className = "" }) {
@@ -109,7 +108,6 @@ function EmptyInboxIcon({ size = 26, className = "" }) {
   );
 }
 
-/* --- Main Component --- */
 
 export default function CandidateReviewQueue({ submissions, loading, error, onDecision }) {
   const [rejecting, setRejecting] = useState(null);
@@ -137,7 +135,6 @@ export default function CandidateReviewQueue({ submissions, loading, error, onDe
 
   return (
     <section className="crq-container" aria-labelledby="candidate-review-title">
-      {/* Section Header */}
       <div className="crq-section-header">
         <div>
           <h2 id="candidate-review-title" className="crq-section-title">
@@ -156,7 +153,6 @@ export default function CandidateReviewQueue({ submissions, loading, error, onDe
         </div>
       </div>
 
-      {/* Alert Notifications */}
       {(actionError || error || success) && (
         <div>
           <AlertBanner message={actionError || error} />
@@ -164,7 +160,6 @@ export default function CandidateReviewQueue({ submissions, loading, error, onDe
         </div>
       )}
 
-      {/* Table Card */}
       <div className="crq-table-card">
         {loading ? (
           <div className="crq-loading-box">
@@ -266,7 +261,6 @@ export default function CandidateReviewQueue({ submissions, loading, error, onDe
         )}
       </div>
 
-      {/* Rejection Modal Dialog */}
       {rejecting && (
         <div
           className="crq-modal-backdrop"

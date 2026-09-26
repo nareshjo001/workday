@@ -1,15 +1,7 @@
 const { pool } = require("../config/db");
 
-/**
- * Database access for the `project_assignments` table — the join between
- * a Vendor-owned contractor and a PM-owned project. SQL lives only here.
- */
 
-/**
- * Friendly pre-check before insert (see the ER_DUP_ENTRY catch in
- * vendorAssignmentService for the actual guarantee, backed by the
- * UNIQUE(contractor_id, project_id) constraint).
- */
+// Use a friendly duplicate pre-check; the unique constraint remains the concurrency guarantee.
 async function existsFor(contractorId, projectId) {
   const [rows] = await pool.query(
     `SELECT id FROM project_assignments WHERE contractor_id = ? AND project_id = ? LIMIT 1`,
@@ -18,16 +10,7 @@ async function existsFor(contractorId, projectId) {
   return rows.length > 0;
 }
 
-/**
- * Locks the single project_requirements row for (projectId, skill) for
- * the duration of the caller's transaction — `SELECT ... FOR UPDATE`
- * must run on `conn` inside an open transaction (see
- * vendorAssignmentService.createAssignment). Any other transaction
- * trying to lock the SAME requirement row blocks until this one commits
- * or rolls back, which is what actually prevents two concurrent
- * assignments from both reading "capacity available" and both inserting.
- * Returns null if there's no requirement for that project+skill at all.
- */
+// Lock the requirement in the caller's transaction before checking staffing capacity.
 async function lockRequirementForUpdate(conn, projectId, skill) {
   const [rows] = await conn.query(
     `SELECT pr.id, pr.project_id, COALESCE(s.code, pr.skill) AS skill, pr.required_count, pr.status
@@ -40,14 +23,7 @@ async function lockRequirementForUpdate(conn, projectId, skill) {
   return rows[0] || null;
 }
 
-/**
- * Same lock as lockRequirementForUpdate above, but looked up directly by
- * requirement id — the new nested-resource assignment endpoint
- * (POST /api/vendor/projects/:id/requirements/:requirementId/assign)
- * already has the requirement id from the URL, and also needs to confirm
- * that requirement actually belongs to the given projectId (defense
- * against a requirementId from a DIFFERENT project being passed in).
- */
+// Lock the requirement only when it belongs to the requested project.
 async function lockRequirementForUpdateById(conn, projectId, requirementId) {
   const [rows] = await conn.query(
     `SELECT pr.id, pr.project_id, COALESCE(s.code, pr.skill) AS skill, pr.required_count, pr.status
@@ -60,18 +36,7 @@ async function lockRequirementForUpdateById(conn, projectId, requirementId) {
   return rows[0] || null;
 }
 
-/**
- * "Is this contractor currently on an ACTIVE assignment ANYWHERE" check —
- * the one-contractor-one-project-AT-A-TIME rule (project hours/allocation
- * redesign: a RELEASED contractor is eligible for reassignment again, see
- * migration 016's active_contractor_key generated column). Must be called
- * on the transaction-scoped `conn` inside the same transaction that later
- * inserts the assignment. The actual concurrency guarantee against two
- * simultaneous assignments of the same contractor is the
- * UNIQUE(active_contractor_key) constraint (migration 016) — this
- * pre-check just turns the common case into a clean error instead of a
- * raw ER_DUP_ENTRY.
- */
+// Check active assignments on the transaction connection; released rows do not block this lookup.
 async function isContractorAssigned(conn, contractorId) {
   const [rows] = await conn.query(
     `SELECT id FROM project_assignments WHERE contractor_id = ? AND status = 'ACTIVE' LIMIT 1`,
@@ -93,13 +58,7 @@ async function lockOverlappingAssignments(conn, contractorId, startDate, endDate
   return rows;
 }
 
-/**
- * How many assignments currently point at a given requirement. Must be
- * read AFTER lockRequirementForUpdate has taken the row lock, and on the
- * same connection/transaction, so this count reflects the true
- * up-to-the-moment state — a concurrent transaction blocked on the lock
- * can't have inserted yet.
- */
+// Count assignments on the same connection after acquiring the requirement lock.
 async function countAssignmentsForRequirement(conn, requirementId) {
   const [rows] = await conn.query(
     `SELECT COUNT(*) AS count FROM project_assignments WHERE requirement_id = ?`,
@@ -108,19 +67,7 @@ async function countAssignmentsForRequirement(conn, requirementId) {
   return Number(rows[0].count);
 }
 
-/**
- * Inserts the assignment, tagged with the specific requirement it fills.
- * `allocatedHours` is always NULL at insert time (MVP fix 1: allocation
- * ownership belongs to the PM, never the Vendor — see
- * vendorAssignmentService.assignContractors, which never accepts an
- * hours value from the request, and pmProjectService.updateContractorAllocation,
- * the only place this column is ever set to a non-null value, afterward).
- * Must run on the same transaction-scoped `conn` as the capacity check
- * above — the row lock is what's actually preventing another transaction
- * from reading a stale count between the check and this insert. status
- * defaults to 'ACTIVE' (migration 016's column default) — every new
- * assignment starts active, never pre-released.
- */
+// Insert the assignment in the same transaction as the locked capacity check.
 async function createWithRequirement(conn, contractorId, projectId, requirementId, allocatedHours, startDate = null, endDate = null, rateCard = null) {
   const [result] = await conn.query(
     `INSERT INTO project_assignments (contractor_id, project_id, requirement_id, allocated_hours, bill_rate_snapshot, cost_rate_snapshot, currency, rate_card_id, assigned_date, start_date, end_date)
@@ -144,17 +91,7 @@ async function billRateSnapshotForContractorProject(conn, contractorId, projectI
   return (await rateSnapshotForContractorProject(conn, contractorId, projectId))?.billRate ?? null;
 }
 
-/**
- * Updates ONLY allocated_hours on an existing assignment row — MVP fix 1
- * (the PM, not the Vendor, owns work-hour allocation; see
- * pmProjectService.updateContractorAllocation). Must run on the same
- * transaction-scoped `conn` as the row lock the caller already holds
- * (lockActiveForContractorProject below) — that lock, plus the caller's
- * own validation (project capacity, contractor already-approved-hours
- * floor) happening inside the same transaction, is what makes this update
- * safe under concurrency; this function itself does no validation, it
- * only writes the value it's given.
- */
+// Write the PM-validated allocation on the caller's locked transaction connection.
 async function updateAllocatedHours(conn, assignmentId, allocatedHours) {
   const [result] = await conn.query(
     `UPDATE project_assignments SET allocated_hours = ? WHERE id = ?`,
@@ -163,18 +100,7 @@ async function updateAllocatedHours(conn, assignmentId, allocatedHours) {
   return result.affectedRows > 0;
 }
 
-/**
- * SUM(allocated_hours) across every currently-ACTIVE assignment on a
- * project — the authoritative "how much of this project's expected_hours
- * is already staffed" figure. Legacy pre-migration-016 assignments (NULL
- * allocated_hours) are coalesced to 0 so they never silently block new
- * allocations. Takes `conn` and must run INSIDE the same transaction that
- * holds the project row lock (projectRepository.lockByIdForUpdate) — this
- * is what makes "new total <= expected_hours" safe under concurrency: a
- * second transaction trying to allocate against the same project blocks
- * on that lock until this one commits, so it can never read a
- * stale/pre-insert total.
- */
+// Sum active allocations under the project lock; legacy NULL allocations count as zero.
 async function sumAllocatedHoursForProject(conn, projectId) {
   const [rows] = await conn.query(
     `SELECT COALESCE(SUM(allocated_hours), 0) AS total
@@ -193,13 +119,7 @@ async function assignmentDateBoundsForProject(conn, projectId) {
   return row;
 }
 
-/**
- * Batch variant of sumAllocatedHoursForProject for LIST views (PM's own
- * project list, Vendor's browse list) — one query for however many
- * projects are being rendered rather than N+1. Plain pool read (no lock,
- * no transaction) — display-only, the real capacity guarantee is always
- * the transactional check in vendorAssignmentService, never this read.
- */
+// Batch display totals without locks; enforce capacity separately inside the allocation transaction.
 async function sumAllocatedHoursForProjects(projectIds) {
   if (projectIds.length === 0) return [];
   const [rows] = await pool.query(
@@ -211,23 +131,7 @@ async function sumAllocatedHoursForProjects(projectIds) {
   return rows.map((r) => ({ project_id: r.project_id, allocated_hours: Number(r.total) }));
 }
 
-/**
- * Locks this contractor's ACTIVE assignment on a project for the
- * duration of the caller's transaction (`SELECT ... FOR UPDATE` — must
- * run on `conn` inside an open transaction, see
- * contractorTimesheetService.submitTimesheet /
- * contractorTimesheetService.updateTimesheet). This is the actual
- * concurrency guarantee behind "a contractor can never submit more hours
- * than their remaining allocation, even with two near-simultaneous
- * submissions" — a second concurrent submission for the SAME
- * contractor+project blocks here until the first transaction commits or
- * rolls back, so the "reserved hours" SUM read after this lock is always
- * consistent with whatever the first request just inserted/committed.
- * Returns null if the contractor has no ACTIVE assignment on this
- * project (never assigned, or already RELEASED) — the caller turns that
- * into a clean 404/409 rather than allowing a submission with nothing to
- * check capacity against.
- */
+// Lock the active assignment before checking reserved hours to serialize concurrent submissions.
 async function lockActiveForContractorProject(conn, contractorId, projectId) {
   const [rows] = await conn.query(
     `SELECT id, contractor_id, project_id, allocated_hours, status
@@ -240,17 +144,7 @@ async function lockActiveForContractorProject(conn, contractorId, projectId) {
   return rows[0] || null;
 }
 
-/**
- * Releases every currently-ACTIVE assignment on a project — the
- * mandatory side effect of project completion (spec requirement: a
- * project being marked COMPLETED must auto-release every active
- * contractor, never delete the assignment row). Must run on the same
- * transaction-scoped `conn` as projectRepository.markCompleted, so
- * "project completed" and "assignments released" always succeed or fail
- * together. Once released, active_contractor_key becomes NULL (migration
- * 016's generated column), which is what makes the contractor eligible
- * for a brand new assignment elsewhere.
- */
+// Release assignments atomically with project completion while retaining assignment history.
 async function releaseAllActiveForProject(conn, projectId, releasedBy) {
   const [result] = await conn.query(
     `UPDATE project_assignments pa JOIN projects p ON p.id = pa.project_id
@@ -271,26 +165,7 @@ async function releaseActiveAssignment(conn, assignmentId, actualEndDate, reason
   return result.affectedRows > 0;
 }
 
-/**
- * Projects assigned to a given contractor, joined with the project's own
- * fields (including company_name, added in the Module 3 revision) plus
- * this assignment's assigned_date and the skill it was assigned under.
- * Scoped by contractor_id — the caller (contractorProjectService)
- * resolves that id from the authenticated contractor's own JWT, never
- * from a query/body param.
- */
-/**
- * Projects assigned to a given contractor (every assignment row they've
- * ever had — ACTIVE and RELEASED both, history is never dropped), each
- * annotated with allocated_hours/status/released_at (project hours
- * redesign) plus this contractor's own reserved (PENDING+APPROVED) and
- * approved hours logged against that specific project — the figures the
- * contractor-facing timesheet page banner needs (Allocated/Approved/
- * Pending/Remaining) computed once here rather than re-derived client
- * side from the flat timesheet list. Scoped by contractor_id — the
- * caller (contractorProjectService) resolves that id from the
- * authenticated contractor's own JWT, never from a query/body param.
- */
+// Return all contractor assignments with project-specific hour totals, preserving released history.
 async function listProjectsForContractor(contractorId) {
   const [rows] = await pool.query(
     `SELECT p.id, p.name, p.description,
@@ -333,30 +208,7 @@ async function listProjectsForContractor(contractorId) {
   }));
 }
 
-/**
- * Every contractor currently assigned to a project, one row per
- * assignment, annotated with their Logged vs. Approved hours on THAT
- * project — powers the Vendor's "Project Team" view (extends
- * GET /api/vendor/projects/:id/requirements rather than adding a
- * separate endpoint, see vendorProjectService.getProjectDetail).
- *
- * logged_hours sums hours_logged across every timesheet row for this
- * contractor+project regardless of status (PENDING/APPROVED/REJECTED
- * all count as "hours the contractor has logged"). approved_hours sums
- * only rows with status = 'APPROVED' — this is the one place those two
- * numbers are actually computed; the requirement doc's "Approved Hours"
- * excludes both PENDING and REJECTED on purpose (an hour isn't billable
- * until a PM has said so), and this SUM...CASE does that in one query
- * rather than two.
- *
- * The LEFT JOIN to timesheets means a contractor with zero logged hours
- * still appears (as 0/0), not silently dropped — a vendor should be able
- * to see "assigned, hasn't logged anything yet" as its own state.
- * requirement_id comes straight off project_assignments (an assignment
- * is always tied to the specific requirement it filled, see migration
- * 008) so the caller can group contractors under the correct per-skill
- * requirement without a second lookup.
- */
+// Include zero-hour assignments and distinguish all logged hours from approved billable hours.
 async function listAssignedContractorsWithHours(projectId) {
   const [rows] = await pool.query(
     `SELECT pa.id AS assignment_id, pa.requirement_id, c.id AS contractor_id, u.name AS contractor_name,

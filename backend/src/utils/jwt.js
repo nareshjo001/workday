@@ -1,10 +1,7 @@
 const jwt = require("jsonwebtoken");
 const env = require("../config/env");
 
-/**
- * Reusable JWT utility. Payload is intentionally minimal — only what is
- * needed for authentication/authorization decisions.
- */
+// Include only identity and session claims needed for authentication.
 function signToken({ userId, role, sessionId }) {
   return jwt.sign({ userId, role, sessionId }, env.jwt.secret, {
     expiresIn: env.jwt.expiresIn,
@@ -12,8 +9,7 @@ function signToken({ userId, role, sessionId }) {
 }
 
 function verifyToken(token) {
-  // Throws jwt.TokenExpiredError / JsonWebTokenError on failure; caller
-  // (auth middleware) is responsible for translating that into a 401.
+  // Let authentication middleware translate verification failures into 401 responses.
   return jwt.verify(token, env.jwt.secret);
 }
 

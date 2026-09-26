@@ -397,11 +397,9 @@ test("Test C: collapsing hides content and updates indicator back to plus", asyn
 
   const toggle = screen.getByRole("button", { name: /Filters & exports/i });
 
-  // Expand first
   fireEvent.click(toggle);
   expect(toggle).toHaveAttribute("aria-expanded", "true");
 
-  // Collapse again
   fireEvent.click(toggle);
   expect(toggle).toHaveAttribute("aria-expanded", "false");
   expect(toggle).toHaveTextContent("+");
@@ -549,25 +547,20 @@ describe("Vendor Overview Earnings Cards", () => {
     const companyCard = screen.getByTestId("vendor-company-earnings").closest(".vendor-earnings-card");
     const contractorCard = screen.getByTestId("vendor-contractor-earnings").closest(".vendor-earnings-card");
 
-    // Initially both collapsed
     expect(companyCard).toHaveClass("is-collapsed");
     expect(contractorCard).toHaveClass("is-collapsed");
     expect(earningsGrid).not.toHaveClass("earnings-grid--expanded");
 
-    // Expand contractors
     const expandBtn = within(contractorCard).getByRole("button", { name: "Show all contractors" });
     fireEvent.click(expandBtn);
 
-    // Contractor card expands, company card remains collapsed, grid gets expanded modifier
     expect(contractorCard).toHaveClass("is-expanded");
     expect(companyCard).toHaveClass("is-collapsed");
     expect(earningsGrid).toHaveClass("earnings-grid--expanded");
     expect(earningsGrid).toHaveClass("is-any-expanded");
 
-    // All 8 contractors are now in the DOM
     expect(within(contractorCard).getByText("Contractor 8")).toBeInTheDocument();
 
-    // Collapse back
     const collapseBtn = within(contractorCard).getByRole("button", { name: "Show fewer contractors" });
     fireEvent.click(collapseBtn);
 

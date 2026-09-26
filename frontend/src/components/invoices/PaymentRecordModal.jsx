@@ -1,22 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 
-/**
- * PaymentRecordModal
- *
- * Compact enterprise dialog for recording invoice payments.
- *
- * Dimensions: ~560px desktop max-width, natural height (fits in 1280x720 without scrolling).
- * Layout:
- * - Header: Title + Close [X]
- * - Summary: Invoice number, project name, currency, outstanding balance (~64-72px)
- * - Row 1: Amount * (with currency prefix) | Paid at *
- * - Row 2: Reference | Method
- * - Row 3: Notes (full width, ~76-80px height)
- * - Footer: Cancel + Record payment
- *
- * Accessibility: role="dialog", aria-modal="true", autoFocus on Amount,
- * Escape closes, Tab trap, focus restored upon unmount.
- */
 export default function PaymentRecordModal({ invoice, onClose, onSave }) {
   const [amount, setAmount] = useState(invoice.outstanding_amount ?? "");
   const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 16));
@@ -30,7 +13,7 @@ export default function PaymentRecordModal({ invoice, onClose, onSave }) {
   const amountInputRef = useRef(null);
   const triggerElementRef = useRef(null);
 
-  // Store trigger element to restore focus on unmount
+  // Restore focus to the opening trigger when the modal unmounts.
   useEffect(() => {
     triggerElementRef.current = document.activeElement;
     return () => {
@@ -38,12 +21,11 @@ export default function PaymentRecordModal({ invoice, onClose, onSave }) {
     };
   }, []);
 
-  // Autofocus amount input on mount
   useEffect(() => {
     amountInputRef.current?.focus?.();
   }, []);
 
-  // Keyboard navigation: Escape to cancel, Tab focus trap
+  // Keep keyboard focus inside the dialog and allow Escape to cancel.
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
@@ -126,7 +108,6 @@ export default function PaymentRecordModal({ invoice, onClose, onSave }) {
         className="w-full max-w-[560px] rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xl transition-all max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <header className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
           <h2
             id="record-payment-title"
@@ -146,7 +127,6 @@ export default function PaymentRecordModal({ invoice, onClose, onSave }) {
           </button>
         </header>
 
-        {/* Invoice Summary */}
         <div className="mt-3.5 flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-slate-50/70 p-3 sm:p-3.5 min-h-[64px]">
           <div className="flex items-center gap-2.5 min-w-0">
             <div
@@ -189,10 +169,8 @@ export default function PaymentRecordModal({ invoice, onClose, onSave }) {
           </div>
         )}
 
-        {/* Form Body */}
         <form onSubmit={submit} noValidate className="mt-3.5 space-y-3.5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5">
-            {/* Amount */}
             <div>
               <label htmlFor="payment-amount" className="block text-xs font-semibold text-slate-700 mb-1">
                 Amount <span className="text-red-500">*</span>
@@ -220,7 +198,6 @@ export default function PaymentRecordModal({ invoice, onClose, onSave }) {
               </div>
             </div>
 
-            {/* Paid at */}
             <div>
               <label htmlFor="payment-paid-at" className="block text-xs font-semibold text-slate-700 mb-1">
                 Paid at <span className="text-red-500">*</span>
@@ -236,7 +213,6 @@ export default function PaymentRecordModal({ invoice, onClose, onSave }) {
               />
             </div>
 
-            {/* Reference */}
             <div>
               <label htmlFor="payment-reference" className="block text-xs font-semibold text-slate-700 mb-1">
                 Reference
@@ -253,7 +229,6 @@ export default function PaymentRecordModal({ invoice, onClose, onSave }) {
               />
             </div>
 
-            {/* Method */}
             <div>
               <label htmlFor="payment-method" className="block text-xs font-semibold text-slate-700 mb-1">
                 Method
@@ -275,7 +250,6 @@ export default function PaymentRecordModal({ invoice, onClose, onSave }) {
             </div>
           </div>
 
-          {/* Notes */}
           <div>
             <label htmlFor="payment-notes" className="block text-xs font-semibold text-slate-700 mb-1">
               Notes
@@ -292,7 +266,6 @@ export default function PaymentRecordModal({ invoice, onClose, onSave }) {
             />
           </div>
 
-          {/* Footer */}
           <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
             <button
               type="button"

@@ -7,8 +7,7 @@ function invalidResponse() {
   throw new Error("Invalid rate intelligence response.");
 }
 
-// This verifies the server contract before any advisory values are rendered.
-// It deliberately does not calculate a rate, margin, or recommendation.
+// Validate server-supplied advisory values without calculating rates or recommendations locally.
 function parseAnalysis(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)
     || payload.contract_version !== "1"

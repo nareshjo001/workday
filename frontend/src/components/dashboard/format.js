@@ -1,12 +1,4 @@
-/**
- * Dashboard folder's own small format helpers — same deliberate
- * "duplicate the formatter rather than cross-import between feature
- * folders" convention already used by projects/format.jsx,
- * timesheets/format.jsx, milestones/format.jsx, and invoices/format.jsx
- * (each keeps its own formatCurrency/formatDateTime copy). Currency
- * stays USD, matching every other formatCurrency in this app — the
- * dashboards don't introduce a new currency convention.
- */
+// Format dashboard currency consistently as USD.
 export function formatCurrency(amount) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(amount) || 0);
 }
@@ -23,11 +15,7 @@ export function formatDate(dateStr) {
   return date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-/**
- * TIMESTAMP columns come back as "YYYY-MM-DD HH:MM:SS" strings
- * (config/db.js's dateStrings:true) — same split-and-format approach as
- * invoices/format.jsx's formatDateTime.
- */
+// Format MySQL timestamp strings without reinterpreting their timezone.
 export function formatDateTime(value) {
   if (!value) return "—";
   const [datePart, timePart] = value.split(" ");

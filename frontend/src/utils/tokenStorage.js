@@ -1,7 +1,4 @@
-/**
- * Short-lived access token storage. The token is intentionally memory-only;
- * page restoration uses the HttpOnly refresh cookie and /auth/refresh.
- */
+// Keep access tokens in memory; restore sessions through the HttpOnly refresh cookie.
 let accessToken = null;
 
 export function getToken() {

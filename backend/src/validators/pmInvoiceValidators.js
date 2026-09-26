@@ -9,11 +9,6 @@ function parsePositiveInt(value) {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-/**
- * Validates the :id route param for PATCH /api/pm/invoices/:id.
- * Same parsePositiveInt-based pattern as pmTimesheetValidators/
- * pmMilestoneValidators.
- */
 function validateInvoiceIdParam(params = {}) {
   const invoiceId = parsePositiveInt(params.id);
   if (!invoiceId) {
@@ -22,19 +17,7 @@ function validateInvoiceIdParam(params = {}) {
   return invoiceId;
 }
 
-/**
- * Validates the payload for PATCH /api/pm/invoices/:id. Returns
- * { status, rejectionReason } on success, throws ApiError(400)
- * otherwise. Only APPROVED or REJECTED are ever accepted — a client
- * cannot set an invoice to PENDING_REVIEW or AUTO_APPROVED through this
- * endpoint (those are never PM-settable states). rejection_reason is
- * required, non-blank, and length-bounded when rejecting; ignored
- * entirely when approving (never persisted, see
- * invoiceApprovalService.reviewInvoice). Deliberately does NOT accept
- * reviewed_by/reviewed_at/amount/vendor_id/contractor_id from the body —
- * those are always derived server-side, exactly per spec section 10's
- * IDOR audit list.
- */
+// Accept only approval or rejection, requiring a bounded reason for rejection and deriving review identity server-side.
 function validateReviewInvoice(body = {}) {
   const errors = [];
 

@@ -7,11 +7,7 @@ const {
 const asyncHandler = require("../utils/asyncHandler");
 const { parseListQuery, isoDateFilter } = require("../utils/listQuery");
 
-/**
- * `req.user.userId` (set by `authenticate` from the verified JWT) is the
- * ONLY source of the acting contractor's identity here — contractor_id
- * is never read from the request body or params.
- */
+// Derive contractor identity from the verified JWT, never body or route fields.
 
 const submit = asyncHandler(async (req, res) => {
   const payload = validateSubmitTimesheet(req.body);
@@ -40,11 +36,7 @@ const list = asyncHandler(async (req, res) => {
   res.status(200).json(await contractorTimesheetService.listMyTimesheetsPage(req.user.userId, query));
 });
 
-/**
- * PATCH /api/contractor/timesheets/:id — edit one of the contractor's
- * own REJECTED daily logs. See contractorTimesheetService.updateTimesheet
- * for the full rule set (ownership, status, project/date re-validation).
- */
+// Edit the contractor's own draft or rejected log using the service's lifecycle checks.
 const update = asyncHandler(async (req, res) => {
   const timesheetId = validateTimesheetIdParam(req.params);
   const payload = validateEditTimesheet(req.body);

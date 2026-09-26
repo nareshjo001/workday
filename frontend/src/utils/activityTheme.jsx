@@ -1,8 +1,5 @@
 ﻿import React from "react";
 
-/**
- * Activity category enum / constant tokens
- */
 export const ACTIVITY_CATEGORIES = Object.freeze({
   INVOICE: "INVOICE",
   PAYMENT: "PAYMENT",
@@ -15,11 +12,7 @@ export const ACTIVITY_CATEGORIES = Object.freeze({
   UNKNOWN: "UNKNOWN",
 });
 
-/**
- * Category-specific SVG icons.
- * Strict enterprise requirement: NO emojis, NO unicode pictograms.
- * Same category = same SVG every time.
- */
+// Keep each activity category's SVG icon consistent.
 export function InvoiceCategoryIcon({ className = "h-5 w-5" }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden="true">
@@ -96,10 +89,7 @@ export function UnknownCategoryIcon({ className = "h-5 w-5" }) {
   );
 }
 
-/**
- * Static, deterministic category themes.
- * Strict rule: Every category has ONE fixed presentation contract.
- */
+// Use one deterministic presentation theme per activity category.
 export const CATEGORY_THEMES = Object.freeze({
   [ACTIVITY_CATEGORIES.INVOICE]: Object.freeze({
     category: ACTIVITY_CATEGORIES.INVOICE,
@@ -202,11 +192,8 @@ export const CATEGORY_THEMES = Object.freeze({
   }),
 });
 
-/**
- * Authoritative mapping from event action codes to category.
- */
+// Map authoritative event codes to activity categories.
 const EVENT_CATEGORY_MAP = Object.freeze({
-  // Invoice events
   INVOICE_DRAFT_CREATED: ACTIVITY_CATEGORIES.INVOICE,
   INVOICE_DRAFT_UPDATED: ACTIVITY_CATEGORIES.INVOICE,
   INVOICE_SUBMITTED: ACTIVITY_CATEGORIES.INVOICE,
@@ -217,10 +204,8 @@ const EVENT_CATEGORY_MAP = Object.freeze({
   INVOICE_ITEM_ADDED: ACTIVITY_CATEGORIES.INVOICE,
   INVOICE_ITEM_REMOVED: ACTIVITY_CATEGORIES.INVOICE,
 
-  // Payment events
   PAYMENT_RECORDED: ACTIVITY_CATEGORIES.PAYMENT,
 
-  // Timesheet events
   TIMESHEET_DRAFT_SAVED: ACTIVITY_CATEGORIES.TIMESHEET,
   TIMESHEET_SUBMITTED: ACTIVITY_CATEGORIES.TIMESHEET,
   TIMESHEET_RESUBMITTED: ACTIVITY_CATEGORIES.TIMESHEET,
@@ -228,7 +213,6 @@ const EVENT_CATEGORY_MAP = Object.freeze({
   TIMESHEET_APPROVED: ACTIVITY_CATEGORIES.TIMESHEET,
   TIMESHEET_REJECTED: ACTIVITY_CATEGORIES.TIMESHEET,
 
-  // Assignment and Candidate events
   ASSIGNMENT_CREATED: ACTIVITY_CATEGORIES.ASSIGNMENT,
   ASSIGNMENT_RELEASED: ACTIVITY_CATEGORIES.ASSIGNMENT,
   ASSIGNMENT_ALLOCATION_CHANGED: ACTIVITY_CATEGORIES.ASSIGNMENT,
@@ -237,7 +221,6 @@ const EVENT_CATEGORY_MAP = Object.freeze({
   CANDIDATE_REJECTED: ACTIVITY_CATEGORIES.ASSIGNMENT,
   CANDIDATE_WITHDRAWN: ACTIVITY_CATEGORIES.ASSIGNMENT,
 
-  // Project and Milestone events
   PROJECT_CREATED: ACTIVITY_CATEGORIES.PROJECT,
   PROJECT_UPDATED: ACTIVITY_CATEGORIES.PROJECT,
   PROJECT_COMPLETED: ACTIVITY_CATEGORIES.PROJECT,
@@ -250,26 +233,20 @@ const EVENT_CATEGORY_MAP = Object.freeze({
   VENDOR_CLIENT_CONNECTED: ACTIVITY_CATEGORIES.PROJECT,
   VENDOR_CLIENT_REVOKED: ACTIVITY_CATEGORIES.PROJECT,
 
-  // Compliance & Document events
   CONTRACTOR_DOCUMENT_UPLOADED: ACTIVITY_CATEGORIES.COMPLIANCE,
   CONTRACTOR_DOCUMENT_REVIEWED: ACTIVITY_CATEGORIES.COMPLIANCE,
   CONTRACTOR_DOCUMENT_APPROVED: ACTIVITY_CATEGORIES.COMPLIANCE,
   CONTRACTOR_DOCUMENT_REJECTED: ACTIVITY_CATEGORIES.COMPLIANCE,
 
-  // Rate card events
   RATE_CARD_CREATED: ACTIVITY_CATEGORIES.RATE_CARD,
   RATE_CARD_UPDATED: ACTIVITY_CATEGORIES.RATE_CARD,
 
-  // Contractor events
   CONTRACTOR_CREATED: ACTIVITY_CATEGORIES.CONTRACTOR,
   CONTRACTOR_UPDATED: ACTIVITY_CATEGORIES.CONTRACTOR,
   CONTRACTOR_PROFILE_UPDATED: ACTIVITY_CATEGORIES.CONTRACTOR,
   CONTRACTOR_SKILL_UPDATED: ACTIVITY_CATEGORIES.CONTRACTOR,
 });
 
-/**
- * Entity type fallback map
- */
 const ENTITY_CATEGORY_MAP = Object.freeze({
   INVOICE: ACTIVITY_CATEGORIES.INVOICE,
   PAYMENT: ACTIVITY_CATEGORIES.PAYMENT,
@@ -293,13 +270,11 @@ const ENTITY_CATEGORY_MAP = Object.freeze({
 export function resolveCategory(activity) {
   if (!activity) return ACTIVITY_CATEGORIES.UNKNOWN;
 
-  // 1. Authoritative event code
   const eventKey = String(activity.event || activity.action || "").trim().toUpperCase();
   if (eventKey && Object.prototype.hasOwnProperty.call(EVENT_CATEGORY_MAP, eventKey)) {
     return EVENT_CATEGORY_MAP[eventKey];
   }
 
-  // 2. Keyword check on event string
   if (eventKey.startsWith("INVOICE_")) return ACTIVITY_CATEGORIES.INVOICE;
   if (eventKey.startsWith("PAYMENT_")) return ACTIVITY_CATEGORIES.PAYMENT;
   if (eventKey.startsWith("TIMESHEET_")) return ACTIVITY_CATEGORIES.TIMESHEET;
@@ -309,7 +284,6 @@ export function resolveCategory(activity) {
   if (eventKey.startsWith("RATE_CARD_")) return ACTIVITY_CATEGORIES.RATE_CARD;
   if (eventKey.startsWith("CONTRACTOR_")) return ACTIVITY_CATEGORIES.CONTRACTOR;
 
-  // 3. Fallback to entity type
   const entityType = String(activity.entity?.type || activity.entity_type || "").trim().toUpperCase();
   if (entityType && Object.prototype.hasOwnProperty.call(ENTITY_CATEGORY_MAP, entityType)) {
     return ENTITY_CATEGORY_MAP[entityType];
@@ -344,13 +318,13 @@ export function formatActivityTimestamp(value) {
     month: "short",
     day: "numeric",
     year: "numeric",
-  }).replace(/,/g, ""); // "Sep 14 2026"
+  }).replace(/,/g, "");
 
   const timeStr = d.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-  }); // "12:42 PM"
+  });
 
   return { date: dateStr, time: timeStr };
 }
@@ -372,7 +346,6 @@ export function isMeaninglessChange(val) {
   const from = fromRaw.trim();
   const to = toRaw.trim();
 
-  // Exact string match
   if (from === to) return true;
 
   // Numeric equivalence (e.g. 40.00 vs 40, 0.00 vs 0)

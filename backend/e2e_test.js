@@ -1,32 +1,4 @@
-/**
- * End-to-end smoke test for the Module 4/5/6 project-hours + project-level
- * milestone redesign. Runs against the live server on localhost:5000 with
- * real MariaDB transactions (no mocks). Exercises:
- *   - PM creates project w/ expected_hours
- *   - Vendor allocates contractors w/ allocated_hours, capacity enforced
- *   - PM creates project-level milestones
- *   - Contractors log daily hours, allocation-remaining enforced
- *   - PM approves -> project progress updates -> milestones trigger
- *   - Multi-contractor contribution apportionment (CASE 1/2/3 from spec)
- *   - Vendor approves/rejects invoices, race-safety on concurrent review
- *   - Project completion auto-releases assignments; released contractor
- *     becomes eligible for reassignment
- *
- * Not a permanent artifact of the codebase — a one-off verification
- * script for this session, run against a disposable local DB.
- *
- * SUPERSEDED — DO NOT RUN AS-IS (MVP fix session, see mvp_fix_test.js):
- * this script's CASE 2/CASE 3 assertions encode the OLD chronological
- * interval-apportionment billing algorithm, which the MVP fix
- * deliberately replaced because it was the reported bug — it billed a
- * second contractor's hours as `threshold - first_contractor_hours`
- * instead of that contractor's own actual approved hours. Those specific
- * assertions will now correctly FAIL if this file is executed unmodified.
- * `mvp_fix_test.js` is the authoritative regression suite going forward
- * (it re-covers Module 1-6 plus both MVP fixes against the CURRENT
- * per-contractor-independent billing model). This file is kept only as a
- * historical record of the pre-fix behavior it used to verify.
- */
+// Historical live-server test with superseded billing assertions; do not run as-is (use mvp_fix_test.js).
 const BASE = "http://localhost:5000/api";
 let failures = 0;
 let passes = 0;
@@ -109,16 +81,7 @@ async function createProject(pmToken, { name, expectedHours, requiredCount }) {
     body: {
       name,
       description: "E2E test project",
-      // New projects must start today or later (pmProjectValidators) and
-      // work_date can never be in the future — together that means a
-      // freshly created project only has ONE valid work_date (today)
-      // during a single test run. Every multi-row scenario below is
-      // therefore built from MULTIPLE CONTRACTORS each submitting once
-      // today, sequenced by approval order, rather than one contractor
-      // submitting across several days — this still exercises the exact
-      // same chronological-apportionment algorithm (it orders by
-      // reviewed_at, not by contractor), just without needing the test to
-      // span real calendar days.
+      // Use separate contractors on today's date to exercise approval ordering without future work dates.
       start_date: todayPlus(0),
       end_date: todayPlus(60),
       expected_hours: expectedHours,
@@ -157,11 +120,6 @@ async function main() {
   const vendor = await signupAndLogin("VENDOR");
   console.log("  PM + Vendor created.");
 
-  // ============================================================
-  // PROJECT 1 — CASE 1: three contractors A=20/B=20/C=10 hitting a 50h
-  // M1 must produce exactly those three contribution amounts, not equal
-  // splits.
-  // ============================================================
   console.log("\n=== PROJECT 1 (CASE 1: multi-contractor exact split) ===");
   const p1 = await createProject(pm.token, { name: "Case1 Project", expectedHours: 50, requiredCount: 3 });
   assertEqual(p1.expected_hours, 50, "P1 expected_hours stored");
@@ -180,11 +138,7 @@ async function main() {
   assertEqual(assignRes1.status, 201, "P1 assign A/B/C (20/20/10) succeeds");
   assertEqual(assignRes1.body?.project_allocated_hours, 50, "P1 allocated_hours == 50 after assign");
 
-  // Over-allocation must be rejected (project already fully allocated at
-  // 50/50 — any further allocation should exceed capacity). Create a 4th
-  // contractor and try to allocate 1h against a project with 0 remaining
-  // capacity and 0 remaining headcount slots (required_count=3, already 3
-  // assigned) — expect the headcount check to fire first, still a 409.
+  // Exhaust both headcount and hour capacity so an additional assignment must fail.
   const cExtra = await createContractor(vendor.token, 40);
   const overAllocRes = await assignContractors(vendor.token, p1.id, reqId1, [
     { contractorId: cExtra.contractorId, allocatedHours: 1 },
@@ -197,21 +151,18 @@ async function main() {
   });
   assertEqual(m1.status, 201, "P1 milestone M1=50 created");
 
-  // Over-threshold milestone must be rejected.
   const badMilestone = await req("POST", "/pm/milestones", {
     token: pm.token,
     body: { project_id: p1.id, name: "TooBig", threshold_hours: 999 },
   });
   assertEqual(badMilestone.status, 400, "P1 milestone threshold > expected_hours rejected");
 
-  // Contractor cannot log more than their own allocation.
   const overLogA = await req("POST", "/contractor/timesheets", {
     token: cA.token,
     body: { projectId: p1.id, workDate: todayPlus(0), hoursLogged: 21 },
   });
   assertEqual(overLogA.status, 409, "A submitting 21h against a 20h allocation is rejected");
 
-  // Approve A=20, B=20, C=10 in that order.
   const rA = await submitAndApprove(cA.token, pm.token, p1.id, todayPlus(0), 20);
   assertEqual(rA.approve?.status, 200, "A's 20h approved");
   const rB = await submitAndApprove(cB.token, pm.token, p1.id, todayPlus(0), 20);
@@ -219,7 +170,8 @@ async function main() {
   const rC = await submitAndApprove(cC.token, pm.token, p1.id, todayPlus(0), 10);
   assertEqual(rC.approve?.status, 200, "C's 10h approved");
 
-  await new Promise((r) => setTimeout(r, 300)); // let the post-commit milestone hook settle
+  // Wait for the post-commit milestone hook to settle.
+  await new Promise((r) => setTimeout(r, 300));
 
   const milestones1 = await req("GET", `/pm/milestones/${p1.id}`, { token: pm.token });
   const met1 = milestones1.body.find((m) => m.name === "M1");
@@ -237,7 +189,6 @@ async function main() {
   assertClose(p1View.approved_hours, 50, "P1 project-wide approved_hours == 50");
   assertEqual(p1View.work_progress_percent, 100, "P1 work_progress_percent == 100 (capped, never over)");
 
-  // Vendor invoice review + race safety.
   const vendorInvoices1 = await req("GET", "/vendor/invoices", { token: vendor.token });
   const invForA = vendorInvoices1.body.find((i) => i.contractor_id === cA.contractorId && i.milestone_id === met1.id);
   assert(!!invForA, "Vendor sees an invoice for A's contribution to M1");
@@ -265,9 +216,6 @@ async function main() {
   });
   assertEqual(pmMutateAttempt.status, 404, "Old PM mutate route no longer exists (404)");
 
-  // ============================================================
-  // PROJECT 1 completion -> auto-release -> reassignment eligibility
-  // ============================================================
   console.log("\n=== PROJECT 1 completion & auto-release ===");
   const completeRes = await req("PATCH", `/pm/projects/${p1.id}/complete`, { token: pm.token });
   assertEqual(completeRes.status, 200, "PM completes project 1");
@@ -283,18 +231,13 @@ async function main() {
   });
   assert(postReleaseLog.status === 404 || postReleaseLog.status === 409, "Released contractor cannot log new hours");
 
-  // Contractor A, now released, must be eligible for a NEW project.
   const p1b = await createProject(pm.token, { name: "Reassignment Project", expectedHours: 10, requiredCount: 1 });
   const reassign = await assignContractors(vendor.token, p1b.id, p1b.requirements[0].id, [
     { contractorId: cA.contractorId, allocatedHours: 10 },
   ]);
   assertEqual(reassign.status, 201, "Released contractor A is eligible for reassignment to a new project");
 
-  // ============================================================
-  // PROJECT 2 — CASE 2: 45h then a 10h approval crossing a 50h M1; only
-  // 5h counts toward M1, the other 5h carries forward and is picked up
-  // by M2 later, never lost or double-counted.
-  // ============================================================
+  // Legacy threshold-splitting scenario: carry the excess five hours into the next milestone.
   console.log("\n=== PROJECT 2 (CASE 2: partial-threshold-crossing carry-forward, multi-contractor) ===");
   const p2 = await createProject(pm.token, { name: "Case2 Project", expectedHours: 100, requiredCount: 5 });
   const [d1, d2, d3, d4, d5] = await Promise.all([80, 80, 80, 80, 80].map(() => createContractor(vendor.token, 80)));
@@ -310,13 +253,10 @@ async function main() {
   await req("POST", "/pm/milestones", { token: pm.token, body: { project_id: p2.id, name: "M1", threshold_hours: 50 } });
   await req("POST", "/pm/milestones", { token: pm.token, body: { project_id: p2.id, name: "M2", threshold_hours: 100 } });
 
-  // Approved in strict order D1 -> D2 -> D3, each on the same calendar
-  // day but as SEPARATE approval events (reviewed_at ordering is what
-  // the apportionment algorithm walks, not the work_date) —
-  // cumulative: 24 -> 45 -> 55, crossing M1's 50h threshold on D3's row.
-  await submitAndApprove(d1.token, pm.token, p2.id, todayPlus(0), 24); // cumulative 24
-  await submitAndApprove(d2.token, pm.token, p2.id, todayPlus(0), 21); // cumulative 45
-  await submitAndApprove(d3.token, pm.token, p2.id, todayPlus(0), 10); // cumulative 55 -> crosses M1(50)
+  // Approve separate contractors in order to cross the threshold within a single valid work date.
+  await submitAndApprove(d1.token, pm.token, p2.id, todayPlus(0), 24);
+  await submitAndApprove(d2.token, pm.token, p2.id, todayPlus(0), 21);
+  await submitAndApprove(d3.token, pm.token, p2.id, todayPlus(0), 10);
 
   const milestones2a = await req("GET", `/pm/milestones/${p2.id}`, { token: pm.token });
   const m1p2 = milestones2a.body.find((m) => m.name === "M1");
@@ -329,9 +269,8 @@ async function main() {
   assertClose(m1contrib[d3.contractorId], 5, "CASE2: D3 contributed only 5 of its 10h to M1 (the rest carries forward)");
   assertEqual(d3.contractorId in m1contrib, true, "CASE2: D3 (the straddling row) has a contribution row at all");
 
-  // Push cumulative 55 -> 100 through M2's threshold with D4, D5.
-  await submitAndApprove(d4.token, pm.token, p2.id, todayPlus(0), 24); // cumulative 79
-  await submitAndApprove(d5.token, pm.token, p2.id, todayPlus(0), 21); // cumulative 100 -> crosses M2
+  await submitAndApprove(d4.token, pm.token, p2.id, todayPlus(0), 24);
+  await submitAndApprove(d5.token, pm.token, p2.id, todayPlus(0), 21);
 
   const milestones2b = await req("GET", `/pm/milestones/${p2.id}`, { token: pm.token });
   const m2p2b = milestones2b.body.find((m) => m.name === "M2");
@@ -348,12 +287,7 @@ async function main() {
     Object.values(m1contrib).reduce((a, b) => a + b, 0) + Object.values(m2contrib).reduce((a, b) => a + b, 0);
   assertClose(totalContributed2, 100, "CASE2: M1 + M2 contributions sum to the full 100h approved — nothing lost or double-counted");
 
-  // ============================================================
-  // PROJECT 3 — CASE 3 (adapted to the real 24h/day submission cap): a
-  // single approval crosses THREE thresholds at once (M1=50, M2=60,
-  // M3=65 on a 65h project), verifying multi-milestone-in-one-call
-  // apportionment and that progress never exceeds 100%.
-  // ============================================================
+  // Legacy scenario: one approval crosses three thresholds while respecting the daily hours cap.
   console.log("\n=== PROJECT 3 (CASE 3: single approval crosses 3 thresholds, multi-contractor) ===");
   const p3 = await createProject(pm.token, { name: "Case3 Project", expectedHours: 65, requiredCount: 3 });
   const [e1, e2, e3] = await Promise.all([90, 90, 90].map(() => createContractor(vendor.token, 90)));
@@ -366,14 +300,9 @@ async function main() {
   await req("POST", "/pm/milestones", { token: pm.token, body: { project_id: p3.id, name: "M2", threshold_hours: 60 } });
   await req("POST", "/pm/milestones", { token: pm.token, body: { project_id: p3.id, name: "M3", threshold_hours: 65 } });
 
-  await submitAndApprove(e1.token, pm.token, p3.id, todayPlus(0), 24); // cumulative 24
-  await submitAndApprove(e2.token, pm.token, p3.id, todayPlus(0), 21); // cumulative 45
-  // E3's single 20h approval takes cumulative 45 -> 65, straddling all
-  // three thresholds (50, 60, 65) in this ONE approval event/call — the
-  // scenario spec CASE 3 describes (a single approval crossing multiple
-  // milestones at once), adapted to fit inside the 24h/day submission cap
-  // real timesheet rows are held to.
-  const jump = await submitAndApprove(e3.token, pm.token, p3.id, todayPlus(0), 20); // cumulative 65 -> M1,M2,M3 all in one call
+  await submitAndApprove(e1.token, pm.token, p3.id, todayPlus(0), 24);
+  await submitAndApprove(e2.token, pm.token, p3.id, todayPlus(0), 21);
+  const jump = await submitAndApprove(e3.token, pm.token, p3.id, todayPlus(0), 20);
   assertEqual(jump.approve?.status, 200, "P3 single 20h approval succeeds (cumulative 45 -> 65)");
 
   const milestones3 = await req("GET", `/pm/milestones/${p3.id}`, { token: pm.token });
@@ -398,9 +327,7 @@ async function main() {
   const p3View = (await req("GET", "/pm/projects", { token: pm.token })).body.items.find((p) => p.id === p3.id);
   assertEqual(p3View.work_progress_percent, 100, "P3 work_progress_percent capped at exactly 100, never exceeds");
 
-  // Allocation still correctly prevents total work from exceeding
-  // capacity — E3 has 0h remaining allocation now (20 approved == 20
-  // allocated).
+  // No capacity remains once approved hours equal the contractor's allocation.
   const overCapAfterCase3 = await req("POST", "/contractor/timesheets", {
     token: e3.token,
     body: { projectId: p3.id, workDate: todayPlus(0), hoursLogged: 1 },

@@ -112,7 +112,6 @@ export default function NotificationsPage({ role }) {
   return (
     <DashboardLayout title="Notifications">
       <div className="mx-auto flex max-w-4xl flex-col gap-6">
-        {/* Header with single entry point for Manage preferences beside Mark all read */}
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
@@ -125,7 +124,6 @@ export default function NotificationsPage({ role }) {
             </p>
           </div>
 
-          {/* Action area: [ Manage preferences ]   Mark all read */}
           <div className="flex flex-wrap items-center gap-3 self-start sm:self-center">
             <button
               ref={manageButtonRef}
@@ -161,7 +159,6 @@ export default function NotificationsPage({ role }) {
           </div>
         )}
 
-        {/* Loading state */}
         {isLoading ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-2xs">
             <div
@@ -175,7 +172,6 @@ export default function NotificationsPage({ role }) {
             </p>
           </div>
         ) : data.items.length === 0 ? (
-          /* Empty state */
           <div className="rounded-2xl border border-slate-200 bg-white p-8 sm:p-12 text-center shadow-2xs">
             <div
               className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400 mb-3"
@@ -190,7 +186,6 @@ export default function NotificationsPage({ role }) {
             </p>
           </div>
         ) : (
-          /* Notification feed */
           <ul role="list" className="space-y-2.5" data-testid="notification-feed">
             {data.items.map((n) => {
               const theme = getNotificationTheme(n);
@@ -211,7 +206,6 @@ export default function NotificationsPage({ role }) {
                     }`}
                   >
                     <div className="flex items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
-                      {/* Category Icon Badge */}
                       <div
                         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-2xs"
                         style={{
@@ -224,9 +218,7 @@ export default function NotificationsPage({ role }) {
                         <theme.Icon className="h-5 w-5" />
                       </div>
 
-                      {/* Content: Compact 3-line card */}
                       <div className="min-w-0 flex-1">
-                        {/* Line 1: Headline Title */}
                         <div className="flex items-center gap-2">
                           <p
                             className={`text-sm tracking-tight ${
@@ -244,14 +236,12 @@ export default function NotificationsPage({ role }) {
                           )}
                         </div>
 
-                        {/* Line 2: Context line (Contractor · Document Type, or Invoice # · Project) */}
                         {content.contextLine && (
                           <p className="mt-0.5 text-xs font-semibold text-slate-700 truncate">
                             {content.contextLine}
                           </p>
                         )}
 
-                        {/* Line 3: Category badge, outcome badge, and detail/expiry line */}
                         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
                           <span className="font-medium text-slate-600">{theme.label}</span>
                           {outcome && (
@@ -280,7 +270,6 @@ export default function NotificationsPage({ role }) {
                       </div>
                     </div>
 
-                    {/* 2-line right-aligned timestamp */}
                     <div className="shrink-0 text-left sm:text-right pl-13 sm:pl-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                       <time
                         className="block text-xs font-bold text-slate-900 whitespace-nowrap"
@@ -299,7 +288,6 @@ export default function NotificationsPage({ role }) {
           </ul>
         )}
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <nav
             aria-label="Notifications pagination"
@@ -332,7 +320,6 @@ export default function NotificationsPage({ role }) {
           </nav>
         )}
 
-        {/* Preferences modal dialog */}
         <ManagePreferencesModal
           isOpen={isPreferencesOpen}
           onClose={handleClosePreferences}

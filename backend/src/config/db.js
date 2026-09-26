@@ -1,11 +1,7 @@
 const mysql = require("mysql2/promise");
 const env = require("./env");
 
-/**
- * Centralized MySQL connection pool.
- * Reused across the whole application — never open a new connection
- * per request.
- */
+// Reuse the shared MySQL pool across requests.
 const pool = mysql.createPool({
   host: env.db.host,
   port: env.db.port,

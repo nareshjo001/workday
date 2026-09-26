@@ -8,11 +8,7 @@ const {
 const asyncHandler = require("../utils/asyncHandler");
 const { parseListQuery, isoDateFilter } = require("../utils/listQuery");
 
-/**
- * `req.user.userId` (set by `authenticate` from the verified JWT) is the
- * ONLY source of the acting PM's identity here — pm_id is never read
- * from the request body.
- */
+// Derive PM identity from the verified JWT, never request input.
 
 const create = asyncHandler(async (req, res) => {
   const payload = validateCreateProject(req.body);
@@ -25,21 +21,13 @@ const list = asyncHandler(async (req, res) => {
   res.status(200).json(await pmProjectService.listProjectsPage(req.user.userId, query));
 });
 
-/**
- * GET /api/pm/projects/:id/contractors — Module 5 addition powering the
- * milestone-creation contractor picker (see pmProjectService.listAssignedContractors).
- */
 const listContractors = asyncHandler(async (req, res) => {
   const projectId = validateProjectIdParam(req.params);
   const contractors = await pmProjectService.listAssignedContractors(req.user.userId, projectId);
   res.status(200).json(contractors);
 });
 
-/**
- * PATCH /api/pm/projects/:id/complete — project hours/allocation redesign
- * addition. See pmProjectService.completeProject for the full
- * transaction (mark COMPLETED + auto-release every active assignment).
- */
+// Complete the project and release active assignments in one service transaction.
 const complete = asyncHandler(async (req, res) => {
   const projectId = validateProjectIdParam(req.params);
   const result = await pmProjectService.completeProject(req.user.userId, projectId, { ...req.user, requestId: req.requestId });
@@ -47,13 +35,7 @@ const complete = asyncHandler(async (req, res) => {
 });
 const closeReadiness = asyncHandler(async (req, res) => { const projectId = validateProjectIdParam(req.params); res.json(await pmProjectService.getCloseReadiness(req.user.userId, projectId)); });
 
-/**
- * PATCH /api/pm/projects/:projectId/contractors/:contractorId/allocation —
- * MVP fix 1 ("work-hour allocation must belong to the PM, not the
- * Vendor"). See pmProjectService.updateContractorAllocation for the full
- * transaction (ownership + assignment + approved-hours-floor + project
- * capacity checks, all inside one lock).
- */
+// Delegate PM allocation changes to the transactional ownership and capacity checks.
 const allocateHours = asyncHandler(async (req, res) => {
   const { projectId, contractorId, allocatedHours } = validateUpdateAllocation(req.params, req.body);
   const result = await pmProjectService.updateContractorAllocation(

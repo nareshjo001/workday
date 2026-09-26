@@ -4,12 +4,7 @@ const { pool } = require("../config/db");
 const ApiError = require("../utils/ApiError");
 const auditService = require("./auditService");
 
-/**
- * The authenticated contractor's own profile — currently just their
- * skill, but returned as an object (not a bare string) so the shape can
- * grow without a breaking change. `userId` is req.user.userId off the
- * JWT, same identity source as updateSkill below.
- */
+// Read the authenticated contractor's profile.
 async function getProfile(userId) {
   const contractor = await contractorRepository.findByUserId(userId);
   if (!contractor) {
@@ -18,16 +13,7 @@ async function getProfile(userId) {
   return { phone: contractor.phone || null, headline: contractor.headline || null, total_experience_years: contractor.total_experience_years === null ? null : Number(contractor.total_experience_years), notes: contractor.notes || null, skills: await skillRepository.listForContractor(contractor.id) };
 }
 
-/**
- * Sets the authenticated contractor's own primary skill. `userId` is
- * req.user.userId off the JWT — this is the ONLY identity this function
- * ever acts on; there is no parameter that lets a contractor's request
- * touch a different contractor's row. Per Module 3 revision spec section
- * 31, changing a skill only affects FUTURE assignments — existing
- * project_assignments rows keep pointing at the requirement they were
- * originally locked to (see migration 008 / assignmentRepository), so
- * this function never needs to touch project_assignments at all.
- */
+// Update the authenticated profile without changing existing assignment requirements.
 async function updateProfile(userId, fields, auditActor) {
   const conn = await pool.getConnection();
   try {

@@ -1,18 +1,6 @@
 @import "tailwindcss";
 
-/**
- * Design tokens for the VMS application.
- *
- * These map to Tailwind v4 theme namespaces (--color-*, --radius-*,
- * --shadow-*, --font-*), so every token below is automatically available
- * as a utility class (e.g. --color-primary -> bg-primary/text-primary/
- * border-primary, --radius-md -> rounded-md, --shadow-card -> shadow-card).
- *
- * This is the single source of truth for the visual language shared by
- * Authentication today and by Dashboards / Projects / Timesheets /
- * Milestones / Billing / Invoices as they're built out later — extend
- * these tokens instead of hardcoding new colors/radii per page.
- */
+/* Extend shared design tokens through Tailwind theme namespaces. */
 @theme {
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
@@ -109,8 +97,7 @@
   button, p, h1, h2, h3, label { overflow-wrap: anywhere; }
   svg { max-width: 100%; }
 
-  /* Consistent, visible keyboard focus across the app — never rely on
-     color alone to indicate focus/error state. */
+  /* Keep keyboard focus visible without relying on color alone. */
   :focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
@@ -499,7 +486,7 @@ summary::marker { display: none; }
 .account-menu.is-open .account-trigger-chevron, .account-menu[open] .account-trigger-chevron { background: #e2ecf8; color: #2563eb; }
 .account-menu.is-open .account-trigger-chevron svg, .account-menu[open] .account-trigger-chevron svg { transform: rotate(180deg); }
 
-/* Polished Profile Popover - Compact Size */
+/* Compact profile popover */
 .account-popover { position: absolute; z-index: 50; top: calc(100% + 10px); right: 0; width: 268px; max-width: calc(100vw - 20px); padding: 8px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 12px 28px -4px rgba(15, 23, 42, .12), 0 4px 10px -2px rgba(15, 23, 42, .04); }
 .account-popover-caret { position: absolute; top: -5px; right: 156px; width: 10px; height: 10px; background: #ffffff; border-left: 1px solid #e2e8f0; border-top: 1px solid #e2e8f0; transform: rotate(45deg); border-top-left-radius: 2px; pointer-events: none; }
 .account-popover-identity { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #f4f8fd; border-radius: 10px; }
@@ -585,7 +572,7 @@ summary::marker { display: none; }
   padding-left: 16px;
   padding-right: 8px;
 }
-/* Timesheet review action buttons: Smooth morph between compact icon-only (open) and full text (collapsed) */
+/* Expand review action labels when the sidebar is collapsed. */
 .timesheet-action-group {
   display: flex;
   align-items: center;
@@ -662,7 +649,7 @@ summary::marker { display: none; }
               transform 0.22s cubic-bezier(0.2, 0, 0, 1);
 }
 
-/* Open sidebar state: smoothly morph to 32px square icon buttons */
+/* Use compact review icons while the sidebar is open. */
 .workspace:not(.has-collapsed-sidebar) .timesheet-action-btn {
   width: 32px;
   min-width: 32px;
@@ -678,7 +665,7 @@ summary::marker { display: none; }
   pointer-events: none;
 }
 
-/* Collapsed sidebar state: smoothly morph to full text pill buttons */
+/* Show review labels while the sidebar is collapsed. */
 .workspace.has-collapsed-sidebar .timesheet-action-btn--approve {
   width: 80px;
   min-width: 80px;
@@ -700,7 +687,7 @@ summary::marker { display: none; }
   pointer-events: auto;
 }
 
-/* PM Timesheets table: naturally fit without artificial min-width causing horizontal scrollbars */
+/* Let the PM timesheet table fit without forcing horizontal scrolling. */
 .workspace-content table.pm-timesheets-table td,
 .workspace-content table.pm-timesheets-table th {
   min-width: auto;
@@ -1105,8 +1092,7 @@ div.dashboard-tools {
   .vendor-activity-list li { gap: .7rem; }
 }
 
-/* Login-only shell. It is intentionally isolated from the shared auth layout so
-   account creation and recovery screens keep their existing presentation. */
+/* Isolate the login shell from account creation and recovery styles. */
 .login-shell {
   width: 100%;
   height: 100dvh;
@@ -1199,8 +1185,7 @@ div.dashboard-tools {
 .login-request-access { margin: clamp(.15rem, .6vh, .5rem) 0 0; text-align: center; color: #637792; font-size: clamp(.78rem, 1.45vh, .9rem); }
 .login-request-access a { border-radius: 3px; color: #1d4ed8; font-weight: 700; text-decoration: none; }
 
-/* Signup reuses the approved login shell and adds only compact, page-scoped
-   form layout rules. The Login selectors above remain the source of truth. */
+/* Reuse the login shell with signup-scoped form layout rules. */
 .signup-shell { grid-template-columns: minmax(0, 56fr) minmax(510px, 44fr); }
 .signup-auth { gap: clamp(.8rem, 1.5vh, 1.1rem); padding: clamp(.75rem, 2.2vh, 1.5rem) clamp(1rem, 3vw, 3.5rem); }
 .signup-card { width: min(100%, 44rem); padding: clamp(1.65rem, 3.6vh, 2.5rem) clamp(1.1rem, 2vw, 2rem); container-type: inline-size; }
@@ -1317,9 +1302,7 @@ div.dashboard-tools {
   .signup-card .login-card__header h1 { font-size: 1.8rem; }
 }
 
-/* Signup spacing follows available height: normal screens use the comfortable
-   defaults above, while laptop-height viewports progressively compact only the
-   right-side form. The approved hero and Login page remain untouched. */
+/* Compact only the signup form on shorter viewports. */
 @media (min-width: 901px) and (max-height: 819px) {
   .signup-auth { gap: .65rem; }
   .signup-card { padding-block: 1.2rem; }
@@ -1760,9 +1743,7 @@ div.dashboard-tools {
   }
 }
 
-/* ==========================================================================
-   Scoped Add Contractor Modal & Inner Frame
-   ========================================================================== */
+/* Scoped Add Contractor modal and inner frame */
 
 .add-contractor-overlay {
   position: fixed;
@@ -2015,9 +1996,7 @@ div.dashboard-tools {
   }
 }
 
-/* ==================================================
-   Vendor Projects & Assignments Grid & Cards (References 2 & 3)
-   ================================================== */
+/* Vendor project and assignment cards */
 .vendor-projects-container {
   container-type: inline-size;
 }

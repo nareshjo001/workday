@@ -2,12 +2,6 @@ import { formatDate } from "../projects/format";
 
 export { formatDate };
 
-/**
- * Invoice status badge — its own status vocabulary (PENDING_REVIEW/
- * AUTO_APPROVED/APPROVED/REJECTED), same "one badge component per status
- * set" convention as ../milestones/format's MilestoneStatusBadge and
- * ../timesheets/format's TimesheetStatusBadge.
- */
 const STATUS_STYLES = {
   DRAFT: "border border-slate-200 bg-slate-100 text-slate-700",
   SUBMITTED: "border border-blue-200 bg-blue-50 text-blue-700",
@@ -43,23 +37,11 @@ export function InvoiceStatusBadge({ status }) {
   );
 }
 
-/**
- * Renders an amount as US dollars — same small deliberate duplicate of
- * ../milestones/format's formatCurrency every feature folder already
- * keeps its own copy of, rather than a cross-folder import.
- */
 export function formatCurrency(amount) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(amount) || 0);
 }
 
-/**
- * generated_at/reviewed_at are TIMESTAMP columns (config/db.js's
- * dateStrings:true), returned as "YYYY-MM-DD HH:MM:SS", not a bare date
- * — same date+time split pattern as
- * ../timesheets/format.formatDateTime, duplicated here rather than
- * cross-imported for the same "small duplication over a cross-folder
- * coupling" reason every other feature folder's format.jsx already uses.
- */
+// Format MySQL date/time strings without local-timezone conversion.
 export function formatDateTime(value) {
   if (!value) return "—";
   const [datePart, timePart] = value.split(" ");

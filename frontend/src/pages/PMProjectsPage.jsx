@@ -18,11 +18,7 @@ import auditActivityService from "../services/auditActivityService";
 import PMProjectActivityModal from "../components/projects/PMProjectActivityModal";
 import Modal from "../components/Modal";
 
-/**
- * PM's project-management screen: list + create. All data comes from
- * pmProjectService, which is scoped to the authenticated PM server-side —
- * this component never sends or reads a pm id itself.
- */
+// Manage projects scoped to the authenticated PM by the server.
 export default function PMProjectsPage() {
   const [projects, setProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,7 +27,7 @@ export default function PMProjectsPage() {
   const [actionError, setActionError] = useState(null);
   const [completingId, setCompletingId] = useState(null);
 
-  // Single active dialog state: null | "create" | "settings" | "requirements" | "control" | "activity" | "completion"
+  // Allow only one project dialog to be active at a time.
   const [activeProjectDialog, setActiveProjectDialog] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
   const [completionWarnings, setCompletionWarnings] = useState([]);
@@ -156,14 +152,13 @@ export default function PMProjectsPage() {
     const targetProject = projects.find((p) => p.id === targetId) || projectFromControl || selectedProject;
     if (!targetProject) return;
 
-    // Preserve modalTriggerRef.current so closing Requirements restores focus to the original project actions trigger.
-    // Clean up Project Control state:
+    // Preserve the original trigger for focus restoration when replacing Project Control with Requirements.
     setControl(null);
     setControlError(null);
     setControlLoading(false);
     invalidateExplanations();
 
-    // Modal replacement: unmounts Project Control and mounts Staffing Requirements for the same project
+    // Replace the control dialog with requirements for the same project.
     setSelectedProject(targetProject);
     setActiveProjectDialog("requirements");
   }, [projects, selectedProject, invalidateExplanations]);

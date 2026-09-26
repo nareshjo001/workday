@@ -1,12 +1,4 @@
-/**
- * The one KPI/stat card component every role dashboard uses (Vendor/PM/
- * Contractor — UI + analytics redesign). Deliberately has NO trend/
- * change-indicator prop: this app has no historical snapshot of past
- * KPI values anywhere in the schema, and the spec is explicit that a
- * fake "+2 from last month" must never be shown when that data doesn't
- * really exist — so rather than build a prop that's always unused, this
- * component only ever renders the current, real value.
- */
+// Show current KPI values without fabricating historical trends.
 export default function KpiCard({ title, value, description, icon, isLoading = false }) {
   return (
     <div className="ui-stat min-w-0 flex flex-col gap-2 rounded-lg bg-surface p-4 shadow-panel ring-1 ring-border sm:p-5">

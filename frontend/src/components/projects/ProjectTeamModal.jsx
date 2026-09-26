@@ -3,12 +3,6 @@ import { formatDate, formatHours } from "./format";
 import { formatSkill } from "../../constants/skills";
 import { getInitials } from "../contractors/format";
 
-/**
- * Enterprise Project Team Modal:
- * Displays project overview, requirements, assigned contractor rosters,
- * and hours breakdown (Allocated, Logged, Approved, Pending, Remaining).
- * Matches the enterprise VMS design with independent internal scrolling.
- */
 export default function ProjectTeamModal({ project, onClose, onAssignRequirement }) {
   useEffect(() => {
     function handleKeyDown(e) {
@@ -34,7 +28,6 @@ export default function ProjectTeamModal({ project, onClose, onAssignRequirement
         onClick={(e) => e.stopPropagation()}
         data-testid="project-team-modal"
       >
-        {/* Fixed Header Section */}
         <div className="flex-shrink-0 px-4 py-3.5 sm:px-5 sm:py-4 border-b border-slate-100">
           <div className="flex items-start justify-between gap-3">
             <h2
@@ -53,7 +46,6 @@ export default function ProjectTeamModal({ project, onClose, onAssignRequirement
             </button>
           </div>
 
-          {/* Metadata Rows */}
           <div className="mt-2 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-y-1 gap-x-4 sm:gap-x-5 text-xs sm:text-[13px] text-slate-500 leading-tight">
             <div className="flex items-center gap-1.5">
               <BuildingIcon className="h-3.5 w-3.5 text-slate-400 shrink-0" />
@@ -77,7 +69,6 @@ export default function ProjectTeamModal({ project, onClose, onAssignRequirement
           </div>
         </div>
 
-        {/* Scrollable Content Body */}
         <div className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-5 flex flex-col gap-3 sm:gap-3.5">
           {project.requirements && project.requirements.length > 0 ? (
             project.requirements.map((req) => {
@@ -91,7 +82,6 @@ export default function ProjectTeamModal({ project, onClose, onAssignRequirement
                   className="rounded-xl sm:rounded-2xl border border-slate-200/80 bg-white p-3.5 sm:p-4 shadow-xs flex flex-col"
                   data-testid={`requirement-section-${req.id}`}
                 >
-                  {/* Requirement Card Header */}
                   <div className="flex flex-wrap items-center justify-between gap-2.5">
                     <div className="flex items-center gap-3 min-w-0">
                       <RoleIconSurface skill={req.skill} />
@@ -109,7 +99,6 @@ export default function ProjectTeamModal({ project, onClose, onAssignRequirement
                       </div>
                     </div>
 
-                    {/* Right Action / Status */}
                     {isFilled ? (
                       <div
                         className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/70 px-2.5 py-1 text-xs font-semibold"
@@ -131,7 +120,6 @@ export default function ProjectTeamModal({ project, onClose, onAssignRequirement
                     )}
                   </div>
 
-                  {/* Empty state or Contractor Roster */}
                   {!hasContractors ? (
                     <div
                       className="mt-3 flex items-center gap-2 rounded-lg bg-blue-50/70 border border-blue-100/80 px-3.5 py-2.5 min-h-[42px] text-xs sm:text-[12.5px] text-blue-900/80"
@@ -148,7 +136,6 @@ export default function ProjectTeamModal({ project, onClose, onAssignRequirement
                           className="py-3 sm:py-3.5 first:pt-3.5 last:pb-0 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_210px] items-center gap-3 md:gap-0"
                           data-testid={`contractor-row-${c.contractor_id}`}
                         >
-                          {/* Contractor Identity */}
                           <div className="flex items-center gap-3 min-w-0 pr-0 md:pr-4">
                             <div
                               className="contractor-avatar shrink-0"
@@ -185,7 +172,6 @@ export default function ProjectTeamModal({ project, onClose, onAssignRequirement
                             </div>
                           </div>
 
-                          {/* Hours Breakdown with Vertical Divider */}
                           <div
                             className="flex flex-col gap-1 text-[12px] sm:text-[12.5px] text-slate-500 shrink-0 pt-2.5 md:pt-0 border-t border-slate-100 md:border-t-0 md:border-l md:border-slate-200 md:pl-5 lg:pl-6"
                             data-testid={`contractor-hours-${c.contractor_id}`}

@@ -37,7 +37,6 @@ describe("DashboardExports", () => {
     expect(screen.getByRole("button", { name: "Export Payments" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Export financials" })).toBeInTheDocument();
 
-    // Verifies 'Export Project financials' was renamed and is not present
     expect(screen.queryByRole("button", { name: "Export Project financials" })).not.toBeInTheDocument();
   });
 

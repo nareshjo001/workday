@@ -1,17 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 
-/**
- * EditTaxModal
- *
- * Compact in-app dialog replacing native window.prompt() for editing
- * draft invoice tax rate and adjustments.
- *
- * Desktop target: ~360-400px width, natural height, centered.
- * Mobile: calc(100% - 32px), max 400px.
- * Visual: White surface, cool-grey border, rounded-2xl, soft shadow-xl, dark navy title.
- * Accessibility: role="dialog", aria-modal="true", autoFocus on Tax field,
- * focus trapped, Escape closes, Enter submits, focus restored on close.
- */
 export default function EditTaxModal({ invoice, onClose, onSave }) {
   const existingTax = invoice?.tax_rate ?? 0;
   const existingAdj =
@@ -30,7 +18,7 @@ export default function EditTaxModal({ invoice, onClose, onSave }) {
   const taxInputRef = useRef(null);
   const triggerRef = useRef(null);
 
-  // Store trigger element on open to restore focus upon close
+  // Restore focus to the opening trigger when the modal closes.
   useEffect(() => {
     triggerRef.current = document.activeElement;
     return () => {
@@ -38,12 +26,11 @@ export default function EditTaxModal({ invoice, onClose, onSave }) {
     };
   }, []);
 
-  // Autofocus tax input on open
   useEffect(() => {
     taxInputRef.current?.focus?.();
   }, []);
 
-  // Keyboard accessibility: Escape to close, Tab trap
+  // Keep keyboard focus inside the dialog and allow Escape to close it.
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
@@ -79,7 +66,6 @@ export default function EditTaxModal({ invoice, onClose, onSave }) {
     e.preventDefault();
     setError(null);
 
-    // Validate Tax Rate
     const taxNum = Number(taxRate);
     if (
       taxRate === "" ||
@@ -92,7 +78,6 @@ export default function EditTaxModal({ invoice, onClose, onSave }) {
       return;
     }
 
-    // Validate Adjustment Amount
     const adjNum = Number(adjustmentAmount);
     if (
       adjustmentAmount !== "" &&
@@ -102,7 +87,6 @@ export default function EditTaxModal({ invoice, onClose, onSave }) {
       return;
     }
 
-    // Validate Adjustment Description
     const trimmedDesc = adjustmentDescription.trim();
     if (adjNum !== 0 && trimmedDesc.length > 200) {
       setError("Adjustment description cannot exceed 200 characters.");

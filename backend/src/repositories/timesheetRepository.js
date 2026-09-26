@@ -1,29 +1,8 @@
 const { pool } = require("../config/db");
 
-/**
- * Database access for the `timesheets` table. SQL lives only here, same
- * convention as every other repository. Shared between
- * contractorTimesheetService (submit/list own/edit rejected) and
- * pmTimesheetService (list pending for my projects/approve/reject) — same
- * reuse pattern as assignmentRepository, which is shared between
- * contractorProjectService and vendorAssignmentService.
- *
- * Module 4 revision: one row is now one DAY of work (work_date), not one
- * week (the old week_start_date — see migration 013). Every function
- * below operates on individual daily rows; there is no "weekly total"
- * anywhere in this file or in the table itself — a weekly VIEW is
- * computed by the frontend by grouping the daily rows this module
- * returns (see frontend/src/components/timesheets/weekGrouping.js).
- */
+// Persist daily logs; calendar-week pagination selects complete groups of those rows.
 
-/**
- * Inserts a new PENDING daily timesheet row. Relies on the DB-level
- * UNIQUE(contractor_id, project_id, work_date) constraint (see migration
- * 013) as the actual duplicate-submission guarantee — the caller
- * (contractorTimesheetService) catches ER_DUP_ENTRY and turns it into a
- * clean 409, same pattern as vendorAssignmentService/ER_DUP_ENTRY
- * handling.
- */
+// The unique contractor/project/date key prevents duplicate daily logs under concurrency.
 async function create(conn, { contractorId, projectId, workDate, hoursLogged, description = null }) {
   const [result] = await conn.query(
     `INSERT INTO timesheets (contractor_id, project_id, work_date, hours_logged, description, status)
@@ -33,13 +12,7 @@ async function create(conn, { contractorId, projectId, workDate, hoursLogged, de
   return result.insertId;
 }
 
-/**
- * A single timesheet by id, with no ownership scoping — used right after
- * create()/update() (by the id this same request just wrote) and by the
- * PM review flow's final re-fetch, so there is no path through this
- * function alone that lets one contractor read another's row by guessing
- * an id (every caller does its own ownership check first).
- */
+// Unscoped timesheet lookup requires prior ownership checks by the caller.
 async function findById(id) {
   const [rows] = await pool.query(
     `SELECT t.id, t.contractor_id, t.project_id, p.name AS project_name,
@@ -55,14 +28,7 @@ async function findById(id) {
   return rows[0] ? toView(rows[0]) : null;
 }
 
-/**
- * Every daily timesheet belonging to the given contractor, newest day
- * first. Ownership lives in the WHERE clause — the caller
- * (contractorTimesheetService) resolves contractorId from the
- * authenticated contractor's own JWT, never from a query param. The
- * frontend groups this flat list into project -> week -> day for
- * display; nothing about that grouping happens here.
- */
+// Scope daily history to the authenticated contractor in SQL.
 async function listByContractor(contractorId) {
   const [rows] = await pool.query(
     `SELECT t.id, t.contractor_id, t.project_id, p.name AS project_name,
@@ -86,7 +52,7 @@ async function listPageByContractor(contractorId, query) {
   if (query.filters.startDate) { where.push("t.work_date >= ?"); params.push(query.filters.startDate); }
   const clause = where.join(" AND ");
 
-  // STEP 1: Count distinct non-empty calendar weeks (Monday-based: DATE_SUB(..., INTERVAL WEEKDAY(...) DAY))
+  // Count distinct non-empty Monday-based calendar weeks.
   const [[count]] = await pool.query(
     `SELECT COUNT(DISTINCT DATE_SUB(t.work_date, INTERVAL WEEKDAY(t.work_date) DAY)) AS total
      FROM timesheets t
@@ -98,7 +64,7 @@ async function listPageByContractor(contractorId, query) {
     return { rows: [], total: 0 };
   }
 
-  // STEP 2: Fetch the selected distinct week starts for the requested page
+  // Select week starts for the requested page.
   const [weekRows] = await pool.query(
     `SELECT DISTINCT DATE_SUB(t.work_date, INTERVAL WEEKDAY(t.work_date) DAY) AS week_start
      FROM timesheets t
@@ -112,7 +78,7 @@ async function listPageByContractor(contractorId, query) {
     return { rows: [], total: totalWeeks };
   }
 
-  // STEP 3: Fetch ALL timesheet rows belonging to those selected calendar weeks (no row LIMIT)
+  // Fetch every row in the selected weeks so pagination never splits a calendar week.
   const [rows] = await pool.query(
     `SELECT t.id, t.contractor_id, t.project_id, p.name AS project_name,
             t.work_date, t.hours_logged, t.description, t.status, t.rejection_reason,
@@ -129,13 +95,7 @@ async function listPageByContractor(contractorId, query) {
   return { rows: rows.map(toView), total: totalWeeks };
 }
 
-/**
- * PENDING daily timesheets for projects owned by the given PM. Ownership
- * is enforced in the WHERE/JOIN clause (t.project_id -> p.id, p.pm_id =
- * ?), not filtered in JavaScript afterward — the SQL relationship IS the
- * access-control boundary here. Each row is one contractor's one day, so
- * a PM approves/rejects individual days, never a whole week at once.
- */
+// Enforce PM project ownership in SQL when listing daily rows awaiting review.
 async function listPendingForPm(pmId) {
   const [rows] = await pool.query(
     `SELECT t.id, t.project_id, p.name AS project_name,
@@ -178,20 +138,7 @@ async function listPendingPageForPm(pmId, query) {
   };
 }
 
-/**
- * Locks the target timesheet row for the duration of the caller's
- * transaction (`SELECT ... FOR UPDATE` — must run on `conn` inside an
- * open transaction, see pmTimesheetService.reviewTimesheet). Joins in
- * the owning project's pm_id and current status in the same query so the
- * service can verify BOTH "PM owns this project" and "still PENDING"
- * from one locked read, before deciding whether to update.
- *
- * A second, concurrent review request for the SAME timesheet blocks here
- * until the first transaction commits or rolls back — that wait, plus
- * the conditional `WHERE status = 'PENDING'` in markReviewed below, is
- * what guarantees only one of two simultaneous approve/reject requests
- * actually transitions the row.
- */
+// Lock the timesheet and read its project owner before applying a conditional review transition.
 async function lockForReview(conn, timesheetId) {
   const [rows] = await conn.query(
     `SELECT t.id, t.contractor_id, t.project_id, t.status, t.hours_logged, p.pm_id
@@ -205,18 +152,7 @@ async function lockForReview(conn, timesheetId) {
   return rows[0] || null;
 }
 
-/**
- * Conditionally transitions PENDING -> APPROVED/REJECTED. The
- * `AND status = 'PENDING'` guard is the actual atomicity backstop, on
- * top of the row lock from lockForReview above — even if two requests
- * somehow both got past the lock (e.g. lock scope edge cases), only the
- * first UPDATE here can match a still-PENDING row; the second gets
- * affectedRows = 0 and the caller turns that into a clean 409, never a
- * silent overwrite of the first review's outcome. A PM always reviews
- * exactly one daily row at a time — this never touches any row besides
- * the one identified by timesheetId, so there is no "approve the whole
- * week" path anywhere in this codebase.
- */
+// Update only SUBMITTED rows so concurrent review decisions cannot overwrite each other.
 async function markReviewed(conn, timesheetId, status, reviewedBy, rejectionReason = null) {
   const [result] = await conn.query(
     `UPDATE timesheets
@@ -227,15 +163,7 @@ async function markReviewed(conn, timesheetId, status, reviewedBy, rejectionReas
   return result.affectedRows > 0;
 }
 
-/**
- * Locks the target row for a contractor's own edit
- * (PATCH /api/contractor/timesheets/:id — see
- * contractorTimesheetService.updateTimesheet). Deliberately a separate,
- * smaller query than lockForReview above: this path never needs the
- * owning project's pm_id, and it does need work_date/hours_logged so the
- * service can build a full "what actually changed" picture and re-run
- * date-range validation against the (freshly-fetched) project.
- */
+// Lock the daily log before checking ownership and revalidating the contractor's edit.
 async function lockForOwnerEdit(conn, timesheetId) {
   const [rows] = await conn.query(
     `SELECT id, contractor_id, project_id, work_date, hours_logged, description, rejection_reason, status
@@ -248,28 +176,7 @@ async function lockForOwnerEdit(conn, timesheetId) {
   return rows[0] || null;
 }
 
-/**
- * Applies a contractor's edit to their own REJECTED daily log and resets
- * it back into the PM's review queue. The conditional
- * `WHERE id = ? AND status = 'REJECTED'` is the same atomicity pattern as
- * markReviewed above — even with the row lock from lockForOwnerEdit
- * already held, this is the real guarantee that a row which stopped
- * being REJECTED between the lock read and this UPDATE (should be
- * unreachable, but not assumed) cannot be silently edited.
- *
- * reviewed_by/reviewed_at are explicitly cleared (not just left stale)
- * because this is functionally a brand new submission — the previous
- * reviewer's decision no longer applies to the new hours/date being
- * reviewed. submitted_at is refreshed to NOW() for the same reason: this
- * row is re-entering the PENDING queue now, not when it was first
- * submitted, so it should sort into the PM's queue (ordered by
- * submitted_at ASC — see listPendingForPm) at its true resubmission time.
- * Relies on the same UNIQUE(contractor_id, project_id, work_date)
- * constraint as create() above if the edited work_date collides with
- * another existing row for this contractor+project — the caller
- * (contractorTimesheetService) catches ER_DUP_ENTRY and turns it into a
- * clean 409.
- */
+// Conditionally return a rejected log to DRAFT, clear its review, and refresh submitted_at.
 async function updateRejectedLog(conn, timesheetId, { workDate, hoursLogged, description = null }) {
   const [result] = await conn.query(
     `UPDATE timesheets
@@ -281,11 +188,7 @@ async function updateRejectedLog(conn, timesheetId, { workDate, hoursLogged, des
   return result.affectedRows > 0;
 }
 
-/**
- * Applies a contractor's edit to their own DRAFT daily log.
- * Preserves DRAFT status (DRAFT -> DRAFT) and leaves all review/submitted
- * metadata untouched (no fabricated timestamps, no fake review history).
- */
+// Keep draft edits in DRAFT without changing submission or review metadata.
 async function updateDraftLog(conn, timesheetId, { workDate, hoursLogged, description = null }) {
   const [result] = await conn.query(
     `UPDATE timesheets
@@ -314,21 +217,7 @@ async function markSubmitted(conn, ids) {
   return result.affectedRows;
 }
 
-/**
- * SUM of hours already PENDING or APPROVED for one contractor on one
- * project — the "reserved against this contractor's allocation" figure
- * (project hours/allocation redesign: PENDING counts as reserved by
- * default, since it might still be approved — see
- * contractorTimesheetService's own comment on this decision).
- * `excludeTimesheetId` lets a contractor's own edit-of-a-REJECTED-row
- * recompute "what's reserved WITHOUT this row" before re-validating the
- * edited hours against the allocation (the row being edited is about to
- * be replaced, not double-counted against itself). Must run on `conn`
- * inside the same transaction that holds the assignment row lock (see
- * assignmentRepository.lockActiveForContractorProject) so this read is
- * consistent with whatever a concurrent submission may have just
- * committed.
- */
+// Read reserved hours under the assignment lock, excluding the edited row to avoid double-counting.
 async function sumReservedHoursForContractorProject(conn, contractorId, projectId, excludeTimesheetId = null) {
   const params = [contractorId, projectId];
   let sql = `SELECT COALESCE(SUM(hours_logged), 0) AS total
@@ -342,17 +231,7 @@ async function sumReservedHoursForContractorProject(conn, contractorId, projectI
   return Number(rows[0].total);
 }
 
-/**
- * SUM of APPROVED hours for ONE contractor on ONE project — MVP fix 2
- * (billing must use each contractor's own actual approved hours, computed
- * independently of every other contractor on the project). Also used by
- * MVP fix 1's PM-allocation endpoint to enforce "cannot lower a
- * contractor's allocation below hours already approved for them." Must
- * run on `conn` inside the same transaction as whatever row lock the
- * caller already holds (the assignment row for allocation updates, the
- * project's locked milestones for billing) so this read is consistent
- * with what's being validated against.
- */
+// Read contractor-approved hours within the caller's transaction for billing and allocation checks.
 async function sumApprovedHoursForContractorProject(conn, contractorId, projectId) {
   const [rows] = await conn.query(
     `SELECT COALESCE(SUM(hours_logged), 0) AS total
@@ -362,18 +241,7 @@ async function sumApprovedHoursForContractorProject(conn, contractorId, projectI
   return Number(rows[0].total);
 }
 
-/**
- * SUM of APPROVED hours across EVERY contractor on a project — the
- * authoritative project-wide "work progress" figure (project hours
- * redesign: progress is approved_project_hours / expected_hours,
- * summed across all contractors, never a single contractor's own total —
- * contrast with milestoneRepository's old per-contractor sum, which this
- * project-wide figure replaces for progress/milestone purposes). Plain
- * pool read for a single project's display (see pmProjectService/
- * vendorProjectService) — the transaction-scoped variant used by
- * milestone evaluation is listApprovedOrderedForProject below, which
- * needs per-row detail, not just the total.
- */
+// Sum approved hours across all contractors for project-wide progress.
 async function sumApprovedHoursForProject(projectId) {
   const [rows] = await pool.query(
     `SELECT COALESCE(SUM(hours_logged), 0) AS total
@@ -383,10 +251,7 @@ async function sumApprovedHoursForProject(projectId) {
   return Number(rows[0].total);
 }
 
-/**
- * Batch variant of sumApprovedHoursForProject for LIST views — one query
- * for however many projects are being rendered rather than N+1.
- */
+// Batch approved-hour totals to avoid a query per project.
 async function sumApprovedHoursForProjects(projectIds) {
   if (projectIds.length === 0) return [];
   const [rows] = await pool.query(
@@ -398,9 +263,7 @@ async function sumApprovedHoursForProjects(projectIds) {
   return rows.map((r) => ({ project_id: r.project_id, approved_hours: Number(r.total) }));
 }
 
-// Transaction-scoped counterpart used while a PM is changing a project's
-// capacity. Keeping this read on the caller's connection prevents an update
-// from validating against a stale total while a review is being committed.
+// Read approved hours on the locked capacity-update connection to avoid stale validation.
 async function sumApprovedHoursForProjectForUpdate(conn, projectId) {
   const [[row]] = await conn.query(
     `SELECT COALESCE(SUM(hours_logged), 0) AS total
@@ -429,21 +292,7 @@ async function sumReservedHoursForContractorProjectWeek(conn, contractorId, proj
 }
 async function countSubmittedForProject(conn, projectId) { const [[row]]=await conn.query("SELECT COUNT(*) AS total FROM timesheets WHERE project_id=? AND status='SUBMITTED'",[projectId]); return Number(row.total); }
 
-/**
- * Every APPROVED timesheet row for a project, in the exact chronological
- * order their hours became part of the project's cumulative approved
- * total (ORDER BY reviewed_at — the moment a PM approved it — then id as
- * a stable tiebreak for same-instant approvals). This is the raw material
- * milestoneService.checkAndTriggerMilestones apportions across threshold
- * intervals: walking this list while tracking a running cumulative total
- * is what correctly splits a single row that straddles a threshold
- * boundary between "counts toward this milestone" and "carries forward to
- * the next one" (see that function's own doc comment for the full
- * algorithm and the spec's worked 45h+10h/50h-threshold example). Must
- * run on `conn` inside the same transaction that holds the project's
- * locked PENDING milestones, so this read is consistent with exactly what
- * is being evaluated.
- */
+// Read approved rows by review time and ID within the milestone evaluation transaction.
 async function listApprovedOrderedForProject(conn, projectId) {
   const [rows] = await conn.query(
     `SELECT id, contractor_id, hours_logged

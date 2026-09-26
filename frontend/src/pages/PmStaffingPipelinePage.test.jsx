@@ -64,13 +64,11 @@ describe("PmStaffingPipelinePage UI and workflow", () => {
       </MemoryRouter>
     );
 
-    // Clean page title and description directly in page content
     expect(await screen.findByRole("heading", { level: 1, name: "Staffing Pipeline" })).toBeInTheDocument();
     expect(
       screen.getByText("Review project openings, candidate decisions, and SLA attention.")
     ).toBeInTheDocument();
 
-    // Summary KPI cards directly below heading
     const openPositions = (await screen.findByText("Open positions")).parentElement;
     const awaitingReview = (await screen.findByText("Candidates awaiting review")).parentElement;
     const slaBreaches = (await screen.findByText("SLA breaches")).parentElement;
@@ -79,14 +77,12 @@ describe("PmStaffingPipelinePage UI and workflow", () => {
     expect(within(awaitingReview).getByText("1")).toBeInTheDocument();
     expect(within(slaBreaches).getByText("0")).toBeInTheDocument();
 
-    // Filters row (Client filter is omitted for PM)
     expect(screen.getByLabelText("Filter by candidate status")).toBeInTheDocument();
     expect(screen.getByLabelText("Filter by skill")).toBeInTheDocument();
     expect(screen.getByLabelText("Filter by project")).toBeInTheDocument();
     expect(screen.queryByLabelText("Filter by client")).not.toBeInTheDocument();
     expect(screen.getByLabelText("SLA breached only")).toBeInTheDocument();
 
-    // Table columns and no chevron / arrow column
     const [staffingTable, candidateTable] = screen.getAllByRole("table");
     expect(within(staffingTable).getByText("Client / project")).toBeInTheDocument();
     expect(within(staffingTable).getByText("Skill")).toBeInTheDocument();
@@ -97,7 +93,6 @@ describe("PmStaffingPipelinePage UI and workflow", () => {
     expect(within(staffingTable).queryByRole("columnheader", { name: "Actions" })).not.toBeInTheDocument();
     expect(within(staffingTable).queryByRole("button", { name: />/ })).not.toBeInTheDocument();
 
-    // Candidate review queue rendered below
     expect(screen.getByRole("heading", { level: 2, name: "Candidate review queue" })).toBeInTheDocument();
     expect(within(candidateTable).getByText("Taylor Candidate")).toBeInTheDocument();
     expect(screen.getByTestId("accept-candidate-31")).toBeInTheDocument();

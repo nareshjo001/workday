@@ -36,13 +36,11 @@ describe("PasswordField", () => {
     const input = screen.getByLabelText("Password");
     const toggleBtn = screen.getByRole("button", { name: "Show password" });
 
-    // Click to show password
     fireEvent.click(toggleBtn);
     expect(input).toHaveAttribute("type", "text");
     expect(toggleBtn).toHaveAttribute("aria-label", "Hide password");
     expect(toggleBtn).toHaveAttribute("aria-pressed", "true");
 
-    // Click again to hide password
     fireEvent.click(toggleBtn);
     expect(input).toHaveAttribute("type", "password");
     expect(toggleBtn).toHaveAttribute("aria-label", "Show password");

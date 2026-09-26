@@ -51,8 +51,7 @@ async function runDueReminders() {
     message: "A verified contractor document is expiring soon.", deepLink: "/vendor/compliance",
   }));
 
-  // M19 payment alerts already use the same notification infrastructure.
-  // They are materialized here as well so inbox reads stay observational.
+  // Materialize payment alerts here so inbox reads remain observational.
   const paymentSummary = await notifications.materializePaymentAlerts();
   for (const key of Object.keys(summary)) summary[key] += paymentSummary[key] || 0;
 

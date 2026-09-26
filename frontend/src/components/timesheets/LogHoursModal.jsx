@@ -12,13 +12,6 @@ function todayDateString() {
 
 const initialForm = { projectId: "", workDate: "", hoursLogged: "", description: "" };
 
-/**
- * Enterprise Log Hours Modal:
- * Compact, polished enterprise modal matching the reference design:
- * ~600–620px desktop width, dark navy typography, full-width Project selector,
- * two-column Date + Hours row, compact Work Description, integrated Timesheet
- * Intelligence panel, and right-aligned Cancel / Save Draft actions.
- */
 export default function LogHoursModal({ projects, onClose, onSubmit }) {
   const [form, setForm] = useState(initialForm);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -165,7 +158,6 @@ export default function LogHoursModal({ projects, onClose, onSubmit }) {
         className="relative flex flex-col w-full max-w-[540px] max-h-[calc(100dvh-24px)] sm:max-h-[calc(100dvh-32px)] rounded-xl sm:rounded-2xl bg-white border border-slate-200/90 shadow-2xl overflow-hidden my-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Pinned Header */}
         <div className="shrink-0 flex items-start justify-between gap-3 px-4 py-3 sm:px-5 sm:py-3.5 border-b border-slate-100 bg-white">
           <div>
             <h2
@@ -190,13 +182,10 @@ export default function LogHoursModal({ projects, onClose, onSubmit }) {
           </button>
         </div>
 
-        {/* Form Body with Internal Scroll and Pinned Footer */}
         <form onSubmit={handleSubmit} noValidate className="flex flex-col flex-1 min-h-0 overflow-hidden">
-          {/* Scrollable Interior Container */}
           <div className="flex-1 overflow-y-auto min-h-0 px-4 py-3 sm:px-5 sm:py-3.5 flex flex-col gap-2.5 sm:gap-3">
             {formError && <AlertBanner message={formError} />}
 
-            {/* Project Row */}
             <div className="flex flex-col gap-1">
               <label htmlFor="projectId" className="text-[13px] sm:text-sm font-semibold text-slate-700">
                 Project
@@ -232,7 +221,6 @@ export default function LogHoursModal({ projects, onClose, onSubmit }) {
               )}
             </div>
 
-            {/* Date + Hours Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
               <div className="flex flex-col gap-1">
                 <label htmlFor="workDate" className="text-[13px] sm:text-sm font-semibold text-slate-700">
@@ -273,7 +261,6 @@ export default function LogHoursModal({ projects, onClose, onSubmit }) {
               </div>
             </div>
 
-            {/* Work Description Row */}
             <div className="flex flex-col gap-1">
               <label htmlFor="description" className="text-[13px] sm:text-sm font-semibold text-slate-700">
                 Work Description
@@ -289,7 +276,6 @@ export default function LogHoursModal({ projects, onClose, onSubmit }) {
               />
             </div>
 
-            {/* Timesheet Intelligence Panel */}
             {intelligenceEnabled && (
               <ContractorTimesheetIntelligencePanel
                 proposal={form}
@@ -302,7 +288,6 @@ export default function LogHoursModal({ projects, onClose, onSubmit }) {
             )}
           </div>
 
-          {/* Pinned Footer */}
           <div className="shrink-0 flex items-center justify-end gap-2 px-4 py-2.5 sm:px-5 sm:py-3 border-t border-slate-100 bg-white">
             <button
               type="button"

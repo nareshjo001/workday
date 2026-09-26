@@ -21,8 +21,7 @@ app.use(requestContext);
 app.use(
   cors({
     origin(origin, callback) {
-      // Browser requests must originate from an explicitly configured SPA.
-      // Requests without Origin (health checks/server-to-server) are allowed.
+      // Require an allowed browser origin; permit requests without an Origin header.
       if (!origin || env.corsOrigins.includes(origin)) return callback(null, true);
       return callback(new Error("Origin is not allowed by CORS."));
     },

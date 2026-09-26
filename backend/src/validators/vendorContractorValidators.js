@@ -5,9 +5,7 @@ const {
   NAME_MAX_LENGTH,
 } = require("./authValidators");
 
-// Matches the DECIMAL(10,2) capacity of contractors.hourly_rate — reject
-// out-of-range values here with a clean 400 instead of letting MySQL
-// truncate/reject the insert.
+// Match the hourly-rate column's DECIMAL(10,2) limit before writing to MySQL.
 const MAX_HOURLY_RATE = 99999999.99;
 
 const ALLOWED_STATUSES = ["ACTIVE", "INACTIVE"];
@@ -23,12 +21,7 @@ function isValidRate(rate) {
   return Number.isFinite(rate) && rate >= 0 && rate <= MAX_HOURLY_RATE;
 }
 
-/**
- * Validates + normalizes the payload for POST /api/vendor/contractors.
- * Returns { name, email, hourlyRate } on success, throws
- * ApiError(400) otherwise. Deliberately does NOT accept vendor_id/user_id/
- * role from the request — those are always derived server-side.
- */
+// Accept contractor fields while deriving vendor, user, and role identities server-side.
 function validateCreateContractor(body = {}) {
   const errors = [];
   const allowed = process.env.NODE_ENV === "test" ? ["name", "email", "hourly_rate", "password"] : ["name", "email", "hourly_rate"];
@@ -56,18 +49,11 @@ function validateCreateContractor(body = {}) {
     throw ApiError.badRequest("Validation failed", errors);
   }
 
-  // The test-only compatibility field exists solely for the pre-M02
-  // regression scripts. Production never accepts a vendor-selected password.
+  // Allow explicit passwords only in legacy test fixtures; production contractors use invitations.
   return { name, email, hourlyRate: Math.round(hourlyRate * 100) / 100, testPassword: process.env.NODE_ENV === "test" && typeof body.password === "string" ? body.password : undefined };
 }
 
-/**
- * Validates + normalizes the payload for PATCH /api/vendor/contractors/:id.
- * Only hourly_rate and/or status are ever read from the body — anything
- * else the client sends (user_id, vendor_id, role, ...) is ignored, not
- * just rejected, so there is no path through this function that can smuggle
- * an identity/ownership field into the update.
- */
+// Update permitted contractor fields without accepting client-supplied ownership or identity changes.
 function validateUpdateContractor(body = {}) {
   const errors = [];
   const result = {};

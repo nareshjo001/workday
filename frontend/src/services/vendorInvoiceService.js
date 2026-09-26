@@ -1,14 +1,6 @@
 import apiClient from "./apiClient";
 
-/**
- * Vendor's invoice API (Module 6, extended by the invoice-workflow
- * redesign). Built on the shared apiClient, same as
- * vendorContractorService — the JWT is attached automatically, so
- * nothing here ever passes a vendor id explicitly.
- *
- * Vendors own draft composition, submission, document access and payment
- * recording. PM/client users own approval/rejection decisions.
- */
+// Vendors compose, submit, and settle invoices; PMs own approval decisions.
 async function listInvoices(params = {}) {
   const { data } = await apiClient.get("/vendor/invoices", { params });
   return data;

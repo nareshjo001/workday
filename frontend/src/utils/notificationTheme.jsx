@@ -9,7 +9,6 @@ export const NOTIFICATION_CATEGORIES = Object.freeze({
   UNKNOWN: "UNKNOWN",
 });
 
-// Clean line SVG icons - zero emojis
 export function ComplianceIcon({ className = "h-5 w-5" }) {
   return (
     <svg
@@ -220,10 +219,7 @@ export const NOTIFICATION_THEMES = Object.freeze({
   }),
 });
 
-/**
- * Resolves notification category based purely on event_type / entity_type.
- * Does NOT infer from message string.
- */
+// Resolve categories from event and entity types, never notification message text.
 export function resolveNotificationCategory(notification) {
   if (!notification) return NOTIFICATION_CATEGORIES.UNKNOWN;
   const event = String(notification.event_type || "").toUpperCase();
@@ -265,10 +261,7 @@ export function getNotificationTheme(notification) {
   return NOTIFICATION_THEMES[category] || NOTIFICATION_THEMES.UNKNOWN;
 }
 
-/**
- * Secondary status badge (e.g. Approved = green, Rejected = red).
- * Does NOT change the category icon or base theme.
- */
+// Derive outcome badges without changing the category icon or base theme.
 export function getOutcomeStatus(notification) {
   if (!notification) return null;
   const event = String(notification.event_type || "").toUpperCase();
@@ -300,9 +293,6 @@ export function getOutcomeStatus(notification) {
   return null;
 }
 
-/**
- * Format document type into readable string: QUALIFICATION -> Qualification Document
- */
 export function formatDocumentType(docType) {
   if (!docType) return "Document";
   const str = String(docType).toUpperCase();
@@ -312,9 +302,6 @@ export function formatDocumentType(docType) {
   return str.charAt(0) + str.slice(1).toLowerCase().replaceAll("_", " ") + " Document";
 }
 
-/**
- * Format skill name into human-readable label: BACKEND -> Backend
- */
 export function formatSkill(skill) {
   if (!skill) return null;
   const s = String(skill).toUpperCase().trim();
@@ -329,9 +316,6 @@ export function formatSkill(skill) {
   }
 }
 
-/**
- * Format payment method into human-readable label: BANK_TRANSFER -> Bank transfer
- */
 export function formatPaymentMethod(method) {
   if (!method) return null;
   const m = String(method).toUpperCase().trim();
@@ -347,9 +331,6 @@ export function formatPaymentMethod(method) {
   }
 }
 
-/**
- * Format hours into clean readable string: 5.00 -> 5h, 5.5 -> 5.5h
- */
 export function formatHours(hours) {
   if (hours == null || hours === "") return null;
   const num = Number(hours);
@@ -357,9 +338,6 @@ export function formatHours(hours) {
   return `${Number(num.toFixed(2))}h`;
 }
 
-/**
- * Format currency amount cleanly: 1250 -> USD 1,250.00
- */
 export function formatCurrencyAmount(amount, currency = "USD") {
   if (amount == null || amount === "") return null;
   const num = Number(amount);
@@ -370,9 +348,7 @@ export function formatCurrencyAmount(amount, currency = "USD") {
   })}`;
 }
 
-/**
- * Format document expiration details and urgency relative to UTC date.
- */
+// Compare document expiry against the current UTC date.
 export function formatExpiryDetails(expiryDate) {
   if (!expiryDate) return null;
   const exp = new Date(expiryDate);
@@ -409,12 +385,7 @@ export function formatExpiryDetails(expiryDate) {
   };
 }
 
-/**
- * Derives compact 3-line content from notification across all supported types:
- * Line 1 (title): specific clean action/event headline
- * Line 2 (contextLine): identifying entity context (e.g. Project · Invoice #, Contractor · Project)
- * Line 3 (detailLine): at most ONE useful contextual detail formatted cleanly (e.g. USD 1,250.00, Backend, 5h approved)
- */
+// Build notification content from a headline, entity context, and one useful detail.
 export function getNotificationContent(notification) {
   if (!notification) {
     return { title: "", contextLine: null, detailLine: null };
@@ -433,7 +404,6 @@ export function getNotificationContent(notification) {
     };
   }
 
-  // 1. Compliance / Contractor Documents
   if (event === "DOCUMENT_EXPIRING" || entity === "contractor_document") {
     if (context.contractor_name || context.document_type || context.expiry_date) {
       const expiry = formatExpiryDetails(context.expiry_date);
@@ -450,7 +420,6 @@ export function getNotificationContent(notification) {
     }
   }
 
-  // 2. Invoices & Billing
   if (event.startsWith("INVOICE_") || event === "PAYMENT_DUE_SOON" || entity === "invoice") {
     let title;
     switch (event) {
@@ -489,7 +458,6 @@ export function getNotificationContent(notification) {
     return { title, contextLine, detailLine };
   }
 
-  // 3. Payments
   if (event.startsWith("PAYMENT_") || entity === "payment") {
     const title = event === "PAYMENT_RECORDED" ? "Payment recorded" : notification.message || "Payment update";
     const parts = [];
@@ -510,7 +478,6 @@ export function getNotificationContent(notification) {
     return { title, contextLine, detailLine };
   }
 
-  // 4. Candidate submissions
   if (event.startsWith("CANDIDATE_") || entity === "candidate_submission") {
     let title;
     switch (event) {
@@ -537,7 +504,6 @@ export function getNotificationContent(notification) {
     return { title, contextLine, detailLine };
   }
 
-  // 5. Project Assignments
   if (event.startsWith("ASSIGNMENT_") || entity === "project_assignment") {
     const title = event === "ASSIGNMENT_RELEASED" ? "Assignment released" : "Assignment created";
     const parts = [];
@@ -549,7 +515,6 @@ export function getNotificationContent(notification) {
     return { title, contextLine, detailLine };
   }
 
-  // 6. Timesheets
   if (event.startsWith("TIMESHEET_") || entity === "timesheet") {
     let title;
     let actionWord;
@@ -586,7 +551,6 @@ export function getNotificationContent(notification) {
     return { title, contextLine, detailLine };
   }
 
-  // 7. Milestones
   if (event === "MILESTONE_MET" || event === "BILLING_ELIGIBLE" || entity === "milestone") {
     const title = event === "BILLING_ELIGIBLE" ? "Billing eligible" : "Milestone reached";
     const parts = [];
@@ -607,16 +571,11 @@ export function getNotificationContent(notification) {
   };
 }
 
-/**
- * Deterministic route destination resolver.
- * 1. Backend deep_link is the authoritative primary route if valid for the current role.
- * 2. Fallback resolver handles missing, malformed, or out-of-role links based on event_type / entity_type.
- */
+// Prefer role-valid server deep links, then fall back to event or entity destinations.
 export function resolveNotificationDestination(notification, role = "vendor") {
   const deepLink = notification?.deep_link;
   const rolePrefix = `/${role}/`;
 
-  // Primary authoritative destination if valid
   if (typeof deepLink === "string" && deepLink.startsWith(rolePrefix)) {
     if (
       role === "vendor" &&
@@ -680,9 +639,7 @@ export function resolveNotificationDestination(notification, role = "vendor") {
   return `/${role}/notifications`;
 }
 
-/**
- * Format timestamps into 2-line format (Date line 1, Time line 2). No seconds.
- */
+// Format notification timestamps as separate date and time labels without seconds.
 export function formatNotificationTimestamp(value) {
   if (!value) return { date: "—", time: "" };
   const d = new Date(value);

@@ -1,8 +1,6 @@
 const { pool } = require("../config/db");
 
-// Submission reminders include the audit row for the current lifecycle. The
-// submitted_at value is returned only as a deterministic legacy/seed fallback
-// when no matching submission audit exists.
+// Prefer the current submission audit event; use submitted_at only as a legacy fallback.
 async function submittedTimesheets() {
   const [rows] = await pool.query(`SELECT t.id, p.pm_id AS recipient_id, p.name AS project_name,
       t.submitted_at,

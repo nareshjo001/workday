@@ -8,13 +8,7 @@ import intelligenceService from "../../services/intelligenceService";
 import vendorRateIntelligenceService from "../../services/vendorRateIntelligenceService";
 import VendorRateIntelligencePanel from "./VendorRateIntelligencePanel";
 
-/**
- * Enterprise Assign Contractor / Candidate Picker Modal:
- * Scoped to ONE project + ONE requirement for candidate submission.
- * Checkbox per eligible contractor, capped at open requirement slots.
- * Features compact enterprise typography, summary strip, date picker,
- * horizontally-scrollable table, Rate Intelligence, and fixed header/footer.
- */
+// Submit candidates for one project requirement, capped at its remaining slots.
 export default function AssignContractorModal({
   project,
   requirement,
@@ -67,7 +61,8 @@ export default function AssignContractorModal({
     setRateAnalysisError(null);
     setSelectedIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= remaining) return prev; // capped at remaining open slots
+      // Cap selection at the requirement's remaining slots.
+      if (prev.length >= remaining) return prev;
       return [...prev, id];
     });
   };
@@ -135,7 +130,6 @@ export default function AssignContractorModal({
         onClick={(e) => e.stopPropagation()}
         data-testid="assign-contractor-modal"
       >
-        {/* Header */}
         <div className="flex-shrink-0 px-4 py-3.5 sm:px-5 sm:py-4 border-b border-slate-100 flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 min-w-0 flex-1">
             <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 border border-blue-100/80 shadow-xs mt-0.5">
@@ -163,11 +157,8 @@ export default function AssignContractorModal({
           </button>
         </div>
 
-        {/* Form wrapping scrollable content and pinned footer */}
         <form onSubmit={handleSubmit} noValidate className="flex flex-col flex-1 min-h-0 overflow-hidden">
-          {/* Scrollable Content Body */}
           <div className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-5 flex flex-col gap-4">
-            {/* Project Summary Strip */}
             <div
               className="shrink-0 rounded-xl border border-slate-200/80 bg-slate-50/60 p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
               data-testid="assign-project-summary-strip"
@@ -187,7 +178,6 @@ export default function AssignContractorModal({
                 </div>
               </div>
 
-              {/* Metrics */}
               <div className="flex items-center divide-x divide-slate-200 text-center shrink-0 self-start sm:self-center bg-white sm:bg-transparent rounded-lg sm:rounded-none p-1.5 sm:p-0 border sm:border-0 border-slate-200/70">
                 <div className="px-3 sm:px-4 first:pl-2 sm:first:pl-0">
                   <div className="text-[11px] font-medium text-slate-500">Required</div>
@@ -222,7 +212,6 @@ export default function AssignContractorModal({
               </div>
             )}
 
-            {/* Assignment Dates */}
             <div className="shrink-0 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <label className="text-xs sm:text-[12.5px] font-medium text-slate-700">
                 Assignment start date
@@ -264,12 +253,10 @@ export default function AssignContractorModal({
               </p>
             )}
 
-            {/* Contractor Candidate Selection Panel */}
             <div
               className="shrink-0 rounded-xl border border-slate-200/80 bg-white overflow-hidden shadow-xs"
               data-testid="contractor-selection-section"
             >
-              {/* Header with Search */}
               <div className="px-3.5 py-2.5 sm:px-4 sm:py-3 bg-white border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
                 <div className="text-xs sm:text-[13px] font-semibold text-slate-800">
                   Select up to {remaining} contractor{remaining === 1 ? "" : "s"}
@@ -292,7 +279,6 @@ export default function AssignContractorModal({
                   <AlertBanner message={loadError} />
                 </div>
               ) : (
-                /* Table with Horizontal Scroll */
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse min-w-[480px]">
                     <thead>
@@ -371,7 +357,6 @@ export default function AssignContractorModal({
               )}
             </div>
 
-            {/* Rate Intelligence Section */}
             {rateCapability && (
               <div className="shrink-0">
                 <VendorRateIntelligencePanel
@@ -389,7 +374,6 @@ export default function AssignContractorModal({
             )}
           </div>
 
-          {/* Footer with Divider */}
           <div className="flex-shrink-0 px-4 py-3 sm:px-6 sm:py-3.5 border-t border-slate-100 bg-white flex items-center justify-end gap-2.5 sm:gap-3">
             <button
               type="button"

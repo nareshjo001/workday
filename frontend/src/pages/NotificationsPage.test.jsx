@@ -185,7 +185,6 @@ describe("NotificationsPage", () => {
     );
 
     fireEvent.click((await screen.findByText(baseNotification.message)).closest("button"));
-    // Even though patch rejected, user successfully navigated
     expect(await screen.findByText("Vendor compliance target")).toBeInTheDocument();
   });
 
@@ -195,7 +194,8 @@ describe("NotificationsPage", () => {
       id: 40,
       event_type: "INVOICE_APPROVED",
       entity_type: "invoice",
-      deep_link: null, // missing deep_link!
+      // Omit deep_link to exercise the deterministic destination fallback.
+      deep_link: null,
       message: "Your invoice was approved without link.",
     };
     apiClient.get.mockImplementation((path) =>
@@ -216,7 +216,6 @@ describe("NotificationsPage", () => {
     );
 
     fireEvent.click((await screen.findByText(fallbackNotif.message)).closest("button"));
-    // Should route to /vendor/invoices via deterministic fallback
     expect(await screen.findByText("Vendor invoices target")).toBeInTheDocument();
   });
 
@@ -271,12 +270,10 @@ describe("NotificationsPage", () => {
       </MemoryRouter>
     );
 
-    // Title should be "Notifications" without "(0)"
     const heading = await screen.findByRole("heading", { name: "Notifications", exact: true });
     expect(heading).toBeInTheDocument();
     expect(screen.queryByText("Notifications (0)")).not.toBeInTheDocument();
 
-    // Subtitle indicates count
     expect(await screen.findByText("1 total · 0 unread")).toBeInTheDocument();
   });
 
@@ -346,11 +343,9 @@ describe("NotificationsPage", () => {
 
     await screen.findByText(baseNotification.message);
 
-    // SVGs are present
     const svgs = container.querySelectorAll("svg");
     expect(svgs.length).toBeGreaterThanOrEqual(1);
 
-    // No emojis
     const textContent = container.textContent || "";
     const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
     expect(emojiRegex.test(textContent)).toBe(false);
@@ -415,20 +410,16 @@ describe("NotificationsPage", () => {
       </MemoryRouter>
     );
 
-    // Exactly one Manage preferences button in header
     const manageButtons = await screen.findAllByRole("button", { name: /Manage preferences/i });
     expect(manageButtons).toHaveLength(1);
 
-    // Old lower preferences section is removed
     expect(screen.queryByText(/Delivery preferences/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Control which events notify you/i)).not.toBeInTheDocument();
 
-    // Clicking it opens the modal dialog
     fireEvent.click(manageButtons[0]);
     expect(await screen.findByRole("heading", { name: "Manage notification preferences" })).toBeInTheDocument();
     expect(screen.getByText("Choose which in-app notifications you want to receive.")).toBeInTheDocument();
 
-    // Clicking close dismisses modal
     fireEvent.click(screen.getByRole("button", { name: "Close dialog" }));
     await waitFor(() => {
       expect(screen.queryByRole("heading", { name: "Manage notification preferences" })).not.toBeInTheDocument();
@@ -509,10 +500,8 @@ describe("NotificationsPage", () => {
       </MemoryRouter>
     );
 
-    // Header displays global total across all pages and global unread count
     expect(await screen.findByText("15 total · 4 unread")).toBeInTheDocument();
 
-    // Bottom pagination is visible
     const nav = screen.getByRole("navigation", { name: "Notifications pagination" });
     expect(nav).toBeInTheDocument();
     expect(screen.getByText("10 results")).toBeInTheDocument();
@@ -524,7 +513,6 @@ describe("NotificationsPage", () => {
     expect(prevBtn).toBeDisabled();
     expect(nextBtn).toBeEnabled();
 
-    // Click Next -> requests page 2
     fireEvent.click(nextBtn);
 
     await waitFor(() => {
@@ -539,7 +527,6 @@ describe("NotificationsPage", () => {
     expect(nextBtn).toBeDisabled();
     expect(prevBtn).toBeEnabled();
 
-    // Click Previous -> requests page 1
     fireEvent.click(prevBtn);
     await waitFor(() => {
       expect(apiClient.get).toHaveBeenCalledWith("/vendor/notifications", {

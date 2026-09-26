@@ -1,11 +1,5 @@
 import { formatDate, formatHours, formatCurrency, MilestoneStatusBadge } from "./format";
 
-/**
- * Mobile presentation of a project's milestones — visible below md, where
- * MilestoneTable takes over. Same split pattern as
- * components/projects/ProjectCardList, and the same project-level
- * `contributions` breakdown MilestoneTable renders (see its comment).
- */
 export default function MilestoneCardList({ milestones }) {
   return (
     <div className="flex flex-col gap-3 md:hidden">

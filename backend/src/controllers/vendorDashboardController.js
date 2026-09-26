@@ -2,13 +2,7 @@ const vendorDashboardService = require("../services/vendorDashboardService");
 const analytics = require('../services/dashboardAnalyticsService');
 const asyncHandler = require("../utils/asyncHandler");
 
-/**
- * GET /api/vendor/dashboard — UI + analytics redesign. `req.user.userId`
- * (set by `authenticate` from the verified JWT) is the ONLY source of
- * the acting vendor's identity here, same convention as every other
- * controller in this codebase — there is no vendor id anywhere in this
- * route's path/query/body.
- */
+// Scope dashboard data to the authenticated vendor.
 const getDashboard = asyncHandler(async (req, res) => {
   const filters = analytics.filters(req.query);
   const m20 = await analytics.dashboard('VENDOR', req.user.userId, filters);

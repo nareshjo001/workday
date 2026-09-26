@@ -9,12 +9,7 @@ const { SKILLS } = require("../constants/skills");
 const { parseListQuery } = require("../utils/listQuery");
 const historyService = require('../services/contractorHistoryService');
 
-/**
- * `req.user` is set by the `authenticate` middleware from the verified JWT
- * (see routes/vendorRoutes.js) — `req.user.userId` is the ONLY source of
- * the acting vendor's identity in this controller. The request body is
- * never trusted for vendor_id/user_id/role.
- */
+// Derive vendor identity from the verified JWT, never body-supplied ownership fields.
 
 const create = asyncHandler(async (req, res) => {
   const payload = validateCreateContractor(req.body);

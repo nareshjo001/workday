@@ -1,11 +1,5 @@
 import { useEffect } from "react";
 
-/**
- * Minimal reusable modal primitive — backdrop + panel + close (button,
- * Escape key, or backdrop click). Generic on purpose: Module 2's Add/Edit
- * contractor dialogs are the first consumers, but nothing here is
- * contractor-specific.
- */
 export default function Modal({ title, subtitle, icon, headerActions, onClose, children, panelClassName = "", headerClassName = "", lockDocumentScroll = false }) {
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;

@@ -3,12 +3,6 @@ import AlertBanner from "../AlertBanner";
 
 const initialForm = { name: "", email: "", hourly_rate: "" };
 
-/**
- * Enterprise Add Contractor Modal:
- * - Scoped modal layout matching the refreshed VMS design direction
- * - Preserves existing API payload, validation, and invitation workflow
- * - Features dedicated icon surfaces, accurate invitation banner, and responsive sizing
- */
 export default function AddContractorModal({ onClose, onCreate }) {
   const [form, setForm] = useState(initialForm);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -77,7 +71,6 @@ export default function AddContractorModal({ onClose, onCreate }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="add-contractor-frame" data-testid="add-contractor-frame">
-          {/* Header */}
           <div className="add-contractor-header">
             <div className="flex items-start sm:items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1">
               <div className="flex h-10 w-10 sm:h-11.5 sm:w-11.5 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-blue-50 text-blue-600 border border-blue-100/70 shadow-xs">
@@ -103,11 +96,9 @@ export default function AddContractorModal({ onClose, onCreate }) {
             </button>
           </div>
 
-          {/* Form Body */}
           <form onSubmit={handleSubmit} noValidate className="add-contractor-form">
             <AlertBanner message={formError} />
 
-            {/* Name Field */}
             <div className="flex flex-col">
               <label htmlFor="name" className="text-xs sm:text-[13px] font-semibold text-slate-800 mb-1 sm:mb-1.5">
                 Name <span className="text-red-500 font-normal">*</span>
@@ -135,7 +126,6 @@ export default function AddContractorModal({ onClose, onCreate }) {
               )}
             </div>
 
-            {/* Email Field */}
             <div className="flex flex-col">
               <label htmlFor="email" className="text-xs sm:text-[13px] font-semibold text-slate-800 mb-1 sm:mb-1.5">
                 Email <span className="text-red-500 font-normal">*</span>
@@ -164,7 +154,6 @@ export default function AddContractorModal({ onClose, onCreate }) {
               )}
             </div>
 
-            {/* Informational Banner */}
             <div className="flex items-center gap-2.5 sm:gap-3 rounded-lg bg-blue-50/80 border border-blue-100 px-3 sm:px-3.5 py-2 sm:py-2.5 text-blue-900">
               <InfoIcon className="h-4.5 w-4.5 shrink-0 text-blue-600" />
               <p className="text-xs sm:text-[13px] font-medium leading-relaxed">
@@ -172,7 +161,6 @@ export default function AddContractorModal({ onClose, onCreate }) {
               </p>
             </div>
 
-            {/* Hourly Rate Field */}
             <div className="flex flex-col">
               <label htmlFor="hourly_rate" className="text-xs sm:text-[13px] font-semibold text-slate-800 mb-1 sm:mb-1.5">
                 Hourly Rate
@@ -211,7 +199,6 @@ export default function AddContractorModal({ onClose, onCreate }) {
               </div>
             </div>
 
-            {/* Footer Divider & Buttons */}
             <div className="add-contractor-footer">
               <button
                 type="button"

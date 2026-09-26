@@ -1,12 +1,4 @@
-/**
- * Shared, accessible form field used across Login/Signup (and future
- * modules) so validation styling and labeling stays consistent.
- *
- * `inputClassName` is exported so components with bespoke input markup
- * (e.g. PasswordField, which needs a trailing toggle button inside the
- * field) can reuse the exact same visual treatment instead of duplicating
- * the class string.
- */
+// Share field styling with controls that require custom input markup.
 export function inputClassName(error) {
   return `w-full rounded-md border bg-surface px-3.5 py-2.5 text-base text-text outline-none transition placeholder:text-placeholder focus:ring-2 focus:ring-offset-0 ${
     error

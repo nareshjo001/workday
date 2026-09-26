@@ -5,15 +5,11 @@ import { getToken, setToken, clearToken } from "../utils/tokenStorage";
 
 const AuthContext = createContext(undefined);
 
-/**
- * Centralizes all authentication state and actions. Any component that
- * needs to know "am I logged in / who am I / what's my role" reads from
- * this context instead of touching the token or API directly.
- */
+// Centralize session state so components do not manage tokens independently.
 export function AuthProvider({ children }) {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
-  // True while we resolve the session on first load (token -> /auth/me).
+  // Wait for session restoration before deciding whether protected content can render.
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -55,14 +51,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(async () => {
-    // Clear token -> clear user -> reset auth state -> navigate to login,
-    // all synchronously, so no protected route ever re-renders in between
-    // with a mismatched (token, user) pair. Navigating here — rather than
-    // letting ProtectedRoute's "not authenticated" branch redirect us —
-    // also avoids stamping the outgoing route's path onto `location.state
-    // .from`, which would otherwise get replayed as the redirect target
-    // after the *next* login regardless of the newly authenticated user's
-    // role.
+    // Clear local authentication and navigate explicitly so the outgoing route is not replayed after login.
     try { await authService.logout(); } catch { /* local cleanup still protects the UI */ }
     clearToken();
     setUser(null);

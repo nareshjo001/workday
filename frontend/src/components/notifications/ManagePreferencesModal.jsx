@@ -9,7 +9,6 @@ function formatPreferenceLabel(eventType) {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-// Logical visual grouping based on actual system event types
 const PREFERENCE_GROUPS = [
   {
     id: "staffing",
@@ -56,7 +55,7 @@ export default function ManagePreferencesModal({
   const titleId = useId();
   const descId = useId();
 
-  // Synchronize draft state whenever dialog opens or preferences prop updates
+  // Reset the preference draft when the dialog opens or server preferences change.
   useEffect(() => {
     if (isOpen) {
       setSaveError(null);
@@ -68,7 +67,6 @@ export default function ManagePreferencesModal({
     }
   }, [isOpen, preferences]);
 
-  // Handle escape key to close
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e) => {
@@ -93,7 +91,7 @@ export default function ManagePreferencesModal({
     setIsSaving(true);
     setSaveError(null);
     try {
-      // Find modified preferences to persist
+      // Persist only preferences that differ from the initial values.
       const initialMap = new Map(preferences.map((p) => [p.event_type, Boolean(p.in_app_enabled)]));
       const changes = [];
 
@@ -122,7 +120,6 @@ export default function ManagePreferencesModal({
     }
   };
 
-  // Group preferences for scanning
   const categorized = [];
   const assigned = new Set();
 
@@ -162,7 +159,6 @@ export default function ManagePreferencesModal({
         aria-describedby={descId}
         className="w-[calc(100%-32px)] sm:w-full sm:max-w-[520px] max-h-[70vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       >
-        {/* Modal Header */}
         <header className="flex items-start justify-between gap-4 px-5 sm:px-6 pt-4 pb-3.5 border-b border-slate-100 shrink-0">
           <div className="min-w-0 flex-1">
             <h2 id={titleId} className="text-[19px] sm:text-[20px] font-semibold text-slate-900 tracking-tight leading-snug">
@@ -182,14 +178,12 @@ export default function ManagePreferencesModal({
           </button>
         </header>
 
-        {/* Error notice if saving fails */}
         {saveError && (
           <div role="alert" className="mx-5 sm:mx-6 mt-3 rounded-lg bg-red-50 border border-red-200 p-3 text-xs text-red-700 font-medium shrink-0">
             {saveError}
           </div>
         )}
 
-        {/* Scrollable Preference Options List */}
         <div className="flex-1 overflow-y-auto max-h-[300px] sm:max-h-[320px] px-5 sm:px-6 py-2 divide-y divide-slate-100">
           {categorized.map((group) => (
             <div key={group.id} className="py-2 first:pt-1 last:pb-1.5">
@@ -223,7 +217,6 @@ export default function ManagePreferencesModal({
           )}
         </div>
 
-        {/* Modal Footer */}
         <footer className="flex items-center justify-end gap-2.5 px-5 sm:px-6 py-3 border-t border-slate-100 bg-slate-50/60 shrink-0">
           <button
             type="button"

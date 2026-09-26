@@ -1,11 +1,6 @@
 import apiClient from "./apiClient";
 
-/**
- * Vendor dashboard/analytics API (UI + analytics redesign). One GET,
- * same shared apiClient/JWT convention as every other service — the
- * backend derives the vendor's identity from the token, never from
- * anything sent here.
- */
+// Fetch dashboard metrics for the authenticated vendor without sending an identity parameter.
 async function getDashboard(params = {}) {
   const { data } = await apiClient.get("/vendor/dashboard", { params });
   return data;

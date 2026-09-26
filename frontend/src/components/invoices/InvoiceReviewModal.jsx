@@ -61,11 +61,7 @@ function invoiceDate(value) {
   return formatDate(String(value).split(/[ T]/)[0]);
 }
 
-/**
- * Collects the PM's required rejection reason without changing the existing
- * invoice review request or lifecycle. The trigger is captured on mount so
- * focus returns to the originating Reject button when the dialog closes.
- */
+// Capture the rejection trigger so focus returns to it when the dialog closes.
 export default function InvoiceReviewModal({ invoice, returnFocusElement, onClose, onReject }) {
   const [reason, setReason] = useState("");
   const [fieldError, setFieldError] = useState(null);

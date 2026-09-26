@@ -87,20 +87,16 @@ test("Vendor Notifications displays cleanly with non-ambiguous header, routes co
     await page.setViewportSize({ width, height });
     await page.goto("/vendor/notifications");
 
-    // Verify non-ambiguous header and actions
     await expect(page.getByRole("heading", { name: "Notifications", exact: true })).toBeVisible();
     await expect(page.getByText("2 total · 1 unread")).toBeVisible();
     await expect(page.getByRole("button", { name: "Manage preferences" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Mark all read" })).toBeVisible();
 
-    // Verify duplicate lower preferences card is absent
     await expect(page.locator("text=Delivery preferences")).toHaveCount(0);
 
-    // Verify notification feed items
     await expect(page.getByText("A required document needs attention soon.")).toBeVisible();
     await expect(page.getByText("Your invoice was approved.")).toBeVisible();
 
-    // Verify zero horizontal page overflow
     const dimensions = await page.evaluate(() => ({
       width: document.documentElement.clientWidth,
       scrollWidth: document.documentElement.scrollWidth,
@@ -108,13 +104,11 @@ test("Vendor Notifications displays cleanly with non-ambiguous header, routes co
     expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.width + 1);
   }
 
-  // Verify Manage Preferences modal interaction
   await page.goto("/vendor/notifications");
   const managePrefsBtn = page.getByRole("button", { name: "Manage preferences" });
   await expect(managePrefsBtn).toHaveCount(1);
   await managePrefsBtn.click();
 
-  // Verify modal elements
   const dialog = page.getByRole("dialog");
   const modalHeading = dialog.getByRole("heading", { name: "Manage notification preferences" });
   await expect(modalHeading).toBeVisible();
@@ -123,32 +117,26 @@ test("Vendor Notifications displays cleanly with non-ambiguous header, routes co
   await expect(dialog.getByRole("button", { name: "Cancel" })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Save changes" })).toBeVisible();
 
-  // Close modal via Cancel
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(modalHeading).not.toBeVisible();
 
-  // Open modal again and close via X
   await managePrefsBtn.click();
   await expect(modalHeading).toBeVisible();
   await dialog.getByRole("button", { name: "Close dialog" }).click();
   await expect(modalHeading).not.toBeVisible();
 
-  // Open modal again and close via Escape
   await managePrefsBtn.click();
   await expect(modalHeading).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(modalHeading).not.toBeVisible();
 
-  // Verify Mark all read option marks all read
   const markAllReadBtn = page.getByRole("button", { name: "Mark all read" });
   await expect(markAllReadBtn).toBeVisible();
   await markAllReadBtn.click();
-  // After marking all read, unread count is 0, Mark all read disappears, Manage preferences stays visible
   await expect(page.getByText("2 total · 0 unread")).toBeVisible();
   await expect(markAllReadBtn).not.toBeVisible();
   await expect(managePrefsBtn).toBeVisible();
 
-  // Verify navigation on click
   await page.goto("/vendor/notifications");
   const invoiceNotification = page.getByRole("button", { name: /Your invoice was approved/i });
   await invoiceNotification.click();
@@ -210,11 +198,9 @@ test("Vendor Notifications standardizes pagination to 10 items per page and rend
 
   await page.goto("/vendor/notifications");
 
-  // Header shows global total across pages and global unread
   await expect(page.getByRole("heading", { name: "Notifications", exact: true })).toBeVisible();
   await expect(page.getByText("15 total · 5 unread")).toBeVisible();
 
-  // Pagination is visible with 10 results, Page 1 of 2
   const pagination = page.getByRole("navigation", { name: "Notifications pagination" });
   await expect(pagination).toBeVisible();
   await expect(pagination.getByText("10 results")).toBeVisible();
@@ -225,7 +211,6 @@ test("Vendor Notifications standardizes pagination to 10 items per page and rend
   await expect(prevBtn).toBeDisabled();
   await expect(nextBtn).toBeEnabled();
 
-  // Click Next to navigate to page 2
   await nextBtn.click();
   await expect(pagination.getByText("5 results")).toBeVisible();
   await expect(pagination.getByText("Page 2 of 2")).toBeVisible();
@@ -233,7 +218,6 @@ test("Vendor Notifications standardizes pagination to 10 items per page and rend
   await expect(nextBtn).toBeDisabled();
   await expect(page.getByText("Approved invoice notification #15")).toBeVisible();
 
-  // Click Previous to return to page 1
   await prevBtn.click();
   await expect(pagination.getByText("10 results")).toBeVisible();
   await expect(pagination.getByText("Page 1 of 2")).toBeVisible();

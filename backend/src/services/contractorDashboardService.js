@@ -3,34 +3,13 @@ const timesheetRepository = require("../repositories/timesheetRepository");
 const dashboardRepository = require("../repositories/dashboardRepository");
 const { pool } = require('../config/db');
 
-/**
- * Contractor dashboard/analytics (UI + analytics redesign). Read-only.
- * `userId` is always `req.user.userId` off the JWT — resolved to this
- * contractor's own contractors.id exactly like
- * contractorProjectService.listAssignedProjects /
- * contractorTimesheetService.listMyTimesheets, so there is no parameter
- * anywhere in this file that lets a caller ask for a different
- * contractor's dashboard.
- *
- * Reuses the EXISTING timesheetRepository.listByContractor (the same
- * call GET /api/contractor/timesheets already makes) for three derived
- * figures at once — timesheet status summary, total approved hours, and
- * the hours-trend chart — one fetch, three views of the same data,
- * rather than three separate queries or three separate frontend
- * re-derivations of the same list.
- */
+// Resolve the authenticated contractor once and reuse their timesheets for dashboard aggregates.
 
-/**
- * Monday (UTC) of the week containing an ISO 'YYYY-MM-DD' date string,
- * returned as its own 'YYYY-MM-DD' string — the bucket key for the hours
- * trend chart. Plain UTC epoch math, no reliance on the current date/time
- * (this is formatting historical timesheet data, not a "now" business
- * rule), so it's safe to compute per-row here.
- */
+// Bucket ISO work dates by their Monday in UTC.
 function isoWeekStart(dateStr) {
   const [y, m, d] = dateStr.split("-").map(Number);
   const date = new Date(Date.UTC(y, m - 1, d));
-  const dayOfWeek = date.getUTCDay(); // 0 = Sunday
+  const dayOfWeek = date.getUTCDay();
   const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
   date.setUTCDate(date.getUTCDate() - diffToMonday);
   return date.toISOString().slice(0, 10);
@@ -39,9 +18,7 @@ function isoWeekStart(dateStr) {
 async function getContractorDashboard(userId) {
   const contractor = await contractorRepository.findByUserId(userId);
   if (!contractor) {
-    // Same "no contractor record looks like no data" stance as
-    // contractorProjectService/contractorTimesheetService — an empty,
-    // well-shaped dashboard rather than a 404 or a crash.
+    // Return an empty dashboard when the authenticated account has no contractor record.
     return emptyDashboard();
   }
 
@@ -70,8 +47,6 @@ async function getContractorDashboard(userId) {
     };
   });
 
-  // Timesheet summary + total approved hours, from the one already-
-  // fetched list.
   let pending = 0;
   let approved = 0;
   let rejected = 0;
@@ -89,11 +64,7 @@ async function getContractorDashboard(userId) {
     } else if (t.status === "REJECTED") rejected += 1;
   }
 
-  // Weekly hours trend, oldest -> newest, capped to the most recent 12
-  // weeks with approved hours so the chart stays readable for a
-  // long-tenured contractor without truncating silently — the frontend
-  // is told the true total via timesheet_summary regardless of how many
-  // trend points are shown.
+  // Limit the chart to 12 approved-work weeks while retaining lifetime totals in the summary.
   const hoursTrend = Array.from(approvedByWeek.entries())
     .map(([week, hours]) => ({ period: week, hours: Math.round(hours * 100) / 100 }))
     .sort((a, b) => (a.period < b.period ? -1 : 1))

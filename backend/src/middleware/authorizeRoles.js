@@ -1,13 +1,6 @@
 const ApiError = require("../utils/ApiError");
 
-/**
- * Role-based authorization middleware factory.
- * Must run after `authenticate`, which populates req.user.
- *
- * Usage:
- *   router.post("/vendor-only", authenticate, authorizeRoles("VENDOR"), handler);
- *   router.post("/shared", authenticate, authorizeRoles("VENDOR", "PM"), handler);
- */
+// Check allowed roles after authentication has populated req.user.
 function authorizeRoles(...allowedRoles) {
   return (req, res, next) => {
     if (!req.user) {

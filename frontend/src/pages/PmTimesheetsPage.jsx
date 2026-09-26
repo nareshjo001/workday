@@ -7,19 +7,7 @@ import pmTimesheetService from "../services/pmTimesheetService";
 import RejectTimesheetModal from "../components/timesheets/RejectTimesheetModal";
 import { formatSkill } from "../constants/skills";
 
-/**
- * PM's timesheet-approval queue (Enterprise Redesign):
- * Compact enterprise workspace matching media_1789667964588.png.
- * Pending timesheets for the PM's own projects only (enforced server-side).
- * Features:
- * - Top intro hero card with clock badge and decorative curved milestone path
- * - 4 truthful KPI cards (Total submissions, Pending review, Approved, Rejected)
- * - Single-row enterprise filter bar (Contractor, Skill, Project, Date, Search)
- * - Enterprise table with sortable headers, soft action buttons, checkboxes
- * - Mobile card list (< md)
- * - Bulk review toolbar
- * - Enterprise pagination footer with page pills and rows-per-page selector
- */
+// Present daily timesheets within the server-enforced PM review scope.
 export default function PmTimesheetsPage() {
   const [timesheets, setTimesheets] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,22 +16,19 @@ export default function PmTimesheetsPage() {
   const [actionError, setActionError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
 
-  // Pagination & Sorting state
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [pageInfo, setPageInfo] = useState({ total_pages: 1, total: 0 });
   const [sortField, setSortField] = useState("submitted_at");
   const [sortOrder, setSortOrder] = useState("asc");
 
-  // Selection & Rejection modal state
   const [selectedIds, setSelectedIds] = useState([]);
   const [rejectingIds, setRejectingIds] = useState(null);
 
-  // Session stats tracking (truthful local session increments)
+  // Track successful reviews in this session without claiming historical totals.
   const [sessionApproved, setSessionApproved] = useState(0);
   const [sessionRejected, setSessionRejected] = useState(0);
 
-  // Filter bar state
   const [selectedContractor, setSelectedContractor] = useState("");
   const [selectedSkill, setSelectedSkill] = useState("");
   const [selectedProject, setSelectedProject] = useState("");
@@ -161,7 +146,6 @@ export default function PmTimesheetsPage() {
     setPage(1);
   };
 
-  // Dynamic filter dropdown options extracted from active queue
   const contractorOptions = useMemo(() => {
     const map = new Map();
     timesheets.forEach((t) => {
@@ -188,7 +172,6 @@ export default function PmTimesheetsPage() {
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [timesheets]);
 
-  // Client-side filtering across active timesheet batch
   const filteredTimesheets = useMemo(() => {
     return timesheets
       .filter((t) => {
@@ -232,11 +215,9 @@ export default function PmTimesheetsPage() {
       });
   }, [timesheets, selectedContractor, selectedSkill, selectedProject, dateFilter, searchTerm, sortField, sortOrder]);
 
-  // Truthful KPI counts
   const pendingCount = pageInfo.total ?? timesheets.length;
   const totalSubmissions = pendingCount + sessionApproved + sessionRejected;
 
-  // Pagination display calculation
   const totalItems = pageInfo.total ?? timesheets.length;
   const totalPages = Math.max(pageInfo.total_pages || 1, Math.ceil(totalItems / pageSize) || 1);
 
@@ -246,14 +227,12 @@ export default function PmTimesheetsPage() {
         <AlertBanner message={successMessage} variant="success" />
         <AlertBanner message={actionError || loadError} />
 
-        {/* 1. TOP INTRO HERO CARD */}
         <section
           aria-label="Timesheet Approvals Overview"
           className="relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm md:flex-row md:items-center"
         >
           <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-96 rounded-r-2xl bg-gradient-to-l from-blue-50/60 via-sky-50/20 to-transparent" />
 
-          {/* Left: Clock Badge, Title & Description */}
           <div className="z-10 flex items-center gap-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 text-blue-600 shadow-sm sm:h-14 sm:w-14">
               <svg
@@ -280,7 +259,6 @@ export default function PmTimesheetsPage() {
             </div>
           </div>
 
-          {/* Right: Decorative Milestone Route & Caption */}
           <div className="pointer-events-none z-10 hidden select-none items-center gap-6 pr-2 lg:flex">
             <div className="relative flex items-center">
               <svg
@@ -338,9 +316,7 @@ export default function PmTimesheetsPage() {
           </div>
         </section>
 
-        {/* 2. KPI STATS ROW (4 CARDS) */}
         <section aria-label="Review Queue Metrics" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Card 1: Total Submissions (Blue) */}
           <div className="flex items-center gap-3.5 rounded-2xl border border-blue-100/80 bg-white p-4 shadow-sm transition hover:border-blue-200">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
@@ -357,7 +333,6 @@ export default function PmTimesheetsPage() {
             </div>
           </div>
 
-          {/* Card 2: Pending Review (Amber) */}
           <div className="flex items-center gap-3.5 rounded-2xl border border-amber-100/80 bg-[#fffdf7] p-4 shadow-sm transition hover:border-amber-200">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100/80 text-amber-600">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
@@ -372,7 +347,6 @@ export default function PmTimesheetsPage() {
             </div>
           </div>
 
-          {/* Card 3: Approved (Emerald) */}
           <div className="flex items-center gap-3.5 rounded-2xl border border-emerald-100/80 bg-[#f7fcf9] p-4 shadow-sm transition hover:border-emerald-200">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100/80 text-emerald-600">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
@@ -387,7 +361,6 @@ export default function PmTimesheetsPage() {
             </div>
           </div>
 
-          {/* Card 4: Rejected (Rose) */}
           <div className="flex items-center gap-3.5 rounded-2xl border border-rose-100/80 bg-[#fff8f8] p-4 shadow-sm transition hover:border-rose-200">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-100/80 text-rose-600">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
@@ -404,13 +377,11 @@ export default function PmTimesheetsPage() {
           </div>
         </section>
 
-        {/* 3. FILTER BAR */}
         <section
           aria-label="Timesheet Filters"
           className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm"
         >
           <div className="flex flex-wrap items-center gap-2.5">
-            {/* Filter: Contractors */}
             <select
               aria-label="Filter by contractor"
               value={selectedContractor}
@@ -425,7 +396,6 @@ export default function PmTimesheetsPage() {
               ))}
             </select>
 
-            {/* Filter: Skills */}
             <select
               aria-label="Filter by skill"
               value={selectedSkill}
@@ -440,7 +410,6 @@ export default function PmTimesheetsPage() {
               ))}
             </select>
 
-            {/* Filter: Projects */}
             <select
               aria-label="Filter by project"
               value={selectedProject}
@@ -455,7 +424,6 @@ export default function PmTimesheetsPage() {
               ))}
             </select>
 
-            {/* Filter: Date Range */}
             <div className="relative inline-flex items-center">
               <svg
                 className="pointer-events-none absolute left-3 h-3.5 w-3.5 text-slate-400"
@@ -484,7 +452,6 @@ export default function PmTimesheetsPage() {
             </div>
           </div>
 
-          {/* Right: Search Input */}
           <div className="relative min-w-[220px] max-w-xs flex-1 sm:flex-initial">
             <svg
               className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"
@@ -508,7 +475,6 @@ export default function PmTimesheetsPage() {
           </div>
         </section>
 
-        {/* 4. BULK ACTIONS TOOLBAR */}
         {selectedIds.length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-blue-50/70 px-4 py-2.5 shadow-sm">
             <div className="flex items-center gap-2.5">
@@ -549,7 +515,6 @@ export default function PmTimesheetsPage() {
           </div>
         )}
 
-        {/* 5. TABLE / CARD LIST */}
         {isLoading ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
             <Spinner label="Loading pending timesheets…" />
@@ -590,7 +555,6 @@ export default function PmTimesheetsPage() {
         )}
       </div>
 
-      {/* Reject Timesheet Modal */}
       {rejectingIds && (
         <RejectTimesheetModal
           count={rejectingIds.length}

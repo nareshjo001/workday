@@ -1,15 +1,7 @@
 import EmptyState from "./EmptyState";
 import { formatDateTime } from "./format";
 
-/**
- * Renders the "Recent Activity" feed every dashboard shows — a flat,
- * pre-merged, pre-sorted list of real events the backend already
- * assembled (see dashboardRepository.listRecentActivityForVendor/Pm — a
- * UNION ALL across assignment/timesheet/milestone/invoice tables, since
- * there is no dedicated activity-log table in this schema). This
- * component only renders what it's given; it never fabricates an event
- * type it doesn't recognize.
- */
+// Render backend-supplied activity without inventing event types.
 const TYPE_META = {
   ASSIGNED: { icon: "👤", label: "Assignment" },
   TIMESHEET_SUBMITTED: { icon: "📝", label: "Timesheet" },

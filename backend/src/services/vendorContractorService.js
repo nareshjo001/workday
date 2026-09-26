@@ -20,17 +20,9 @@ function toContractorView(row) {
   };
 }
 
-/**
- * Creates the contractor's user account + contractors record in a single
- * transaction, owned by `vendorId` (the authenticated vendor's users.id,
- * resolved from the JWT by the controller — never taken from the request
- * body).
- */
+// Create the authenticated vendor's contractor and user records in one transaction.
 async function createContractor(vendorId, { name, email, hourlyRate, testPassword }, auditActor) {
-  // Friendly pre-check so the common case returns a clean 409 without ever
-  // opening a transaction. The UNIQUE constraint on users.email is still
-  // the real guarantee — see the ER_DUP_ENTRY catch below — so a second
-  // signup racing this check can't slip through as a partial write.
+  // Pre-check email uniqueness for a friendly error; the database constraint prevents concurrent duplicates.
   const existing = await userRepository.findByEmail(email);
   if (existing) {
     throw ApiError.conflict("An account with this email already exists.");
@@ -77,15 +69,7 @@ async function createContractor(vendorId, { name, email, hourlyRate, testPasswor
   }
 }
 
-/**
- * Only ever returns contractors owned by `vendorId` — the WHERE clause
- * lives in the repository's SQL, not filtered afterward in JS. Optional
- * `skill` narrows to contractors with that primary skill, still scoped
- * to this vendor's own contractors in the same query — used by the
- * requirement-specific assignment picker (Module 3 revision spec section
- * 13) so a Vendor can never see another vendor's contractors regardless
- * of the skill filter.
- */
+// Apply skill filters within the authenticated vendor's ownership scope.
 async function listContractors(vendorId, opts = {}) {
   const rows = await contractorRepository.listByVendor(vendorId, opts);
   return rows.map(toContractorView);
@@ -96,13 +80,7 @@ async function listContractorsPage(vendorId, query) {
   return pageResult(rows.map(toContractorView), total, query);
 }
 
-/**
- * Updates hourly_rate and/or status on a contractor, but only if it
- * belongs to `vendorId`. A contractor that doesn't exist and a contractor
- * that belongs to a different vendor are indistinguishable from the
- * outside — both come back as 404 — so this endpoint can't be used to
- * probe which contractor ids exist under other vendors.
- */
+// Return the same 404 for missing and foreign contractors when updating vendor-owned fields.
 async function updateContractor(vendorId, contractorId, fields, auditActor) {
   if (!Number.isInteger(contractorId) || contractorId <= 0) {
     throw ApiError.badRequest("Invalid contractor id.");

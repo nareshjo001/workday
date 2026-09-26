@@ -15,8 +15,7 @@ const initialForm = {
   password: "",
   confirmPassword: "",
   companyName: "",
-  // First self-signup-eligible role — Contractor is not offered here (see
-  // RoleSelector), so it must never be the default.
+  // Default to a server-permitted self-signup role.
   role: SELF_SIGNUP_ROLES[0],
 };
 
@@ -61,8 +60,7 @@ export default function SignupPage() {
 
     setIsSubmitting(true);
     try {
-      // Only the fields the API contract expects — confirmPassword is a
-      // client-side-only check and is never sent to the backend.
+      // Keep password confirmation client-side and send only API-supported fields.
       const { name, email, password, role, companyName } = form;
       await signup({ name, email, password, role, companyName: role === ROLES.PM ? companyName.trim() : undefined, companyInvitationToken: role === ROLES.PM ? searchParams.get("companyInvitationToken") || undefined : undefined });
       setSuccessMessage("Account created successfully. You can now sign in.");

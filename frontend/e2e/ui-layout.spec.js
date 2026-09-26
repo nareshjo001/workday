@@ -1,7 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-// Opt-in read-only review against a seeded demo API. Never changes business records.
-// The test-only proxy permits the separately served Vite UI to use the demo API.
+// Use an opt-in proxy for read-only browser checks against the seeded demo API.
 const apiOrigin = process.env.UI_REVIEW_API_ORIGIN;
 const routes = {
   vendor: ["", "contractors", "assignments", "clients", "staffing-pipeline", "compliance", "rate-cards", "invoices", "notifications"],

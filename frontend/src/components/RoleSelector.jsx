@@ -1,11 +1,5 @@
 import { SELF_SIGNUP_ROLES, ROLE_META } from "../constants/roles";
 
-/**
- * Compact, responsive role-selection control for signup. Renders as a
- * row of cards on wider screens and wraps/stacks naturally on narrow
- * viewports — implemented as a native radiogroup so it stays keyboard
- * and screen-reader accessible without any extra ARIA plumbing.
- */
 export default function RoleSelector({ value, onChange, error }) {
   return (
     <fieldset className="signup-role-selector">

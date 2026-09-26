@@ -14,14 +14,7 @@ import pmDashboardService from "../services/pmDashboardService";
 import DashboardExports from "../components/dashboard/DashboardExports";
 import DashboardFilters from "../components/dashboard/DashboardFilters";
 
-/**
- * PM dashboard (UI + analytics redesign). Single read-only GET
- * /pm/dashboard call — pmDashboardService.getPmDashboard derives the PM's
- * identity from the JWT, reusing pmProjectService.listProjects(pmId) for
- * every per-project figure so the numbers here are guaranteed to match
- * the existing Projects page (same server-computed work_progress_percent
- * / staffing_status, never re-derived).
- */
+// Use server-computed dashboard metrics scoped to the authenticated PM.
 export default function PmHomePage() {
   const [dashboard, setDashboard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);

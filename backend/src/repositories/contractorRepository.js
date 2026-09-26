@@ -1,23 +1,8 @@
 const { pool } = require("../config/db");
 
-/**
- * Database access for the `contractors` table (and the `users` row each
- * contractor is linked to). Keeps SQL isolated from services/controllers,
- * same convention as userRepository.js. All queries are parameterized —
- * never interpolate user input into SQL strings.
- *
- * Every read/write here that a Vendor can trigger is scoped by vendor_id.
- * There is no function in this file that lets a caller fetch or mutate a
- * contractor without supplying the owning vendor's id — that scoping is
- * the actual security boundary, not anything in the frontend.
- */
+// Scope vendor operations by vendor_id; internal unscoped lookups require trusted callers.
 
-/**
- * Creates the CONTRACTOR user row and the contractors row that links it to
- * the vendor, using the transaction-scoped connection the caller opened
- * (see vendorContractorService.createContractor). Both inserts succeed or
- * neither does — the caller commits/rolls back.
- */
+// Create the user and vendor-owned contractor in the same transaction.
 async function createUserAndContractor(conn, { name, email, passwordHash, vendorId, hourlyRate }) {
   const [userResult] = await conn.query(
     "INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'CONTRACTOR')",
@@ -33,14 +18,7 @@ async function createUserAndContractor(conn, { name, email, passwordHash, vendor
   return { contractorId: contractorResult.insertId, userId };
 }
 
-/**
- * All contractors belonging to the given vendor, joined with their user
- * record for name/email. Never selects password_hash. Optionally scoped
- * to a single skill (`opts.skill`) — used by the requirement-specific
- * "assign a contractor" picker (Module 3 revision spec section 13) so the
- * Vendor only ever sees contractors compatible with the requirement they
- * clicked, enforced here in SQL rather than merely filtered in the UI.
- */
+// Filter skill matches within the owning vendor's scope and omit password hashes.
 async function listByVendor(vendorId, opts = {}) {
   const params = [vendorId];
   let sql = `SELECT c.id, c.hourly_rate, c.status, c.skill, u.name, u.email
@@ -74,10 +52,7 @@ async function listPageByVendor(vendorId, query) {
   return { rows, total: Number(count.total) };
 }
 
-/**
- * A single contractor, but ONLY if it belongs to the given vendor — the
- * ownership check is baked into the WHERE clause, not applied afterward.
- */
+// Enforce vendor ownership in the query predicate.
 async function findByVendorAndId(vendorId, contractorId, conn) {
   const runner = conn || pool;
   const [rows] = await runner.query(
@@ -101,26 +76,7 @@ async function findInvitationRecipientByVendorAndId(vendorId, contractorId) {
   return rows[0] || null;
 }
 
-/**
- * Contractors eligible for a specific vendor+skill assignment: belongs to
- * this vendor, ACTIVE status, skill matches, AND has no CURRENTLY ACTIVE
- * project assignment (one contractor, one project AT A TIME — a
- * contractor is freed up again once their assignment is RELEASED, e.g.
- * by project completion; see assignmentRepository.releaseAllActiveForProject).
- * The "not currently assigned" filter is a LEFT JOIN ... IS NULL against
- * project_assignments, restricted to status = 'ACTIVE' rows via the JOIN
- * condition itself (not a WHERE clause, which would turn this back into
- * an inner join and drop contractors entirely) — a contractor with only
- * RELEASED history rows has no matching ACTIVE row, so pa.id IS NULL and
- * they remain eligible. This mirrors the same ACTIVE-only check
- * assignmentRepository.isContractorAssigned already uses at assign time.
- *
- * This is a READ used to populate the assignment picker UI — it is NOT
- * the concurrency guarantee itself (two vendors could both see the same
- * "eligible" contractor a moment before one of them assigns it away). The
- * real guarantee is the row lock + UNIQUE(active_contractor_key) constraint
- * enforced inside vendorAssignmentService's transaction at assign time.
- */
+// Exclude overlapping active assignments and unavailability; assignment-time locks enforce concurrency.
 async function listEligibleForVendorAndSkill(vendorId, skill, startDate, endDate) {
   const [rows] = await pool.query(
     `SELECT DISTINCT c.id, c.hourly_rate, c.status, primary_skill.code AS skill, u.name, u.email
@@ -154,13 +110,7 @@ async function hasActiveSkillForContractor(conn, contractorId, skillCode) {
   return Boolean(rows[0]);
 }
 
-/**
- * Transaction-scoped, row-locked variant of findByVendorAndId — used
- * inside vendorAssignmentService's assignment transaction so that once a
- * contractor row has been read there, no other concurrent transaction
- * can concurrently read-and-assign the SAME contractor until this one
- * commits or rolls back. Must run on `conn` inside an open transaction.
- */
+// Lock the vendor-owned contractor inside the assignment transaction.
 async function findByVendorAndIdForUpdate(conn, vendorId, contractorId) {
   const [rows] = await conn.query(
     `SELECT c.id, c.hourly_rate, c.status, c.skill, u.name, u.email
@@ -174,12 +124,7 @@ async function findByVendorAndIdForUpdate(conn, vendorId, contractorId) {
   return rows[0] || null;
 }
 
-/**
- * Updates only the given fields (hourly_rate and/or status), scoped to
- * `WHERE id = ? AND vendor_id = ?`. If the contractor doesn't exist, or
- * exists but belongs to a different vendor, affectedRows is 0 and nothing
- * is changed — the caller (service layer) turns that into a 404.
- */
+// Return no update for missing or foreign contractors so callers can use the same 404 response.
 async function updateOwned(vendorId, contractorId, fields, conn) {
   const setClauses = [];
   const values = [];
@@ -197,8 +142,7 @@ async function updateOwned(vendorId, contractorId, fields, conn) {
   if (fields.totalExperienceYears !== undefined) { setClauses.push("total_experience_years = ?"); values.push(fields.totalExperienceYears); }
   if (fields.notes !== undefined) { setClauses.push("notes = ?"); values.push(fields.notes); }
 
-  // Should be unreachable — the validator requires at least one field —
-  // but guard anyway rather than emitting `SET WHERE ...`.
+  // Avoid generating an UPDATE with an empty SET clause.
   if (setClauses.length === 0) return false;
 
   values.push(contractorId, vendorId);
@@ -211,16 +155,7 @@ async function updateOwned(vendorId, contractorId, fields, conn) {
   return result.affectedRows > 0;
 }
 
-/**
- * Resolves a contractor's own `contractors.id` from their `users.id`
- * (i.e. `req.user.userId` off their JWT). Added for Module 3's
- * GET /api/contractor/projects: project_assignments.contractor_id refers
- * to contractors.id, not users.id, so the contractor-facing endpoint has
- * to bridge from "who is logged in" to "which contractor row is theirs"
- * before it can look up assignments — same derive-identity-from-JWT
- * pattern as vendor_id/pm_id, just one extra hop because a contractor's
- * own id isn't the id their assignments are keyed on.
- */
+// Resolve the authenticated user ID to the contractor ID used by assignments.
 async function findByUserId(userId) {
   const [rows] = await pool.query(
     `SELECT id, vendor_id, hourly_rate, status, skill, phone, headline, total_experience_years, notes FROM contractors WHERE user_id = ? LIMIT 1`,
@@ -247,15 +182,7 @@ async function updateProfileById(conn, contractorId, fields) {
   await conn.query(`UPDATE contractors SET ${clauses.join(", ")} WHERE id = ?`, values);
 }
 
-/**
- * Sets a contractor's own primary skill, scoped by `WHERE user_id = ?` —
- * the same derive-identity-from-JWT pattern as every other ownership
- * check in this file, just keyed on the contractor's own users.id
- * instead of a vendor's. There is no path through this function that
- * lets one contractor's request touch another contractor's row: the
- * caller (contractorProfileService) always passes the id straight off
- * `req.user.userId`, never anything from the request body.
- */
+// Update only the authenticated contractor's primary skill.
 async function updateSkillByUserId(userId, skill) {
   const [result] = await pool.query(`UPDATE contractors SET skill = ? WHERE user_id = ?`, [
     skill,
@@ -264,18 +191,7 @@ async function updateSkillByUserId(userId, skill) {
   return result.affectedRows > 0;
 }
 
-/**
- * A single contractor by id, with NO vendor/ownership scoping — added for
- * Module 5. Unlike every other lookup in this file, the milestone
- * evaluation flow (milestoneService, triggered internally after a
- * timesheet approval commits) is not acting on behalf of any
- * authenticated Vendor request; it already has a trusted contractor_id
- * from the timesheets/project_assignments tables and only needs that
- * contractor's own hourly_rate/status, not a vendor-ownership check. This
- * is the one legitimate reason an unscoped read belongs in this file —
- * contrast with findByVendorAndId, which stays vendor-scoped because it
- * IS reachable from a Vendor-authenticated request.
- */
+// Internal unscoped lookup for trusted contractor IDs; HTTP callers must enforce ownership separately.
 async function findById(contractorId) {
   const [rows] = await pool.query(
     `SELECT id, vendor_id, hourly_rate, status, skill FROM contractors WHERE id = ? LIMIT 1`,
@@ -284,16 +200,7 @@ async function findById(contractorId) {
   return rows[0] || null;
 }
 
-/**
- * Transaction-scoped, row-locked variant of findById — used inside
- * milestoneService's evaluation transaction so the hourly_rate read there
- * is consistent for the lifetime of that transaction (no other
- * transaction can concurrently update this contractor's hourly_rate
- * between the read and the billing snapshot being written). Same
- * `FOR UPDATE` pattern as findByVendorAndIdForUpdate above and
- * timesheetRepository.lockForReview. Must run on `conn` inside an open
- * transaction.
- */
+// Lock the contractor rate for a consistent billing snapshot within the caller's transaction.
 async function findByIdForUpdate(conn, contractorId) {
   const [rows] = await conn.query(
     `SELECT id, vendor_id, hourly_rate, status, skill FROM contractors WHERE id = ? LIMIT 1 FOR UPDATE`,

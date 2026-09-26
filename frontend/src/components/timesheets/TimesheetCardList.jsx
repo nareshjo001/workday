@@ -1,11 +1,6 @@
 import { formatDate, formatDateTime, formatHours, TimesheetStatusBadge } from "./format";
 
-/**
- * Mobile presentation of ONE WEEK's daily timesheet rows — visible below
- * md, where TimesheetTable takes over. Same per-week rendering context
- * and same "Edit only appears on REJECTED rows" rule as TimesheetTable —
- * see that file's comment.
- */
+// Allow edits only for draft and rejected logs in the mobile weekly view.
 export default function TimesheetCardList({ logs, onEdit }) {
   return (
     <div className="flex flex-col gap-3 md:hidden">

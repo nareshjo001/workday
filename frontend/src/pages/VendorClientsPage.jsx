@@ -6,14 +6,6 @@ import VendorClientCard from "../components/clients/VendorClientCard";
 import VendorClientDetailDialog from "../components/clients/VendorClientDetailDialog";
 import clients from "../services/vendorClientService";
 
-/**
- * Vendor Clients list page:
- * Redesigned to match enterprise reference layout (media_1789317054230.png):
- * - Clean section header with subtitle
- * - Integrated Search and Sort (Name A–Z / Z–A)
- * - Responsive 2-column client card grid
- * - Interactive client detail view dialog
- */
 export default function VendorClientsPage() {
   const [clientsList, setClientsList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,7 +30,6 @@ export default function VendorClientsPage() {
 
         let enriched = items;
         if (!hasProjectsAttached && items.length > 0) {
-          // Fetch project details in parallel for each client to populate recent projects
           const detailResults = await Promise.allSettled(
             items.map((c) => clients.detail(c.id))
           );
@@ -115,7 +106,6 @@ export default function VendorClientsPage() {
   return (
     <DashboardLayout title="Clients">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        {/* Header and Controls Row */}
         <div className="vendor-clients-toolbar" data-testid="clients-toolbar">
           <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
@@ -127,7 +117,6 @@ export default function VendorClientsPage() {
           </div>
 
           <div className="vendor-clients-toolbar-controls" data-testid="clients-toolbar-controls">
-            {/* Search Input */}
             <div className="vendor-clients-search relative min-w-0 w-full">
               <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
@@ -141,7 +130,6 @@ export default function VendorClientsPage() {
               />
             </div>
 
-            {/* Sort Dropdown */}
             <div className="vendor-clients-sort relative w-full shrink-0">
               <SortIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
               <select
@@ -159,26 +147,21 @@ export default function VendorClientsPage() {
           </div>
         </div>
 
-        {/* Global Feedback Banner */}
         <AlertBanner message={loadError} />
 
-        {/* Loading State */}
         {isLoading ? (
           <div className="py-12 flex justify-center" data-testid="clients-loading">
             <Spinner label="Loading clients…" />
           </div>
         ) : clientsList.length === 0 ? (
-          /* Empty Database State */
           <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center">
             <p className="text-sm font-medium text-slate-500">No connected client companies.</p>
           </div>
         ) : filteredClients.length === 0 ? (
-          /* Empty Search Filter State */
           <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center">
             <p className="text-sm font-medium text-slate-500">No clients match your search.</p>
           </div>
         ) : (
-          /* Responsive Client Grid */
           <div
             className="grid grid-cols-1 items-start lg:grid-cols-2 gap-5 sm:gap-6"
             data-testid="clients-grid"
@@ -193,7 +176,6 @@ export default function VendorClientsPage() {
           </div>
         )}
 
-        {/* Client Detail Modal */}
         {selectedClient && (
           <VendorClientDetailDialog
             client={selectedClient}

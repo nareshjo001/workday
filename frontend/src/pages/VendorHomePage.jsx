@@ -19,14 +19,7 @@ const PROJECT_PREVIEW_LIMIT = 3;
 const EARNINGS_PREVIEW_LIMIT = 3;
 const isActiveProject = (project) => project?.status === "ACTIVE";
 
-/**
- * Vendor dashboard (UI + analytics redesign). Single read-only
- * GET /vendor/dashboard call — the backend derives the vendor's identity
- * from the JWT (see vendorDashboardService.getVendorDashboard), so this
- * page never sends or receives a vendor id itself. Existing quick-nav
- * links are preserved, just relocated into a "Quick actions" row so
- * navigation isn't lost.
- */
+// Present server-computed metrics scoped to the authenticated vendor.
 export default function VendorHomePage() {
   const [dashboard, setDashboard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);

@@ -1,8 +1,4 @@
-// MVP fix regression + verification suite (run against a live server + MariaDB).
-// Covers: FIX 1 (PM owns work-hour allocation), FIX 2 (per-contractor
-// independent billing), plus a Module 1-6 regression sweep.
-//
-// Usage: node mvp_fix_test.js   (server must already be running on :5000)
+// Run against a live test server and MariaDB to verify PM allocation and independent contractor billing.
 
 const BASE = process.env.API_BASE_URL || "http://localhost:5000/api";
 const { addCalendarDays, utcToday } = require("./test/helpers/workDate");
@@ -41,8 +37,7 @@ function todayPlus(days) {
   return addCalendarDays(utcToday(), days);
 }
 
-// These fixtures explicitly permit weekend work so the current UTC calendar
-// date remains a valid, non-future work date on every test run.
+// Permit weekends so today's UTC date remains valid on every test run.
 const validWorkDate = utcToday();
 
 let seq = 0;
@@ -59,7 +54,7 @@ async function signup(role, name) {
     body.companyName = `${name} Co`;
   }
   if (role === "CONTRACTOR") {
-    // contractors are created by a vendor, not self-signup — handled elsewhere.
+    // Contractor accounts are provisioned by vendors, not self-signup.
   }
   const { status, data } = await req("POST", "/auth/signup", body);
   if (status !== 201) {
@@ -77,7 +72,6 @@ async function signup(role, name) {
 async function main() {
   console.log("=== MVP FIX TEST SUITE ===\n");
 
-  // ---------- Setup: PM, Vendor, two Contractors ----------
   const pm = await signup("PM", "Test PM");
   const vendor = await signup("VENDOR", "Test Vendor");
   async function submitAndAccept(projectId, requirementId, contractorIds) {
@@ -116,10 +110,7 @@ async function main() {
   );
   const contractorCId = createContractorCRes.data.id;
 
-  // Separate contractor for the project-2 cap check below — C is used
-  // earlier for the "smuggled hours" assignment test and the existing
-  // (unrelated, unchanged) one-active-assignment-at-a-time business rule
-  // means C can't also be assigned to project 2.
+  // Use a separate contractor because C is still assigned to another project.
   const createContractorDRes = await req(
     "POST",
     "/vendor/contractors",
@@ -128,10 +119,7 @@ async function main() {
   );
   const contractorDId = createContractorDRes.data.id;
 
-  // Third project-1 contractor, used later for the M2-crossing-in-a-later-
-  // event scenario (A and B each only have ONE valid work_date available
-  // within a single test run, so the marginal M2 hours have to come from
-  // a fresh contractor rather than a second submission from A or B).
+  // Use a fresh contractor to add hours on the same day without violating the unique daily-log key.
   const createContractorERes = await req(
     "POST",
     "/vendor/contractors",
@@ -140,11 +128,7 @@ async function main() {
   );
   const contractorEId = createContractorERes.data.id;
 
-  // Two more, used only for the concurrency test below — A and B are
-  // still actively assigned to project 1 at that point (not released
-  // until project 1's completion, near the end of this script), and the
-  // existing one-active-assignment-at-a-time rule means they can't also
-  // be assigned to project 3.
+  // Use fresh contractors for concurrent approvals while A and B remain assigned elsewhere.
   const createContractorFRes = await req(
     "POST",
     "/vendor/contractors",
@@ -160,7 +144,6 @@ async function main() {
   );
   const contractorGId = createContractorGRes.data.id;
 
-  // Need contractor A/B's own login to submit timesheets.
   const contractorALogin = await req("POST", "/auth/login", { email: createContractorRes.data.email, password: "Password123!" });
   const contractorBLogin = await req("POST", "/auth/login", { email: createContractorBRes.data.email, password: "Password123!" });
   assert(contractorALogin.status === 200, "contractor A login");
@@ -168,9 +151,6 @@ async function main() {
   const contractorAToken = contractorALogin.data.token;
   const contractorBToken = contractorBLogin.data.token;
 
-  // Contractors set their own skill (POST-signup profile step, not part of
-  // vendor creation) — required before they're eligible for any FRONTEND
-  // requirement.
   const contractorCLogin = await req("POST", "/auth/login", { email: createContractorCRes.data.email, password: "Password123!" });
   const contractorCToken = contractorCLogin.data.token;
   const contractorDLogin = await req("POST", "/auth/login", { email: createContractorDRes.data.email, password: "Password123!" });
@@ -194,7 +174,6 @@ async function main() {
     assert(skillRes.status === 200, `set skill for contractor ${label}: expected 200, got ${skillRes.status} ${JSON.stringify(skillRes.data)}`);
   }
 
-  // ---------- PROJECT 1: the spec's exact worked example ----------
   const p1 = await req(
     "POST",
     "/pm/projects",
@@ -202,10 +181,7 @@ async function main() {
       name: "MVP Fix Project 1",
       start_date: validWorkDate,
       expected_hours: 20,
-      // required_count 3, not 2: a third contractor (E) is added later to
-      // exercise the M2-crossing-in-a-later-event scenario, since A and B
-      // can each only submit ONE work_date within a single test run (see
-      // the note further below).
+      // Reserve a third slot for the later same-day milestone-crossing fixture.
       requirements: [{ skill: "FRONTEND", required_count: 3 }],
     },
     pm.token
@@ -216,21 +192,16 @@ async function main() {
   const p1Policy = await req("PATCH", `/pm/projects/${project1Id}`, { allow_weekend: true }, pm.token);
   assert(p1Policy.status === 200, `allow weekend work on project 1 fixture: expected 200, got ${p1Policy.status} ${JSON.stringify(p1Policy.data)}`);
 
-  // ===================== FIX 1: Vendor cannot allocate hours =====================
   console.log("\n--- FIX 1: Vendor assignment never sets/accepts allocated hours ---");
 
-  // Vendor assigns A and B — plain contractorIds, no hours field at all.
   const assignRes = await submitAndAccept(project1Id, requirement1Id, [contractorAId, contractorBId]);
   assert(assignRes.status === 201, `assign A+B: expected 201, got ${assignRes.status} ${JSON.stringify(assignRes.data)}`);
 
-  // Confirm allocated_hours is null immediately after Vendor assignment.
   const teamAfterAssign = await req("GET", `/pm/projects/${project1Id}/contractors`, undefined, pm.token);
   const aRowAfterAssign = teamAfterAssign.data.find((c) => c.contractor_id === contractorAId);
   assert(aRowAfterAssign.allocated_hours === null, `A's allocated_hours should be null right after Vendor assignment, got ${aRowAfterAssign.allocated_hours}`);
 
-  // Vendor tries to smuggle allocatedHours/allocated_hours through the
-  // assignment body for a NEW project — must be silently ignored, never
-  // trusted, never causes a validation crash either.
+  // Attempt to inject allocation fields through a vendor request; ownership remains PM-only.
   const p1b = await req(
     "POST",
     "/pm/projects",
@@ -243,8 +214,7 @@ async function main() {
   const cRowP1b = teamP1b.data.find((c) => c.contractor_id === contractorCId);
   assert(cRowP1b.allocated_hours === null, `smuggled allocatedHours must be ignored — expected null, got ${cRowP1b.allocated_hours}`);
 
-  // Contractor A tries to submit hours BEFORE the PM has allocated —
-  // must be rejected (fix 1's server-side enforcement, not just hidden UI).
+  // Reject hours before the PM allocates capacity, even for direct API requests.
   const preAllocSubmit = await req(
     "POST",
     "/contractor/timesheets",
@@ -253,7 +223,6 @@ async function main() {
   );
   assert(preAllocSubmit.status === 409, `submit before allocation: expected 409, got ${preAllocSubmit.status} ${JSON.stringify(preAllocSubmit.data)}`);
 
-  // PM attempts to allocate hours to contractor C, who is NOT assigned to project1.
   const allocateUnassigned = await req(
     "PATCH",
     `/pm/projects/${project1Id}/contractors/${contractorCId}/allocation`,
@@ -271,28 +240,23 @@ async function main() {
   );
   assert(vendorTriesAllocate.status === 403, `Vendor hits PM allocation route: expected 403, got ${vendorTriesAllocate.status}`);
 
-  // PM allocates negative/zero — must be rejected.
   const negAlloc = await req("PATCH", `/pm/projects/${project1Id}/contractors/${contractorAId}/allocation`, { allocated_hours: -5 }, pm.token);
   assert(negAlloc.status === 400, `negative allocation: expected 400, got ${negAlloc.status}`);
   const zeroAlloc = await req("PATCH", `/pm/projects/${project1Id}/contractors/${contractorAId}/allocation`, { allocated_hours: 0 }, pm.token);
   assert(zeroAlloc.status === 400, `zero allocation: expected 400, got ${zeroAlloc.status}`);
 
-  // PM allocates A=10 and B=10 (exactly the project's 20h cap).
   const allocA = await req("PATCH", `/pm/projects/${project1Id}/contractors/${contractorAId}/allocation`, { allocated_hours: 10 }, pm.token);
   assert(allocA.status === 200, `allocate A=10: expected 200, got ${allocA.status} ${JSON.stringify(allocA.data)}`);
   const allocB = await req("PATCH", `/pm/projects/${project1Id}/contractors/${contractorBId}/allocation`, { allocated_hours: 10 }, pm.token);
   assert(allocB.status === 200, `allocate B=10: expected 200, got ${allocB.status}`);
 
-  // PM tries to over-allocate A to 15 (total would become 25 > 20 expected_hours).
   const overAlloc = await req("PATCH", `/pm/projects/${project1Id}/contractors/${contractorAId}/allocation`, { allocated_hours: 15 }, pm.token);
   assert(overAlloc.status === 409, `over-cap allocation: expected 409, got ${overAlloc.status} ${JSON.stringify(overAlloc.data)}`);
 
-  // Confirm A is still at 10 (rejected update did not partially apply).
   const teamAfterOverAlloc = await req("GET", `/pm/projects/${project1Id}/contractors`, undefined, pm.token);
   const aRowStillTen = teamAfterOverAlloc.data.find((c) => c.contractor_id === contractorAId);
   assert(aRowStillTen.allocated_hours === 10, `A should still be allocated 10 after rejected over-cap update, got ${aRowStillTen.allocated_hours}`);
 
-  // ===================== FIX 2: independent per-contractor billing =====================
   console.log("\n--- FIX 2: milestone billing uses each contractor's own approved hours ---");
 
   const m1 = await req("POST", "/pm/milestones", { project_id: project1Id, name: "M1", threshold_hours: 10 }, pm.token);
@@ -300,7 +264,6 @@ async function main() {
   const m2 = await req("POST", "/pm/milestones", { project_id: project1Id, name: "M2", threshold_hours: 20 }, pm.token);
   assert(m2.status === 201, `create M2: expected 201, got ${m2.status}`);
 
-  // A submits 6h, B submits 8h (same day — two different contractors).
   const subA6 = await req("POST", "/contractor/timesheets", { projectId: project1Id, workDate: validWorkDate, hoursLogged: 6 }, contractorAToken);
   assert(subA6.status === 201, `A submits 6h: expected 201, got ${subA6.status} ${JSON.stringify(subA6.data)}`);
   const subB8 = await req("POST", "/contractor/timesheets", { projectId: project1Id, workDate: validWorkDate, hoursLogged: 8 }, contractorBToken);
@@ -308,13 +271,11 @@ async function main() {
   await req("POST", "/contractor/timesheets/submit", { timesheetIds: [subB8.data.id] }, contractorBToken);
   assert(subB8.status === 201, `B submits 8h: expected 201, got ${subB8.status}`);
 
-  // PM approves both.
   const approveA6 = await req("PATCH", `/pm/timesheets/${subA6.data.id}`, { status: "APPROVED" }, pm.token);
   assert(approveA6.status === 200, `approve A's 6h: expected 200, got ${approveA6.status}`);
   const approveB8 = await req("PATCH", `/pm/timesheets/${subB8.data.id}`, { status: "APPROVED" }, pm.token);
   assert(approveB8.status === 200, `approve B's 8h: expected 200, got ${approveB8.status}`);
 
-  // Project total = 14h -> M1 (10h) is reached. Project progress = 70%, remaining = 6h.
   const projAfterM1 = await req("GET", "/pm/projects", undefined, pm.token);
   const p1View = projAfterM1.data.items.find((p) => p.id === project1Id);
   assert(p1View.approved_hours === 14, `project approved hours: expected 14, got ${p1View.approved_hours}`);
@@ -335,21 +296,18 @@ async function main() {
   assert(Math.abs(m1ContribA.billing_amount - 6 * 50) < 0.01, `A's M1 billing amount: expected ${6 * 50}, got ${m1ContribA.billing_amount}`);
   assert(Math.abs(m1ContribB.billing_amount - 8 * 60) < 0.01, `B's M1 billing amount: expected ${8 * 60}, got ${m1ContribB.billing_amount}`);
 
-  // Contractor remaining allocation is independent: A remaining=4, B remaining=2.
   const teamAfterM1 = await req("GET", `/pm/projects/${project1Id}/contractors`, undefined, pm.token);
   const aAfterM1 = teamAfterM1.data.find((c) => c.contractor_id === contractorAId);
   const bAfterM1 = teamAfterM1.data.find((c) => c.contractor_id === contractorBId);
   assert(aAfterM1.remaining_hours === 4, `A remaining: expected 4, got ${aAfterM1.remaining_hours}`);
   assert(bAfterM1.remaining_hours === 2, `B remaining: expected 2, got ${bAfterM1.remaining_hours}`);
 
-  // A tries to submit 5h (exceeds their remaining 4h) — must be rejected.
   const aOverSubmit = await req("POST", "/contractor/timesheets", { projectId: project1Id, workDate: todayPlus(1), hoursLogged: 5 }, contractorAToken);
-  // workDate must not be future — use a distinct valid date instead; project has no end_date so any date <= today works, but only "today" is valid (not future). Since same-day dup is blocked, this call is expected to fail on the FUTURE-DATE rule first — adjust to test allocation instead using a fresh single-day scenario isn't available. We instead verify via the edit-a-rejected-log path below for a same-day capacity check, and rely on the initial submission's cap logic already proven by the pre-allocation test above. Just confirm this attempt fails (for whichever valid reason) — still exercises "cannot exceed remaining" in principle when workDate is valid; see the dedicated capacity check below instead.
+  // This future-dated request may fail date validation before reaching the allocation check.
   assert(aOverSubmit.status === 400 || aOverSubmit.status === 409, `A submits future-dated / over-capacity hours: expected 4xx, got ${aOverSubmit.status}`);
 
-  // Dedicated same-day capacity check: A submits exactly their remaining 4h — should succeed.
   const aExact4 = await req("POST", "/contractor/timesheets", { projectId: project1Id, workDate: validWorkDate, hoursLogged: 4 }, contractorAToken);
-  // Same work_date as the earlier 6h row already exists for A -> UNIQUE constraint conflict expected (contractor/project/day), not a capacity error.
+  // The existing contractor/project/day row must fail uniqueness before a second log can be created.
   assert(aExact4.status === 409, `A submits second row same day: expected 409 (duplicate day), got ${aExact4.status}`);
 
   console.log("\n--- Using project 2 for a cleaner remaining-allocation-cap check ---");
@@ -372,21 +330,16 @@ async function main() {
   const cWithinCap = await req("POST", "/contractor/timesheets", { projectId: p2.data.id, workDate: validWorkDate, hoursLogged: 2 }, contractorDToken);
   assert(cWithinCap.status === 201, `D submits exactly 2h (their full allocation): expected 201, got ${cWithinCap.status}`);
 
-  // ---------- Back to project 1: reduce-below-approved rejection, rate-change immutability, M2 crossing ----------
   console.log("\n--- Allocation floor + hourly-rate-change immutability + M2 crossing ---");
 
-  // PM tries to lower A's allocation below A's 6 already-approved hours.
   const lowerBelowApproved = await req("PATCH", `/pm/projects/${project1Id}/contractors/${contractorAId}/allocation`, { allocated_hours: 5 }, pm.token);
   assert(lowerBelowApproved.status === 409, `lower A's allocation below approved: expected 409, got ${lowerBelowApproved.status}`);
 
-  // Capture M1's billing amount for A before any rate change.
   const m1BillingBeforeRateChange = m1ContribA.billing_amount;
 
-  // Change A's hourly rate.
   const rateChange = await req("PATCH", `/vendor/contractors/${contractorAId}`, { hourly_rate: 100 }, vendor.token);
   assert(rateChange.status === 200, `change A's rate: expected 200, got ${rateChange.status} ${JSON.stringify(rateChange.data)}`);
 
-  // Re-fetch M1 — A's already-generated billing row must be UNCHANGED.
   const milestonesAfterRateChange = await req("GET", `/pm/milestones/${project1Id}`, undefined, pm.token);
   const m1AfterRateChange = milestonesAfterRateChange.data.find((m) => m.name === "M1");
   const m1ContribAAfterRateChange = m1AfterRateChange.contributions.find((c) => c.contractor_id === contractorAId);
@@ -396,35 +349,21 @@ async function main() {
   );
   assert(m1ContribAAfterRateChange.hourly_rate === 50, `M1's stored hourly_rate snapshot for A must stay 50, got ${m1ContribAAfterRateChange.hourly_rate}`);
 
-  // ---- M2 crossing, as a genuinely LATER, separate approval event ----
-  // A and B each only have ONE valid work_date available within this test
-  // run (today — start_date can't be in the future-adjusted-past and
-  // work_date can't be in the future, and each contractor/project/day is
-  // capped at one timesheet row), so neither can add MORE hours today.
-  // To trigger M2 as a real second wave (not lumped into the same
-  // evaluation as M1) we free up capacity by lowering A and B down to
-  // exactly their already-approved floor (allowed — only lowering BELOW
-  // approved is rejected), then allocate the freed 6h to a third
-  // contractor (E) and have E submit+approve it in a separate call.
+  // Free already-approved allocation down to its floor, then use a fresh contractor to trigger a later milestone.
   const lowerAToFloor = await req("PATCH", `/pm/projects/${project1Id}/contractors/${contractorAId}/allocation`, { allocated_hours: 6 }, pm.token);
   assert(lowerAToFloor.status === 200, `lower A's allocation to exactly its 6h approved floor: expected 200, got ${lowerAToFloor.status} ${JSON.stringify(lowerAToFloor.data)}`);
   const lowerBToFloor = await req("PATCH", `/pm/projects/${project1Id}/contractors/${contractorBId}/allocation`, { allocated_hours: 8 }, pm.token);
   assert(lowerBToFloor.status === 200, `lower B's allocation to exactly its 8h approved floor: expected 200, got ${lowerBToFloor.status} ${JSON.stringify(lowerBToFloor.data)}`);
 
-  // Assign E to project 1 (requirement now has a free slot: required_count 3, 2 used).
   const assignE = await submitAndAccept(project1Id, requirement1Id, [contractorEId]);
   assert(assignE.status === 201, `assign E to project 1: expected 201, got ${assignE.status} ${JSON.stringify(assignE.data)}`);
 
-  // Freed capacity is exactly 6h (20 - 6 - 8) -> allocate all of it to E.
   const allocE = await req("PATCH", `/pm/projects/${project1Id}/contractors/${contractorEId}/allocation`, { allocated_hours: 6 }, pm.token);
   assert(allocE.status === 200, `allocate E=6 (the freed capacity): expected 200, got ${allocE.status} ${JSON.stringify(allocE.data)}`);
-  // Confirm the cap is exact: E can't get any more than that.
   const overAllocE = await req("PATCH", `/pm/projects/${project1Id}/contractors/${contractorEId}/allocation`, { allocated_hours: 7 }, pm.token);
   assert(overAllocE.status === 409, `allocate E=7 (1h over remaining capacity): expected 409, got ${overAllocE.status}`);
 
-  // E submits and gets approved for their full 6h -> project total becomes
-  // 6 + 8 + 6 = 20h -> M2 (20h) reached, in a call that touches ONLY E's
-  // timesheet — a genuinely separate, later event from M1's.
+  // Approve E's six hours separately to cross the second milestone after the first was billed.
   const subE6 = await req("POST", "/contractor/timesheets", { projectId: project1Id, workDate: validWorkDate, hoursLogged: 6 }, contractorEToken);
   await req("POST", "/contractor/timesheets/submit", { timesheetIds: [subE6.data.id] }, contractorEToken);
   assert(subE6.status === 201, `E submits 6h: expected 201, got ${subE6.status} ${JSON.stringify(subE6.data)}`);
@@ -435,23 +374,19 @@ async function main() {
   const m2AfterCross = milestonesAfterM2.data.find((m) => m.name === "M2");
   assert(m2AfterCross.status === "MET", `M2 should now be MET, got ${m2AfterCross.status}`);
 
-  // M2's contributions for A and B must NOT re-bill their M1 hours — A and
-  // B have NO new approved hours since M1 (deltas are 0), so neither
-  // should have an M2 contribution row at all.
+  // Contractors with no newly approved hours must not receive another billing contribution.
   const m2ContribA = m2AfterCross.contributions.find((c) => c.contractor_id === contractorAId);
   assert(!m2ContribA, `A should have NO M2 contribution (0 new hours since M1) — got ${JSON.stringify(m2ContribA)}`);
   const m2ContribB = m2AfterCross.contributions.find((c) => c.contractor_id === contractorBId);
   assert(!m2ContribB, `B should have NO M2 contribution (0 new hours since M1) — got ${JSON.stringify(m2ContribB)}`);
 
-  // E's M2 contribution must be their full marginal 6h (never billed
-  // before), billed at E's rate (70).
+  // Bill E's full unbilled delta at E's own rate.
   const m2ContribE = m2AfterCross.contributions.find((c) => c.contractor_id === contractorEId);
   assert(!!m2ContribE, "E should have an M2 contribution row");
   assert(m2ContribE.approved_hours === 6, `E's M2 billable hours: expected 6 (their full marginal contribution), got ${m2ContribE?.approved_hours}`);
   assert(Math.abs(m2ContribE.billing_amount - 6 * 70) < 0.01, `E's M2 billing amount: expected ${6 * 70}, got ${m2ContribE.billing_amount}`);
 
-  // Total ever billed for A/B across all milestones must equal exactly
-  // their one-time approved contribution (never double-billed).
+  // Each contractor's approved hours must be billed exactly once across all milestones.
   const totalABilledHours = milestonesAfterM2.data
     .flatMap((m) => m.contributions)
     .filter((c) => c.contractor_id === contractorAId)
@@ -468,13 +403,11 @@ async function main() {
     .reduce((sum, c) => sum + c.approved_hours, 0);
   assert(totalEBilledHours === 6, `E's total billed hours across ALL milestones: expected 6, got ${totalEBilledHours}`);
 
-  // Project progress must now be 100%, never exceeding it.
   const projAfterM2 = await req("GET", "/pm/projects", undefined, pm.token);
   const p1ViewAfterM2 = projAfterM2.data.items.find((p) => p.id === project1Id);
   assert(p1ViewAfterM2.approved_hours === 20, `project approved hours after M2: expected 20, got ${p1ViewAfterM2.approved_hours}`);
   assert(p1ViewAfterM2.work_progress_percent === 100, `project progress after M2: expected 100, got ${p1ViewAfterM2.work_progress_percent}`);
 
-  // ===================== Concurrency =====================
   console.log("\n--- Concurrency: simultaneous approvals crossing a threshold together ---");
   const p3 = await req(
     "POST",
@@ -501,17 +434,13 @@ async function main() {
   await req("POST", "/contractor/timesheets/submit", { timesheetIds: [subG3.data.id] }, contractorGToken);
   assert(subG3.status === 201, `G submits 8h on project 3: expected 201, got ${subG3.status} ${JSON.stringify(subG3.data)}`);
 
-  // Approve both nearly simultaneously — each approval independently
-  // triggers checkAndTriggerMilestones for the SAME project; the row lock
-  // on the project's PENDING milestones must serialize them so the
-  // threshold is only ever crossed and billed once.
+  // Concurrent approvals must serialize milestone evaluation and create each billing contribution once.
   const [concF, concG] = await Promise.all([
     req("PATCH", `/pm/timesheets/${subF3.data.id}`, { status: "APPROVED" }, pm.token),
     req("PATCH", `/pm/timesheets/${subG3.data.id}`, { status: "APPROVED" }, pm.token),
   ]);
   assert(concF.status === 200 && concG.status === 200, `concurrent approvals both succeed: got ${concF.status}, ${concG.status}`);
 
-  // Give any in-flight async milestone evaluation triggered post-commit a moment.
   await new Promise((resolve) => setTimeout(resolve, 500));
 
   const milestonesP3 = await req("GET", `/pm/milestones/${p3.data.id}`, undefined, pm.token);
@@ -525,7 +454,6 @@ async function main() {
   assert(p3ContribF.approved_hours === 6, `concurrent: F's billed hours expected 6, got ${p3ContribF?.approved_hours}`);
   assert(p3ContribG.approved_hours === 8, `concurrent: G's billed hours expected 8, got ${p3ContribG?.approved_hours}`);
 
-  // ===================== M17/M18 regression =====================
   console.log("\n--- M17 billing queue / M18 finance invoice document ---");
   const billingQueue = await req("GET", "/vendor/billing-queue", undefined, vendor.token);
   assert(billingQueue.status === 200 && billingQueue.data.items.length > 0, "eligible billings exist without auto-created invoices");
@@ -575,7 +503,6 @@ async function main() {
   const rolloverReviewed = await req("PATCH", `/pm/invoices/${rolloverDraft.data.id}/review`, { status: "APPROVED" }, pm.token);
   assert(rolloverReviewed.status === 200, `M18 rollover invoice remains compatible with M17 review: got ${rolloverReviewed.status}`);
 
-  // ===================== M19 regression =====================
   console.log("\n--- M19 payment and outstanding tracking ---");
   const unpaidDraft = await req("POST", "/vendor/invoices/drafts", { milestone_billing_id: billingQueue.data.items[4].milestone_billing_id }, vendor.token);
   const draftPayment = await req("POST", `/vendor/invoices/${unpaidDraft.data.id}/payments`, { amount: "1.00" }, vendor.token);
@@ -609,12 +536,10 @@ async function main() {
   assert(overduePaid.status === 201 && overduePaid.data.payment_state === "PAID" && !overduePaid.data.overdue, `M19 paid invoice is never overdue: ${JSON.stringify(overduePaid.data)}`);
   console.log("M19 acceptance checks: approved-only append-only payments, derived settlement state, overdue boundary, and locked overpayment protection.");
 
-  // ===================== Module 4 regression: date rules unchanged =====================
   console.log("\n--- Module 4 regression: date-window rules still enforced ---");
   const futureSubmit = await req("POST", "/contractor/timesheets", { projectId: project1Id, workDate: todayPlus(5), hoursLogged: 1 }, contractorBToken);
   assert(futureSubmit.status === 400, `future work_date rejected: expected 400, got ${futureSubmit.status}`);
 
-  // ===================== Module 3 regression: completion + release =====================
   console.log("\n--- Module 3/5 regression: project completion releases assignments ---");
   const completeRes = await req("PATCH", `/pm/projects/${project1Id}/complete`, undefined, pm.token);
   assert(completeRes.status === 200, `complete project 1: expected 200, got ${completeRes.status}`);

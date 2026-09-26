@@ -126,7 +126,6 @@ export default function CreateProjectModal({ onClose, onCreate }) {
         <div className="create-project-body">
           <AlertBanner message={formError} />
 
-          {/* Section 1: Basic Information */}
           <section className="create-project-section" aria-labelledby="basic-info-title">
             <header className="create-project-section-header">
               <div className="create-project-section-title-group">
@@ -182,7 +181,6 @@ export default function CreateProjectModal({ onClose, onCreate }) {
             </div>
           </section>
 
-          {/* Section 2: Timeline & Capacity */}
           <section className="create-project-section" aria-labelledby="timeline-title">
             <header className="create-project-section-header">
               <div className="create-project-section-title-group">
@@ -272,7 +270,6 @@ export default function CreateProjectModal({ onClose, onCreate }) {
             </div>
           </section>
 
-          {/* Section 3: Staffing Requirements */}
           <section className="create-project-section" aria-labelledby="staffing-title">
             <header className="create-project-section-header">
               <div className="create-project-section-title-group">
@@ -368,7 +365,6 @@ export default function CreateProjectModal({ onClose, onCreate }) {
           </section>
         </div>
 
-        {/* Modal Footer */}
         <footer className="create-project-footer">
           <div className="create-project-footer-actions">
             <button type="button" onClick={onClose} className="create-project-cancel-btn">

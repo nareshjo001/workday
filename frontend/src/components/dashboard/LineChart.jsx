@@ -1,12 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import EmptyState from "./EmptyState";
 
-/**
- * Small SVG line/sparkline chart — used for the Contractor dashboard's
- * "Hours Trend" (approved hours per week over time). It deliberately
- * preserves the project's existing dependency-free inline SVG approach
- * while providing responsive axes, grid lines, markers, and tooltips.
- */
+// Render weekly approved-hour trends using dependency-free SVG.
 export default function LineChart({
   data,
   valueKey = "hours",

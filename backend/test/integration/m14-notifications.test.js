@@ -5,7 +5,6 @@ test("Notification endpoint supports pagination and preserves global unread coun
   const [userRow] = await pool.query("SELECT id FROM users WHERE email=?", [vendor.email]);
   const userId = userRow[0].id;
 
-  // Insert 15 notifications: 10 unread, 5 read
   for (let i = 1; i <= 15; i++) {
     const isRead = i > 10;
     await pool.query(
@@ -14,7 +13,6 @@ test("Notification endpoint supports pagination and preserves global unread coun
     );
   }
 
-  // Fetch Page 1 with limit 10
   const page1Res = await req("GET", "/vendor/notifications?page=1&limit=10", undefined, vendor.token);
   assert.equal(page1Res.r.status, 200);
   assert.equal(page1Res.data.items.length, 10);
@@ -26,11 +24,10 @@ test("Notification endpoint supports pagination and preserves global unread coun
     total_pages: 2,
   });
 
-  // Fetch Page 2 with limit 10
   const page2Res = await req("GET", "/vendor/notifications?page=2&limit=10", undefined, vendor.token);
   assert.equal(page2Res.r.status, 200);
   assert.equal(page2Res.data.items.length, 5);
-  // unread_count remains global (10) across entire account
+  // Unread counts remain account-wide across pages.
   assert.equal(page2Res.data.unread_count, 10);
   assert.deepEqual(page2Res.data.pagination, {
     page: 2,
@@ -39,11 +36,9 @@ test("Notification endpoint supports pagination and preserves global unread coun
     total_pages: 2,
   });
 
-  // Mark all read
   const readAllRes = await req("PATCH", "/vendor/notifications/read-all", undefined, vendor.token);
   assert.equal(readAllRes.r.status, 204);
 
-  // Re-fetch page 1
   const afterReadAll = await req("GET", "/vendor/notifications?page=1&limit=10", undefined, vendor.token);
   assert.equal(afterReadAll.r.status, 200);
   assert.equal(afterReadAll.data.unread_count, 0);

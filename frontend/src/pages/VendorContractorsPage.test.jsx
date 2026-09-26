@@ -73,7 +73,6 @@ describe("VendorContractorsPage", () => {
     });
   });
 
-  // A & B: One desktop list header exists and contains Contractor, Skill, Rate, Status, Actions
   it("renders ONE desktop list header with Contractor, Skill, Rate, Status, and Actions columns", async () => {
     render(
       <MemoryRouter>
@@ -96,7 +95,6 @@ describe("VendorContractorsPage", () => {
     expect(within(header).getByText("Actions")).toBeInTheDocument();
   });
 
-  // C: Desktop row does NOT render repeated Skill/Rate/Status/Actions headings
   it("does NOT render repeated Skill, Rate, Status, or Actions headings inside desktop row cards", async () => {
     render(
       <MemoryRouter>
@@ -109,17 +107,14 @@ describe("VendorContractorsPage", () => {
     });
 
     const card1 = screen.getByTestId("contractor-card-1");
-    // No headings for field metadata exist inside the card
     expect(within(card1).queryByRole("heading", { name: /skill/i })).not.toBeInTheDocument();
     expect(within(card1).queryByRole("heading", { name: /rate/i })).not.toBeInTheDocument();
     expect(within(card1).queryByRole("heading", { name: /status/i })).not.toBeInTheDocument();
     expect(within(card1).queryByRole("heading", { name: /actions/i })).not.toBeInTheDocument();
 
-    // Redundant "Actions" label text is removed entirely from card rows
     expect(within(card1).queryByText("Actions")).not.toBeInTheDocument();
   });
 
-  // D: Contractor values still render (avatar initials, name, email, skill, rate, status)
   it("renders contractor row card values cleanly", async () => {
     render(
       <MemoryRouter>
@@ -131,7 +126,6 @@ describe("VendorContractorsPage", () => {
       expect(screen.getByTestId("contractor-card-1")).toBeInTheDocument();
     });
 
-    // Card 1: Avery Frontend
     const card1 = screen.getByTestId("contractor-card-1");
     expect(within(card1).getByTestId("contractor-avatar")).toHaveTextContent("AF");
     expect(within(card1).getByRole("heading", { level: 2, name: "Avery Frontend" })).toBeInTheDocument();
@@ -147,7 +141,6 @@ describe("VendorContractorsPage", () => {
     expect(statusBadge1).toHaveTextContent("ACTIVE");
     expect(statusBadge1).toHaveClass("is-active");
 
-    // Card 2: Casey QA
     const card2 = screen.getByTestId("contractor-card-2");
     expect(within(card2).getByTestId("contractor-avatar")).toHaveTextContent("CQ");
     expect(within(card2).getByRole("heading", { level: 2, name: "Casey QA" })).toBeInTheDocument();
@@ -160,12 +153,10 @@ describe("VendorContractorsPage", () => {
     expect(statusBadge2).toHaveTextContent("INACTIVE");
     expect(statusBadge2).toHaveClass("is-inactive");
 
-    // Assert cards do NOT have colored left-stripe classes or inline styles
     expect(card1.className).not.toMatch(/border-l-4|border-emerald|border-violet|stripe/i);
     expect(card2.className).not.toMatch(/border-l-4|border-emerald|border-violet|stripe/i);
   });
 
-  // E: History and Edit buttons still function
   it("opens EditContractorModal when clicking Edit button", async () => {
     render(
       <MemoryRouter>
@@ -218,7 +209,6 @@ describe("VendorContractorsPage", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Add Contractor" })).toBeInTheDocument();
   });
 
-  // F: Responsive stacked state remains usable with contextual mobile labels
   it("preserves in-card contextual labels for responsive stacked layouts", async () => {
     render(
       <MemoryRouter>
@@ -232,10 +222,9 @@ describe("VendorContractorsPage", () => {
 
     const card = screen.getByTestId("contractor-card-1");
     const labels = card.querySelectorAll(".contractor-col-label");
-    expect(labels.length).toBeGreaterThanOrEqual(3); // Skill, Rate, Status
+    expect(labels.length).toBeGreaterThanOrEqual(3);
   });
 
-  // G: Search and skill filter remain functional
   it("updates search input and refetches contractors", async () => {
     render(
       <MemoryRouter>
@@ -278,7 +267,6 @@ describe("VendorContractorsPage", () => {
     });
   });
 
-  // H: Pagination behavior with updated page size of 15
   it("requests page size of 15 and handles page navigation", async () => {
     vendorContractorService.listContractors.mockResolvedValue({
       items: mockContractors,

@@ -1,15 +1,7 @@
 import DataTableScroll from "../DataTableScroll";
 import { formatDate, formatDateTimeSplit, formatHours, TimesheetStatusBadge } from "./format";
 
-/**
- * Desktop presentation of ONE WEEK's daily timesheet rows — hidden below
- * md, where TimesheetCardList takes over. Rendered inside WeeklyGroup's
- * expanded section (one instance per project+week).
- *
- * Strict lifecycle enforcement:
- * - ONLY DRAFT and REJECTED rows render the pencil Edit action.
- * - SUBMITTED and APPROVED render an empty cell (no button, no disabled element).
- */
+// Allow edits only for draft and rejected logs in the desktop weekly view.
 export default function TimesheetTable({ logs, onEdit }) {
   return (
     <DataTableScroll label="Timesheet Table" className="hidden md:block">
@@ -44,17 +36,14 @@ export default function TimesheetTable({ logs, onEdit }) {
                 key={log.id}
                 className="transition-colors hover:bg-slate-50/50"
               >
-                {/* Date */}
                 <td className="py-3.5 px-4 font-semibold text-slate-900 whitespace-nowrap align-middle text-left">
                   {formatDate(log.work_date)}
                 </td>
 
-                {/* Hours */}
                 <td className="py-3.5 px-2 font-semibold text-slate-800 tabular-nums align-middle text-center">
                   {formatHours(log.hours_logged)}
                 </td>
 
-                {/* Description */}
                 <td className="py-3.5 px-4 text-slate-600 text-xs sm:text-sm align-middle text-left">
                   <span className="block leading-relaxed break-words">{log.description || "—"}</span>
                   {log.rejection_reason && (
@@ -64,12 +53,10 @@ export default function TimesheetTable({ logs, onEdit }) {
                   )}
                 </td>
 
-                {/* Status */}
                 <td className="py-3.5 px-2 align-middle whitespace-nowrap text-center">
                   <TimesheetStatusBadge status={log.status} />
                 </td>
 
-                {/* Submitted */}
                 <td className="py-3.5 px-2 align-middle whitespace-nowrap text-center">
                   {submitted ? (
                     <div className="flex flex-col items-center">
@@ -81,7 +68,6 @@ export default function TimesheetTable({ logs, onEdit }) {
                   )}
                 </td>
 
-                {/* Reviewed */}
                 <td className="py-3.5 px-2 align-middle whitespace-nowrap text-center">
                   {reviewed ? (
                     <div className="flex flex-col items-center">
@@ -98,7 +84,6 @@ export default function TimesheetTable({ logs, onEdit }) {
                   )}
                 </td>
 
-                {/* Edit Action: ONLY for DRAFT and REJECTED rows */}
                 <td className="py-3.5 px-1 align-middle text-center whitespace-nowrap">
                   {log.status === "DRAFT" || log.status === "REJECTED" ? (
                     <button

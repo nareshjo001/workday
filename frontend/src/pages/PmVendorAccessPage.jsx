@@ -6,7 +6,6 @@ import AlertBanner from "../components/AlertBanner";
 import Spinner from "../components/Spinner";
 import "./PmVendorAccessPage.css";
 
-/* --- Icons --- */
 
 function UsersIcon({ size = 20, className = "" }) {
   return (
@@ -101,7 +100,6 @@ function CloseIcon({ size = 16, className = "" }) {
   );
 }
 
-/* --- Enterprise Illustration with Fluid Curves & Wavy Background --- */
 
 function HeroEnterpriseIllustration() {
   return (
@@ -114,7 +112,6 @@ function HeroEnterpriseIllustration() {
         preserveAspectRatio="xMaxYMid meet"
       >
         <defs>
-          {/* Soft Wave Gradients */}
           <linearGradient id="vaWaveGrad1" x1="0" y1="40" x2="460" y2="135" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stopColor="#f8faff" stopOpacity="0.6" />
             <stop offset="50%" stopColor="#eaf3fe" stopOpacity="0.75" />
@@ -130,38 +127,31 @@ function HeroEnterpriseIllustration() {
             <stop offset="100%" stopColor="#e2effe" stopOpacity="0.6" />
           </linearGradient>
 
-          {/* Document Drop Shadow */}
           <filter id="vaDocShadow" x="-30%" y="-30%" width="160%" height="160%">
             <feDropShadow dx="0" dy="3" stdDeviation="5" floodColor="#1e40af" floodOpacity="0.08" />
             <feDropShadow dx="0" dy="1" stdDeviation="2" floodColor="#1e40af" floodOpacity="0.04" />
           </filter>
 
-          {/* Folder Drop Shadow */}
           <filter id="vaFolderShadow" x="-30%" y="-30%" width="160%" height="160%">
             <feDropShadow dx="0" dy="4" stdDeviation="5" floodColor="#1d4ed8" floodOpacity="0.16" />
           </filter>
         </defs>
 
-        {/* --- Subtle Background Waves --- */}
-        {/* Top-Right Upper Curve */}
         <path
           d="M220 0C270 24 320 34 370 28C410 23 435 12 460 2V0H220Z"
           fill="url(#vaWaveGradTop)"
         />
 
-        {/* Primary Soft Background Wave cradling valley */}
         <path
           d="M0 135C40 120 80 88 135 88C190 88 220 120 275 122C330 124 380 94 460 84V135H0Z"
           fill="url(#vaWaveGrad1)"
         />
 
-        {/* Foreground Subtle Pastel Ribbon */}
         <path
           d="M60 135C100 124 140 118 185 128C230 138 290 136 345 124C400 112 435 92 460 96V135H60Z"
           fill="url(#vaWaveGrad2)"
         />
 
-        {/* --- Top-Right Subtle Dot Matrix (3x5) --- */}
         <g opacity="0.35">
           {[0, 1, 2].map((row) =>
             [0, 1, 2, 3, 4].map((col) => (
@@ -176,13 +166,9 @@ function HeroEnterpriseIllustration() {
           )}
         </g>
 
-        {/* --- Floating Translucent Bubble --- */}
         <circle cx="410" cy="18" r="14" fill="#dbeafe" opacity="0.6" />
 
-        {/* --- Curved Route Paths (Completed Darker + Upcoming Lighter) --- */}
 
-        {/* 1. Base / Full Upcoming Route (Lighter Dashed Path) */}
-        {/* Segment 1b: Ahead of Progress Dot to Document Card */}
         <path
           d="M135 38C154 35 174 37 193 42"
           stroke="#93c5fd"
@@ -192,7 +178,6 @@ function HeroEnterpriseIllustration() {
           opacity="0.85"
         />
 
-        {/* Segment 2: Document Card to Folder (Upcoming Path) */}
         <path
           d="M239 66C272 94 320 96 353 76"
           stroke="#93c5fd"
@@ -201,11 +186,9 @@ function HeroEnterpriseIllustration() {
           strokeLinecap="round"
           opacity="0.85"
         />
-        {/* Inactive connection anchor dot at Document exit */}
         <circle cx="239" cy="66" r="4.5" fill="#ffffff" stroke="#bfdbfe" strokeWidth="1" />
         <circle cx="239" cy="66" r="2.2" fill="#93c5fd" />
 
-        {/* 2. Completed Route Overlay (Darker Blue Dashed Path from User to Progress Dot) */}
         <path
           d="M85 59C101 47 118 41 135 38"
           stroke="#2563eb"
@@ -214,35 +197,24 @@ function HeroEnterpriseIllustration() {
           strokeLinecap="round"
         />
 
-        {/* 3. Progress Dot (Positioned exactly at transition point (135, 38) on the curve) */}
         <g>
-          {/* Outer luminous halo ring */}
           <circle cx="135" cy="38" r="9.5" fill="#eff6ff" stroke="#bfdbfe" strokeWidth="1.2" opacity="0.95" />
-          {/* Crisp white middle ring */}
           <circle cx="135" cy="38" r="6.5" fill="#ffffff" />
-          {/* Vibrant blue center dot */}
           <circle cx="135" cy="38" r="3.2" fill="#2563eb" />
         </g>
 
-        {/* --- Node 1: User / Vendor Node (Left, size: 46px x 46px) --- */}
         <g>
-          {/* Outer halo glow rings */}
           <circle cx="66" cy="72" r="28" fill="#dbeafe" opacity="0.45" />
           <circle cx="66" cy="72" r="24" fill="#bfdbfe" opacity="0.5" />
-          {/* Solid blue circle (46px diameter) */}
           <circle cx="66" cy="72" r="23" fill="#2563eb" />
-          {/* User head */}
           <circle cx="66" cy="66.5" r="5" fill="#ffffff" />
-          {/* User torso */}
           <path
             d="M56.5 82C56.5 77 60.5 73.5 66 73.5C71.5 73.5 75.5 77 75.5 82Z"
             fill="#ffffff"
           />
         </g>
 
-        {/* --- Node 2: Document Card (Middle, size: 46px x 48px) --- */}
         <g filter="url(#vaDocShadow)">
-          {/* White Card Container (46px width x 48px height) */}
           <rect
             x="193"
             y="28"
@@ -253,20 +225,16 @@ function HeroEnterpriseIllustration() {
             stroke="#e2e8f0"
             strokeWidth="1"
           />
-          {/* Horizontal lines */}
           <line x1="203" y1="42" x2="229" y2="42" stroke="#2563eb" strokeWidth="2.2" strokeLinecap="round" />
           <line x1="203" y1="51" x2="229" y2="51" stroke="#2563eb" strokeWidth="2.2" strokeLinecap="round" />
           <line x1="203" y1="60" x2="220" y2="60" stroke="#60a5fa" strokeWidth="2.2" strokeLinecap="round" />
         </g>
 
-        {/* --- Node 3: Approved Access / Folder Node (Right, size: 46px x 46px) --- */}
         <g filter="url(#vaFolderShadow)">
-          {/* Folder Back Tab */}
           <path
             d="M353 55C353 51.5 355.5 49 359 49H374C376.5 49 378.5 51 380 54H393C396.5 54 399 56.5 399 60V89C399 92.5 396.5 95 393 95H359C355.5 95 353 92.5 353 89Z"
             fill="#1d4ed8"
           />
-          {/* Folder Front Pocket (46px width x 37px height) */}
           <rect
             x="353"
             y="58"
@@ -275,7 +243,6 @@ function HeroEnterpriseIllustration() {
             rx="7"
             fill="#2563eb"
           />
-          {/* Center Approved Checkmark Badge */}
           <circle cx="376" cy="77" r="8.5" fill="#3b82f6" opacity="0.65" />
           <path
             d="M372.5 77L375 79.5L379.5 74.5"
@@ -410,11 +377,9 @@ export default function PmVendorAccessPage() {
   return (
     <DashboardLayout title="Vendor Access">
       <div className="va-container">
-        {/* Status Alerts */}
         <AlertBanner message={error} />
         <AlertBanner message={message} variant="success" />
 
-        {/* 1. Hero / Intro Card */}
         <section className="va-card va-hero-card" aria-labelledby="vendor-access-heading">
           <div className="va-hero-content">
             <div className="va-hero-badge" aria-hidden="true">
@@ -436,7 +401,6 @@ export default function PmVendorAccessPage() {
           </div>
         ) : (
           <>
-            {/* 2. Connect a Vendor Card */}
             <section className="va-card" aria-labelledby="connect-vendor-heading">
               <div className="va-card-header">
                 <div className="va-icon-badge" aria-hidden="true">
@@ -450,7 +414,6 @@ export default function PmVendorAccessPage() {
 
               <form onSubmit={submit}>
                 <div className="va-form-grid">
-                  {/* Vendor Selection */}
                   <div className="va-field-group">
                     <label htmlFor="va-vendor-select" className="va-label">
                       Vendor <span className="va-required-star" aria-hidden="true">*</span>
@@ -480,7 +443,6 @@ export default function PmVendorAccessPage() {
                     </div>
                   </div>
 
-                  {/* Project Access Selection */}
                   <div className="va-field-group">
                     <label htmlFor="va-project-select" className="va-label">
                       Project access <span className="va-optional-tag">(optional)</span>
@@ -510,7 +472,6 @@ export default function PmVendorAccessPage() {
                   </div>
                 </div>
 
-                {/* Information Callout Banner */}
                 <div className="va-info-banner" role="note">
                   <span className="va-info-icon" aria-hidden="true">
                     <InfoCircleIcon size={17} />
@@ -520,7 +481,6 @@ export default function PmVendorAccessPage() {
                   </p>
                 </div>
 
-                {/* Actions */}
                 <div className="va-actions-row">
                   <button
                     type="button"
@@ -542,7 +502,6 @@ export default function PmVendorAccessPage() {
               </form>
             </section>
 
-            {/* 3. Connected Vendors Section */}
             <section className="va-card" aria-labelledby="connected-vendors-heading">
               <div className="va-connected-header">
                 <div className="va-card-header">
@@ -555,7 +514,6 @@ export default function PmVendorAccessPage() {
                   </div>
                 </div>
 
-                {/* Search Bar */}
                 <div className="va-search-wrapper">
                   <span className="va-search-icon" aria-hidden="true">
                     <SearchIcon size={16} />
@@ -571,7 +529,6 @@ export default function PmVendorAccessPage() {
                 </div>
               </div>
 
-              {/* Inset Container for Vendors or Empty State */}
               <div className="va-inset-box">
                 {filteredConnections.length === 0 ? (
                   <div className="va-empty-state">
@@ -656,7 +613,6 @@ export default function PmVendorAccessPage() {
           </>
         )}
 
-        {/* Remove Access In-App Confirmation Modal */}
         {removingVendor && (
           <div
             className="va-modal-backdrop"
@@ -697,7 +653,6 @@ export default function PmVendorAccessPage() {
                   This will remove the vendor's client access and all active project sourcing access. Existing assignments and historical records will remain unchanged.
                 </p>
 
-                {/* Access Summary */}
                 <div className="va-remove-summary-card">
                   <div className="va-remove-summary-row">
                     <span className="va-remove-summary-label">Client access</span>
